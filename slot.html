@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JACKPOT: 77</title>
+<style>
+    :root {
+        --bg-color: #111;
+        --slot-bg: #000;
+        --text-color: #fff;
+        --accent-color: #ff003c; /* 7の色 */
+        --dim-color: #444;
+        --machine-color: #222;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Arial Black', sans-serif;
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        user-select: none;
+        cursor: default;
+    }
+
+    /* --- SCREENS --- */
+    .screen {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.3s ease-out;
+    }
+
+    /* タイトル画面 (z-index: 10 で手前に表示) */
+    #title-screen {
+        z-index: 10;
+        background-color: var(--bg-color);
+    }
+
+    /* ゲーム画面 (z-index: 1 で奥に表示) */
+    /* 最初から不透明(opacity:1)にしておくことで、ブラウザに描画を継続させる */
+    #game-screen {
+        z-index: 1;
+    }
+
+    /* 消える時のクラス */
+    .fade-out {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* --- UI COMPONENTS --- */
+    .title-logo {
+        font-size: 4rem;
+        letter-spacing: 0.1em;
+        margin-bottom: 40px;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+    .title-logo span {
+        color: var(--accent-color);
+        text-shadow: 0 0 20px var(--accent-color);
+    }
+
+    .start-btn {
+        padding: 15px 50px;
+        font-size: 1.5rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 2px solid var(--text-color);
+        cursor: pointer;
+        font-family: 'Arial Black', sans-serif;
+        transition: all 0.2s;
+        letter-spacing: 0.1em;
+    }
+    .start-btn:hover {
+        background: var(--text-color);
+        color: var(--bg-color);
+        box-shadow: 0 0 20px var(--text-color);
+    }
+
+    #machine-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        padding: 40px;
+        background: var(--machine-color);
+        border-radius: 20px;
+        box-shadow: 
+            0 0 0 5px #333,
+            0 10px 20px rgba(0,0,0,0.5),
+            inset 0 0 50px rgba(0,0,0,0.8);
+        position: relative;
+    }
+
+    .target-label {
+        font-size: 1.5rem;
+        color: #888;
+        letter-spacing: 0.1em;
+        margin-bottom: 5px;
+        text-shadow: 0 2px 2px rgba(0,0,0,0.8);
+    }
+    .target-number {
+        color: var(--accent-color);
+        font-size: 2rem;
+        vertical-align: middle;
+    }
+
+    #slot-window {
+        display: flex;
+        gap: 15px;
+        padding: 20px;
+        background-color: var(--slot-bg);
+        border: 4px solid #555;
+        border-radius: 10px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,1);
+        position: relative;
+    }
+
+    #slot-window::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 50%;
+        background: linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, transparent 100%);
+        pointer-events: none;
+    }
+
+    .reel {
+        width: 100px;
+        height: 140px;
+        background: #fff;
+        color: #000;
+        font-size: 8rem;
+        line-height: 140px;
+        text-align: center;
+        border-radius: 5px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .number {
+        display: block;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.05s; 
+    }
+    
+    .spinning .number {
+        filter: blur(1px);
+        transform: scaleY(1.1);
+    }
+
+    .is-seven {
+        color: var(--accent-color) !important;
+        text-shadow: 0 0 10px rgba(255, 0, 60, 0.5);
+        filter: none !important;
+        transform: none !important;
+    }
+
+    #stop-btn-container {
+        position: relative;
+        width: 60px;
+        height: 60px;
+        margin-top: 15px;
+    }
+
+    #stop-btn {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #ff5252, #b71c1c);
+        border: 3px solid #801313;
+        box-shadow: 
+            0 6px 0 #5c0000,
+            0 10px 12px rgba(0,0,0,0.6);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: rgba(0,0,0,0.3);
+    }
+
+    #stop-btn::before {
+        content: "■";
+    }
+
+    #stop-btn:active {
+        transform: none;
+        box-shadow: 
+            0 6px 0 #5c0000,
+            0 10px 12px rgba(0,0,0,0.6);
+    }
+
+    /* --- RESULT SCREEN --- */
+    #result-screen {
+        background: rgba(0,0,0,0.9);
+        z-index: 100;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s;
+    }
+    #result-screen.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
+    .jackpot-text {
+        font-size: 5rem;
+        color: var(--accent-color);
+        text-shadow: 0 0 50px var(--accent-color);
+        margin-bottom: 10px;
+        animation: pulse 0.5s infinite alternate;
+    }
+    @keyframes pulse {
+        from { transform: scale(1); }
+        to { transform: scale(1.1); }
+    }
+    
+    .time-display {
+        font-size: 2rem;
+        color: #fff;
+        margin-bottom: 30px;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 0.1em;
+    }
+
+</style>
+</head>
+<body>
+
+    <div id="title-screen" class="screen">
+        <div class="title-logo">JACKPOT: <span>77</span></div>
+        <button class="start-btn" onclick="startGame(event)">START</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div id="machine-container">
+            <div class="target-label">TARGET: <span class="target-number">77</span></div>
+            <div id="slot-window">
+                <div class="reel spinning" id="reel-1"><span class="number">0</span></div>
+                <div class="reel spinning" id="reel-2"><span class="number">0</span></div>
+            </div>
+            <div id="stop-btn-container">
+                <div id="stop-btn"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="jackpot-text">JACKPOT!</div>
+        <div class="time-display" id="final-time">TIME: 00:00.000</div>
+        <div style="color: #fff; font-size: 1.5rem; cursor: pointer;" onclick="location.reload()">CLICK TO REPLAY</div>
+    </div>
+
+<script>
+    const titleScreen = document.getElementById('title-screen');
+    const resultScreen = document.getElementById('result-screen');
+    const reel1 = document.getElementById('reel-1');
+    const reel2 = document.getElementById('reel-2');
+    const number1 = reel1.querySelector('.number');
+    const number2 = reel2.querySelector('.number');
+    const finalTimeDisplay = document.getElementById('final-time');
+    
+    // ゲームの状態管理
+    let isPlaying = false; 
+    
+    // スロットの状態管理
+    let isSpinning = true;
+    let isPaused = false;
+    let isCleared = false;
+    
+    let animationFrameId;
+    let lastTime = 0;
+    const spinSpeed = 25; 
+
+    // タイマー変数
+    let startTime = 0;
+    let endTime = 0;
+
+    // --- メインループ ---
+    // ページロード直後からスロットを回し続ける
+    function spinLoop(timestamp) {
+        if (isSpinning && !isPaused) {
+            if (timestamp - lastTime > spinSpeed) {
+                const rand1 = Math.floor(Math.random() * 10);
+                const rand2 = Math.floor(Math.random() * 10);
+                
+                number1.textContent = rand1;
+                number2.textContent = rand2;
+                
+                if (rand1 === 7) number1.classList.add('is-seven');
+                else number1.classList.remove('is-seven');
+
+                if (rand2 === 7) number2.classList.add('is-seven');
+                else number2.classList.remove('is-seven');
+
+                lastTime = timestamp;
+            }
+        }
+        animationFrameId = requestAnimationFrame(spinLoop);
+    }
+    
+    requestAnimationFrame(spinLoop);
+
+
+    // --- ゲーム開始処理 ---
+    function startGame(e) {
+        // 重要: スタートボタンのクリックが、ゲーム画面のクリック判定に伝わらないように止める
+        e.stopPropagation();
+
+        // タイトル画面を透明にして消す
+        titleScreen.classList.add('fade-out');
+        
+        // 計測開始
+        startTime = Date.now(); 
+
+        // 安全のため、わずかに遅らせてから操作を受け付ける（二重クリック防止など）
+        setTimeout(() => {
+            isPlaying = true;
+        }, 100);
+    }
+
+
+    // --- 座標計算ロジック ---
+    function calculateNumbers(clientX, clientY) {
+        // X座標: 左(0) -> 右(9)
+        const xRatio = clientX / window.innerWidth;
+        const tens = Math.min(9, Math.floor(xRatio * 10));
+
+        // Y座標: 上(0%) -> 大きい数字(9) / 下(100%) -> 小さい数字(0)
+        const yRatio = clientY / window.innerHeight;
+        const ones = Math.min(9, Math.floor((1 - yRatio) * 10));
+
+        return { tens, ones };
+    }
+
+
+    // --- ユーザー操作: クリックで一時停止 ---
+    function handleClick(e) {
+        // STARTボタンを押す前、クリア後、一時停止中は無視
+        if (!isPlaying || isCleared || isPaused) return;
+        
+        isPaused = true;
+        reel1.classList.remove('spinning');
+        reel2.classList.remove('spinning');
+
+        const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+        const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+        const result = calculateNumbers(clientX, clientY);
+
+        number1.textContent = result.tens;
+        number2.textContent = result.ones;
+
+        if (result.tens === 7) number1.classList.add('is-seven');
+        else number1.classList.remove('is-seven');
+
+        if (result.ones === 7) number2.classList.add('is-seven');
+        else number2.classList.remove('is-seven');
+
+        if (result.tens === 7 && result.ones === 7) {
+            gameClear();
+        } else {
+            setTimeout(() => {
+                if (!isCleared) {
+                    isPaused = false;
+                    reel1.classList.add('spinning');
+                    reel2.classList.add('spinning');
+                }
+            }, 700);
+        }
+    }
+
+    document.addEventListener('click', handleClick);
+    
+    document.addEventListener('touchend', (e) => {
+        handleClick(e);
+    }, {passive: false});
+
+
+    // --- ゲームクリア処理 ---
+    function gameClear() {
+        isCleared = true;
+        endTime = Date.now();
+        cancelAnimationFrame(animationFrameId);
+
+        const elapsed = endTime - startTime;
+        finalTimeDisplay.textContent = "TIME: " + formatTime(elapsed);
+        
+        setTimeout(() => {
+            resultScreen.classList.add('visible');
+            resultScreen.style.zIndex = "100";
+        }, 300);
+    }
+
+    function formatTime(ms) {
+        const minutes = Math.floor(ms / 60000);
+        const seconds = Math.floor((ms % 60000) / 1000);
+        const milliseconds = ms % 1000;
+        
+        const m = minutes.toString().padStart(2, '0');
+        const s = seconds.toString().padStart(2, '0');
+        const msStr = milliseconds.toString().padStart(3, '0');
+        
+        return `${m}:${s}.${msStr}`;
+    }
+
+</script>
+</body>
+</html>
