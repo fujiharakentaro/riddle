@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>カード並び順判定システム</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        
+        /* 判定結果を表示するUI */
+        #ui-layer {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 50px;
+        }
+
+        #status-message {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            transition: background 0.3s;
+        }
+
+        .success { background: rgba(46, 204, 113, 0.9) !important; }
+        .error { background: rgba(231, 76, 60, 0.9) !important; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="status-message">カードを映してください</div>
+    </div>
+
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; maxTrack: 3; filterMinCF:0.0001; filterBeta: 0.001;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" class="card-target" data-id="0">
+            <a-plane color="blue" opacity="0.5" position="0 0 0" height="1" width="1" rotation="0 0 0"></a-plane>
+        </a-entity>
+
+        <a-entity mindar-image-target="targetIndex: 1" class="card-target" data-id="1">
+            <a-plane color="green" opacity="0.5" position="0 0 0" height="1" width="1" rotation="0 0 0"></a-plane>
+        </a-entity>
+
+        <a-entity mindar-image-target="targetIndex: 2" class="card-target" data-id="2">
+            <a-plane color="red" opacity="0.5" position="0 0 0" height="1" width="1" rotation="0 0 0"></a-plane>
+        </a-entity>
+
+    </a-scene>
+
+    <script>
+        const statusMsg = document.getElementById('status-message');
+        const targets = document.querySelectorAll('.card-target');
+        
+        // カードの状態を保持するオブジェクト
+        let cardState = {
+            0: { visible: false, x: 0 },
+            1: { visible: false, x: 0 },
+            2: { visible: false, x: 0 }
+        };
+
+        // 各ターゲットにイベントリスナーを設定
+        targets.forEach(target => {
+            const id = target.getAttribute('data-id');
+
+            // カードが見つかった時
+            target.addEventListener("targetFound", () => {
+                cardState[id].visible = true;
+                updateStatus();
+            });
+
+            // カードを見失った時
+            target.addEventListener("targetLost", () => {
+                cardState[id].visible = false;
+                updateStatus();
+            });
+        });
+
+        // 毎フレーム実行されるループ（位置情報の取得と判定）
+        const scene = document.querySelector('a-scene');
+        scene.addEventListener('loaded', () => {
+            const loop = () => {
+                // 3つのカードの位置座標を取得
+                targets.forEach(target => {
+                    const id = target.getAttribute('data-id');
+                    if (cardState[id].visible) {
+                        // 世界座標からスクリーン上のX座標を取得
+                        const position = target.object3D.position;
+                        // カメラからの相対位置ではなく、ワールド座標を使う
+                        // ※MindARではobject3D.positionが更新される
+                        cardState[id].x = position.x;
+                    }
+                });
+
+                checkOrder();
+                requestAnimationFrame(loop);
+            };
+            loop();
+        });
+
+        // 状態表示の更新
+        function updateStatus() {
+            const visibleCount = Object.values(cardState).filter(c => c.visible).length;
+            if (visibleCount < 3) {
+                statusMsg.textContent = `カード認識中... (${visibleCount}/3)`;
+                statusMsg.className = "";
+            }
+        }
+
+        // 順番判定ロジック
+        function checkOrder() {
+            // 全てのカードが見えているか確認
+            if (!cardState[0].visible || !cardState[1].visible || !cardState[2].visible) {
+                return; 
+            }
+
+            // X座標の比較 (左にあるほどX座標は小さい)
+            // 期待値: Card0 < Card1 < Card2
+            const isOrdered = (cardState[0].x < cardState[1].x) && (cardState[1].x < cardState[2].x);
+
+            if (isOrdered) {
+                statusMsg.textContent = "正解！正しい並び順です！⭕️";
+                statusMsg.className = "success";
+            } else {
+                statusMsg.textContent = "並び順が違います...❌";
+                statusMsg.className = "error";
+            }
+        }
+    </script>
+</body>
+</html>
