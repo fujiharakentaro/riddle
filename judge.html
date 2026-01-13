@@ -3,24 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Card Master V23 (Smart Mat)</title>
+    <title>Card Master V21 (Ratio Fixed)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://unpkg.com/js-aruco@0.0.1/src/cv.js"></script>
-    <script src="https://unpkg.com/js-aruco@0.0.1/src/aruco.js"></script>
-
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; width: 100vw; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
         #canvas-container {
             position: relative; width: 100%; max-width: 640px; 
             background: #222; box-shadow: 0 0 20px rgba(0,255,0,0.2);
-            display: flex; justify-content: center; align-items: center; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
         }
-        canvas { display: block; width: 100%; height: auto; }
-        
-        /* 内部処理用のキャンバスは隠す */
-        #proc-canvas { display: none; }
+        canvas { width: 100%; height: auto; display: block; }
 
         .game-ui {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -93,12 +87,6 @@
             background: rgba(40,167,69,0.95); padding: 8px 20px; border-radius: 20px; 
             font-size:12px; opacity:0; transition:opacity 0.5s; z-index:300; pointer-events: none;
         }
-        #ar-guide-msg {
-            position: absolute; top:50%; left:50%; transform:translate(-50%, -50%);
-            color: #ff0; font-weight: bold; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px;
-            pointer-events: none; text-align: center; display: none;
-        }
-        
         video { display: none; }
     </style>
 </head>
@@ -117,10 +105,6 @@
 
 <div id="canvas-container">
     <canvas id="main-canvas"></canvas>
-    <canvas id="proc-canvas"></canvas>
-    
-    <div id="ar-guide-msg">マットを映してください</div>
-
     <div class="game-ui" id="game-ui" style="display:none;">
         <div style="display:flex; justify-content:space-between;">
             <button class="btn-float" onclick="startCam(true)">📷 再起動</button>
@@ -141,7 +125,8 @@
     <input type="range" min="10" max="200" value="90" oninput="updateParam('thr', this.value)">
     <input type="range" min="0.1" max="1.0" step="0.05" value="0.6" oninput="updateParam('tol', this.value)" style="margin-top:5px;">
     <div style="font-size:10px; color:#aaa; margin-top:5px; text-align:center;">
-        ※印刷したマットを画面に映すと、自動的にカード位置を認識します。
+        ※黄色い枠の中にカードを入れてください。<br>
+        ※感度を調整して絵柄がハッキリ見えるようにしてください。
     </div>
 </div>
 
@@ -154,13 +139,7 @@
     </div>
     
     <div class="setting-box">
-        <h3>1. 専用マット (必須)</h3>
-        <p style="font-size:12px; color:#ccc;">このシステムは専用マットを使用します。<br>以下のボタンからマットを表示し、印刷してください。</p>
-        <button onclick="printMat()" style="width:100%; padding:15px; background:#e0a800; color:#000; border:none; border-radius:5px; font-weight:bold; font-size:16px;">🖨️ 専用マットを表示・印刷</button>
-    </div>
-
-    <div class="setting-box">
-        <h3>2. 画像登録</h3>
+        <h3>1. 画像登録</h3>
         <p style="font-size:12px; color:#f88; margin-bottom:5px;">※不具合時は「全削除」してから再登録してください</p>
         <input type="text" id="reg-name" placeholder="カード名 (例: ★, A, 空白)">
         <div style="background:#333; padding:8px; margin-bottom:10px; border-radius:4px;">
@@ -177,7 +156,7 @@
     </div>
 
     <div class="setting-box">
-        <h3>3. 問題作成・編集</h3>
+        <h3>2. 問題作成・編集</h3>
         <input type="hidden" id="edit-index" value="-1">
         <input type="text" id="lvl-name" placeholder="問題タイトル (例: レベル1)">
         <div style="display:flex; gap:5px; margin-bottom:10px;">
@@ -209,52 +188,31 @@
 <script id="embedded-data" type="application/json">null</script>
 
 <script>
-    // --- システム定数 ---
-    // 内部処理用の解像度 (AR補正後の真っ直ぐな画像のサイズ)
-    // A4用紙比率に近い 320x220 で処理
-    const MAT_W = 320; 
-    const MAT_H = 220; 
+    // 定数・初期設定
+    let PROC_W = 320; 
+    let PROC_H = 180;
     
-    // カード比率 (88/63 = 1.4)
+    // カード比率 (88/63 = 約1.396)
     const CARD_ASPECT = 88 / 63;
     
-    // マット上のカード配置定義 (MAT_W, MAT_H に対する相対座標%)
-    // 専用マットのデザインに合わせて定義
-    const CARD_W_PCT = 0.18; // カード幅
-    const CARD_H_PCT = CARD_W_PCT * CARD_ASPECT * (MAT_W/MAT_H); // アスペクト比維持
-    const GAP_PCT = 0.04;
-    // 4枚を中央に配置
-    const TOTAL_W = (CARD_W_PCT * 4) + (GAP_PCT * 3);
-    const START_X_PCT = (1.0 - TOTAL_W) / 2;
-    const START_Y_PCT = 0.4; // 縦位置
+    // スロット幅の定義 (画面幅に対する%)
+    const SLOT_W_PCT = 0.20; 
+    const GAP_PCT = 0.05;
+    const START_X = (1.0 - (SLOT_W_PCT*4 + GAP_PCT*3)) / 2;
+    const SLOT_X_PCT = [START_X, START_X+SLOT_W_PCT+GAP_PCT, START_X+(SLOT_W_PCT+GAP_PCT)*2, START_X+(SLOT_W_PCT+GAP_PCT)*3];
 
-    // スロットの定義 [x, y, w, h] (0.0-1.0)
-    const SLOTS_PCT = [];
-    for(let i=0; i<4; i++){
-        SLOTS_PCT.push({
-            x: START_X_PCT + i*(CARD_W_PCT+GAP_PCT),
-            y: START_Y_PCT,
-            w: CARD_W_PCT,
-            h: CARD_H_PCT
-        });
-    }
-
-    // --- 変数 ---
     let cards=[], levels=[], blankData=null;
     let currentOrder=[], detected=["","","",""];
     let currentTarget=[];
     let isGameMode = false;
     let threshold = 90; let tolerance = 0.6;
+    
+    // 表示モード (false:カラー, true:白黒)
     let showBinarized = false;
-    let detector = null;
 
-    // DOM
     const video = document.getElementById('video-source');
-    const canvas = document.getElementById('main-canvas'); // 表示用
+    const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
-    const procCanvas = document.getElementById('proc-canvas'); // 内部計算用
-    const procCtx = procCanvas.getContext('2d');
-    const guideMsg = document.getElementById('ar-guide-msg');
 
     window.onload = () => {
         try {
@@ -263,21 +221,22 @@
             else loadLocal();
         } catch(e){ loadLocal(); }
         
-        procCanvas.width = MAT_W; procCanvas.height = MAT_H; // 内部解像度固定
         renderUI();
         startCam();
         
         const u = new URLSearchParams(window.location.search);
         if(u.get('sync')) startClient(u.get('sync'));
-        
-        if(typeof AR !== 'undefined') detector = new AR.Detector();
     };
 
     function updateParam(type, val) {
         if(type==='thr') { threshold=parseInt(val); document.getElementById('val-thr').innerText=threshold; }
         if(type==='tol') { tolerance=parseFloat(val); document.getElementById('val-tol').innerText=tolerance>=0.8?"無理やり":tolerance.toFixed(2); }
     }
-    function toggleViewMode() { showBinarized = !showBinarized; showToast(showBinarized ? "白黒モード" : "カラーモード"); }
+    
+    function toggleViewMode() {
+        showBinarized = !showBinarized;
+        showToast(showBinarized ? "白黒モード" : "カラーモード");
+    }
 
     async function startCam(manual=false) {
         if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
@@ -285,14 +244,22 @@
             const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } });
             video.srcObject = s;
             video.onloadedmetadata = () => {
-                canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                video.play(); setInterval(loop, 100);
+                const vw = video.videoWidth; const vh = video.videoHeight;
+                const aspect = vh / vw;
+                PROC_W = 320; 
+                PROC_H = Math.floor(PROC_W * aspect); 
+                canvas.width = PROC_W; canvas.height = PROC_H;
+                video.play();
+                setInterval(loop, 100);
             };
             if(manual) showToast("再起動しました");
         } catch(e) { 
             navigator.mediaDevices.getUserMedia({video:true}).then(s=>{ 
-                video.srcObject=s; video.onloadedmetadata=()=>{
-                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                video.srcObject=s; 
+                video.onloadedmetadata=()=>{
+                    const vw = video.videoWidth; const vh = video.videoHeight;
+                    PROC_H = Math.floor(PROC_W * (vh/vw));
+                    canvas.height = PROC_H;
                     video.play(); setInterval(loop, 100);
                 };
             });
@@ -305,261 +272,84 @@
         const isSettings = document.getElementById('settings-overlay').classList.contains('open');
         if(isTitle && !isSettings) return;
 
-        // 1. カメラ映像を表示用キャンバスに描画
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const camData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-        // 2. ARマーカー検出
-        let corners = [null, null, null, null];
-        let detectedMarkers = [];
-        if(detector) {
-            detectedMarkers = detector.detect(camData);
-            detectedMarkers.forEach(m => { if(m.id>=0 && m.id<=3) corners[m.id] = m.corners; });
-        }
-
-        // 3. マーカーが揃っているか？
-        const allFound = corners[0] && corners[1] && corners[2] && corners[3];
-        guideMsg.style.display = (isGameMode && !allFound) ? 'block' : 'none';
-
-        if(allFound) {
-            // --- 補正処理 ---
-            
-            // 4. ホモグラフィ変換行列の計算
-            // ソース: カメラ画面上のマーカー中心座標
-            const centers = corners.map(c => {
-                let sx=0, sy=0; c.forEach(p=>{sx+=p.x; sy+=p.y;});
-                return {x:sx/4, y:sy/4};
-            });
-            // ターゲット: 内部キャンバス(procCanvas)の四隅 (0,0)-(W,H)
-            // ID配置: 0:左上, 1:右上, 2:右下, 3:左下
-            // ARUCO検出順序に合わせてsrc配列を作成 (0->1->2->3)
-            // ※注意: ホモグラフィ計算関数に合わせて順序定義
-            const srcPoints = [
-                centers[0].x, centers[0].y, // 左上
-                centers[1].x, centers[1].y, // 右上
-                centers[2].x, centers[2].y, // 右下
-                centers[3].x, centers[3].y  // 左下
-            ];
-            const dstPoints = [
-                0, 0,           // 左上
-                MAT_W, 0,       // 右上
-                MAT_W, MAT_H,   // 右下
-                0, MAT_H        // 左下
-            ];
-            
-            const H = getHomography(srcPoints, dstPoints);
-
-            // 5. 内部キャンバスに「真っ直ぐな画像」を生成 (Warp)
-            warpImage(camData, procCtx, H);
-
-            // 6. 内部キャンバス上で二値化・判定
-            const procData = procCtx.getImageData(0,0,MAT_W, MAT_H);
-            const bin = binarize(procData);
-            // デバッグ表示: 白黒モードなら表示用キャンバスに内部画像を合成表示(ワイプ)
-            if(showBinarized) {
-                procCtx.putImageData(bin, 0, 0);
-                ctx.drawImage(procCanvas, 10, 10, 160, 110); // 左上に小さく表示
-                ctx.strokeStyle="red"; ctx.lineWidth=2; ctx.strokeRect(10,10,160,110);
-            }
-
-            // 7. 判定ロジック (procCanvas上の座標で行う)
-            let detectedNow = [];
-            
-            // UI描画用: 逆変換行列 (Internal -> Screen) を作る簡易版
-            // 厳密にはHの逆行列だが、ここでは画面上に枠を描画するために
-            // マーカー位置から線形補間的に画面座標を推定して描画する
-            
-            ctx.lineWidth = 2; ctx.font = "14px sans-serif";
-
-            // マーカー枠を描画
-            ctx.strokeStyle = "#0f0";
-            ctx.beginPath();
-            ctx.moveTo(centers[0].x, centers[0].y); ctx.lineTo(centers[1].x, centers[1].y);
-            ctx.lineTo(centers[2].x, centers[2].y); ctx.lineTo(centers[3].x, centers[3].y);
-            ctx.closePath(); ctx.stroke();
-
-            for(let i=0; i<4; i++) {
-                const slot = SLOTS_PCT[i];
-                // 内部座標
-                const tx = Math.floor(slot.x * MAT_W);
-                const ty = Math.floor(slot.y * MAT_H);
-                const tw = Math.floor(slot.w * MAT_W);
-                const th = Math.floor(slot.h * MAT_H);
-                
-                // 特徴抽出 (内部画像から)
-                const feat = getFeature(bin, tx, ty, tw, th, MAT_W);
-                
-                // 照合
-                let best = "?"; let minD = 1.0;
-                cards.forEach(c => {
-                    if(c.isBlank) return;
-                    const diff = compareShift(feat, c.data, tw, th, 4); 
-                    if(diff < minD) { minD = diff; best = c.name; }
-                });
-                if(blankData) {
-                    const bDiff = compareShift(feat, blankData, tw, th, 4);
-                    if(bDiff < minD) { best = ""; minD = bDiff; }
-                }
-                if(minD > tolerance) best = "?";
-                detectedNow.push(best);
-
-                // --- 画面上に結果を表示 ---
-                // 内部座標(tx, ty)などは真っ直ぐだが、画面上では歪んでいる。
-                // 簡易的に重心座標系で画面位置を推定してテキストを表示する
-                const screenP = mapPointToScreen(slot.x + slot.w/2, slot.y + slot.h + 0.05, corners);
-                
-                const disp = best==="" ? "(空白)" : best;
-                ctx.fillStyle = "#0f0";
-                ctx.fillText(disp, screenP.x, screenP.y);
-                ctx.fillStyle = "rgba(0,255,0,0.7)";
-                ctx.font = "10px sans-serif";
-                ctx.fillText(minD.toFixed(2), screenP.x, screenP.y+12);
-                
-                // 枠の表示（4隅を変換して描画）
-                drawDistortedRect(ctx, slot, corners);
-            }
-            detected = detectedNow;
-
-        } else {
-            // マーカーが見つからない場合
-            ctx.strokeStyle = "rgba(255,0,0,0.3)"; ctx.lineWidth=2;
-            // 画面全体に×印など
-        }
-    }
-
-    // --- 座標変換系 ---
-    function mapPointToScreen(pctX, pctY, corners) {
-        // 4隅の座標から、バイリニア補間で画面上の座標を推定
-        // corners: 0:TL, 1:TR, 2:BR, 3:BL
-        // 上辺の点
-        const topX = corners[0][0].x + (corners[1][1].x - corners[0][0].x) * pctX;
-        const topY = corners[0][0].y + (corners[1][1].y - corners[0][0].y) * pctX;
-        // 下辺の点
-        const btmX = corners[3][3].x + (corners[2][2].x - corners[3][3].x) * pctX;
-        const btmY = corners[3][3].y + (corners[2][2].y - corners[3][3].y) * pctX;
-        // 上下を結んでY割合で点をもとめる
-        return {
-            x: topX + (btmX - topX) * pctY,
-            y: topY + (btmY - topY) * pctY
-        };
-    }
-    
-    function drawDistortedRect(ctx, slot, corners) {
-        // スロットの4隅を画面座標に変換してパスを描く
-        const p1 = mapPointToScreen(slot.x, slot.y, corners);
-        const p2 = mapPointToScreen(slot.x+slot.w, slot.y, corners);
-        const p3 = mapPointToScreen(slot.x+slot.w, slot.y+slot.h, corners);
-        const p4 = mapPointToScreen(slot.x, slot.y+slot.h, corners);
+        // まずカラー映像を描画
+        ctx.drawImage(video, 0, 0, PROC_W, PROC_H);
+        const imgData = ctx.getImageData(0, 0, PROC_W, PROC_H);
         
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-        ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
-        ctx.closePath(); ctx.stroke();
-    }
-
-    // --- ホモグラフィ & Warp ---
-    function getHomography(src, dst) {
-        // src: [x0,y0, x1,y1, x2,y2, x3,y3]
-        // dst: [x0,y0, x1,y1, x2,y2, x3,y3]
-        let n = 4; 
-        let A = []; let B = [];
-        for(let i=0; i<n; i++) {
-            let sx = src[i*2], sy = src[i*2+1];
-            let dx = dst[i*2], dy = dst[i*2+1];
-            A.push([sx, sy, 1, 0, 0, 0, -sx*dx, -sy*dx]);
-            A.push([0, 0, 0, sx, sy, 1, -sx*dy, -sy*dy]);
-            B.push(dx); B.push(dy);
+        // 判定用に二値化
+        const bin = binarize(imgData);
+        
+        // 白黒モードなら上書き
+        if(showBinarized) {
+            ctx.putImageData(bin, 0, 0); 
         }
-        const sol = solveGaussian(A, B);
-        return [sol[0], sol[1], sol[2], sol[3], sol[4], sol[5], sol[6], sol[7], 1.0];
-    }
-    function solveGaussian(A, B) {
-        let n = A.length;
-        for (let i=0; i<n; i++) {
-            let maxEl = Math.abs(A[i][i]), maxRow = i;
-            for (let k=i+1; k<n; k++) if (Math.abs(A[k][i]) > maxEl) { maxEl = Math.abs(A[k][i]); maxRow = k; }
-            for (let k=i; k<n; k++) { let tmp=A[maxRow][k]; A[maxRow][k]=A[i][k]; A[i][k]=tmp; }
-            let tmp=B[maxRow]; B[maxRow]=B[i]; B[i]=tmp;
-            for (let k=i+1; k<n; k++) {
-                let c = -A[k][i]/A[i][i];
-                for (let j=i; j<n; j++) if (i==j) A[k][j]=0; else A[k][j] += c * A[i][j];
-                B[k] += c * B[i];
+        
+        ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2; ctx.fillStyle = "#0f0"; ctx.font = "10px sans-serif";
+        
+        // ★修正点: 高さ(scanH)を幅(cutW)から計算して、カードの縦横比に合わせる
+        // 幅基準
+        const cw = SLOT_W_PCT * PROC_W; 
+        const cutW = Math.floor(cw); // 枠の幅
+        
+        // 高さ基準 (88/63比率)
+        const scanH = Math.floor(cutW * CARD_ASPECT);
+        const scanY = Math.floor((PROC_H - scanH) / 2);
+        
+        let detectedNow = [];
+
+        for(let i=0; i<4; i++) {
+            const cx = SLOT_X_PCT[i] * PROC_W; 
+            const cutX = Math.floor(cx + (cw - cutW)/2);
+            
+            ctx.strokeRect(cutX, scanY, cutW, scanH);
+            
+            // 判定は見た目の枠と同じ範囲で行う
+            const feat = getFeature(bin, cutX, scanY, cutW, scanH, PROC_W);
+            let best = "?"; let minD = 1.0;
+
+            cards.forEach(c => {
+                if(c.isBlank) return;
+                const diff = compareShift(feat, c.data, cutW, scanH, 4); 
+                if(diff < minD) { minD = diff; best = c.name; }
+            });
+            if(blankData) {
+                const bDiff = compareShift(feat, blankData, cutW, scanH, 4);
+                if(bDiff < minD) { best = ""; minD = bDiff; }
             }
+            if(minD > tolerance) best = "?";
+            detectedNow.push(best);
+            
+            const disp = best==="" ? "(空白)" : best;
+            ctx.fillText(`${disp}`, cutX, scanY + scanH + 12);
+            ctx.fillText(`(${minD.toFixed(2)})`, cutX, scanY + scanH + 22);
         }
-        let x = new Array(n);
-        for (let i=n-1; i>-1; i--) {
-            let sum = 0; for (let j=i+1; j<n; j++) sum += A[i][j] * x[j];
-            x[i] = (B[i] - sum) / A[i][i];
-        }
-        return x;
-    }
-    function warpImage(srcImg, ctxDst, H) {
-        // Inverse mapping
-        const w = MAT_W; const h = MAT_H;
-        const dstData = ctxDst.createImageData(w, h);
-        const dd = dstData.data;
-        const d = srcImg.data;
-        const sw = srcImg.width; const sh = srcImg.height;
-
-        const H_inv = invertMatrix3x3(H);
-
-        for(let y=0; y<h; y++) {
-            for(let x=0; x<w; x++) {
-                const u = H_inv[0]*x + H_inv[1]*y + H_inv[2];
-                const v = H_inv[3]*x + H_inv[4]*y + H_inv[5];
-                const s = H_inv[6]*x + H_inv[7]*y + H_inv[8];
-                const srcX = Math.floor(u/s);
-                const srcY = Math.floor(v/s);
-
-                const dstIdx = (y*w + x)*4;
-                if(srcX >=0 && srcX < sw && srcY >=0 && srcY < sh) {
-                    const srcIdx = (srcY*sw + srcX)*4;
-                    dd[dstIdx] = d[srcIdx];
-                    dd[dstIdx+1] = d[srcIdx+1];
-                    dd[dstIdx+2] = d[srcIdx+2];
-                    dd[dstIdx+3] = 255;
-                } else {
-                    dd[dstIdx+3] = 0;
-                }
-            }
-        }
-        ctxDst.putImageData(dstData, 0, 0);
-    }
-    function invertMatrix3x3(m) {
-        const n11=m[0], n12=m[1], n13=m[2], n21=m[3], n22=m[4], n23=m[5], n31=m[6], n32=m[7], n33=m[8];
-        const t11 = n33*n22 - n32*n23, t12 = n32*n13 - n33*n12, t13 = n23*n12 - n22*n13;
-        const det = n11*t11 + n21*t12 + n31*t13;
-        if(det===0) return m; 
-        const idet = 1/det;
-        return [
-            t11*idet, (n31*n23 - n33*n21)*idet, (n32*n21 - n31*n22)*idet,
-            t12*idet, (n33*n11 - n31*n13)*idet, (n31*n12 - n32*n11)*idet,
-            t13*idet, (n21*n13 - n23*n11)*idet, (n22*n11 - n21*n12)*idet
-        ];
+        detected = detectedNow;
     }
 
-    // --- 画像登録 (Smart Mat対応) ---
-    // 登録時は、アップされた画像の「中央部分」をカードとして認識する簡易ロジックにします。
-    // （登録画像は真正面から撮られたものを前提とします）
+    // --- 画像登録 ---
     function registerImage(input) {
         if(!input.files[0]) return;
         const name = document.getElementById('reg-name').value || "Card"+(cards.length+1);
         const isBlank = document.getElementById('is-blank-check').checked;
         const r = new FileReader();
+        
         r.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                // 登録用: アップ画像をアスペクト比固定でリサイズして特徴抽出
                 const c = document.createElement('canvas');
-                // 内部処理サイズと同じ比率の解像度にする
-                const tw = Math.floor(MAT_W * CARD_W_PCT);
-                const th = Math.floor(MAT_H * CARD_H_PCT);
-                c.width = tw; c.height = th;
-                const tx = c.getContext('2d');
-                tx.drawImage(img, 0, 0, tw, th); // 全体を縮小して登録
                 
-                const b = binarize(tx.getImageData(0,0,tw,th));
-                const data = getFeature(b, 0, 0, tw, th, tw);
+                // ★修正点: 登録時も同じ縦横比で切り抜く
+                const cw = SLOT_W_PCT * PROC_W; 
+                const cutW = Math.floor(cw);
+                const scanH = Math.floor(cutW * CARD_ASPECT);
+                
+                c.width = cutW; c.height = scanH;
+                const tx = c.getContext('2d');
+                tx.drawImage(img, 0, 0, cutW, scanH);
+                
+                const b = binarize(tx.getImageData(0,0,cutW,scanH));
+                const data = getFeature(b, 0, 0, cutW, scanH, cutW);
+                
                 tx.putImageData(b, 0, 0); 
                 const thumb = c.toDataURL();
 
@@ -588,6 +378,7 @@
         }
         return bin;
     }
+    
     function getFeature(b,x,y,w,h,tw) {
         const p=[]; const d=b.data; const step=2;
         for(let py=0; py<h; py+=step) for(let px=0; px<w; px+=step) {
@@ -595,6 +386,7 @@
         }
         return p;
     }
+
     function compareShift(a, b, w, h, range) {
         if(!a || !b || a.length !== b.length) return 1.0;
         let minDiff = 1.0;
@@ -614,56 +406,6 @@
         return cnt===0?1.0 : diff/cnt;
     }
 
-    // --- 印刷用マット生成 ---
-    function printMat() {
-        const w = window.open('', '_blank');
-        w.document.write(`
-        <html><head><title>Card Master Mat</title>
-        <style>
-            body{margin:0; text-align:center; font-family:sans-serif;}
-            .page { width:297mm; height:210mm; border:1px solid #ddd; position:relative; margin:0 auto; box-sizing:border-box; padding:10mm; }
-            .marker { position:absolute; width:30mm; height:30mm; background:#000; color:#fff; display:flex; align-items:center; justify-content:center; }
-            .marker img { width:100%; height:100%; image-rendering: pixelated; }
-            .slot-container { position:absolute; top:40%; left:50%; transform:translate(-50%, -50%); width:80%; height:50%; display:flex; justify-content:center; gap:4%; }
-            .slot { width:18%; aspect-ratio: 63/88; border: 2px dashed #aaa; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#ccc; font-weight:bold;}
-            /* マーカー位置: 四隅 */
-            #m0 { top:10mm; left:10mm; }
-            #m1 { top:10mm; right:10mm; }
-            #m3 { bottom:10mm; left:10mm; }
-            #m2 { bottom:10mm; right:10mm; }
-            @media print { .page { border:none; } button {display:none;}}
-        </style>
-        </head><body>
-        <div class="page">
-            <div id="m0" class="marker"></div>
-            <div id="m1" class="marker"></div>
-            <div class="slot-container">
-                <div class="slot">1</div><div class="slot">2</div><div class="slot">3</div><div class="slot">4</div>
-            </div>
-            <div id="m3" class="marker"></div>
-            <div id="m2" class="marker"></div>
-            <div style="position:absolute; bottom:5mm; width:100%; text-align:center; font-size:12px;">CARD MASTER 専用マット (A4横推奨)</div>
-        </div>
-        <button onclick="window.print()" style="font-size:20px; padding:10px 20px; margin-top:20px;">🖨️ 印刷する</button>
-        <script>
-            // Aruco Markers (Original, 4x4)
-            // ID 0, 1, 2, 3 のパターン画像データ
-            const markers = [
-                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAgMAAADXB5lNAAAACVBMVEUAAAD///8AAABz1c1UAAAAKElEQVQ4y2P4DwM8YICgA4b/YICiA4b/oICqA4b/sICuA4b/8ICyAwYAm3c/wXW1m1sAAAAASUVORK5CYII=", // ID 0
-                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAgMAAADXB5lNAAAACVBMVEUAAAD///8AAABz1c1UAAAALElEQVQ4y2P4DwM8YICgA4b/YICiA4b/oICqA4b/sICuA4b/8ICyAwYA8z/Bdf2l2x4AAAAASUVORK5CYII=", // ID 1
-                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAgMAAADXB5lNAAAACVBMVEUAAAD///8AAABz1c1UAAAAK0lEQVQ4y2P4DwM8YICgA4b/YICiA4b/oICqA4b/sICuA4b/8ICyAwYA0j/Bda0r2yAAAAAASUVORK5CYII=", // ID 2
-                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAgMAAADXB5lNAAAACVBMVEUAAAD///8AAABz1c1UAAAAKUlEQVQ4y2P4DwM8YICgA4b/YICiA4b/oICqA4b/sICuA4b/8ICyAwYAk3c/wW062yAAAAAASUVORK5CYII="  // ID 3
-            ];
-            document.getElementById('m0').innerHTML = '<img src=\"'+markers[0]+'\">';
-            document.getElementById('m1').innerHTML = '<img src=\"'+markers[1]+'\">';
-            document.getElementById('m2').innerHTML = '<img src=\"'+markers[2]+'\">';
-            document.getElementById('m3').innerHTML = '<img src=\"'+markers[3]+'\">';
-        <\/script>
-        </body></html>
-        `);
-    }
-
-    // --- UI関連 ---
     function addOrUpdateLevel() {
         const t = document.getElementById('lvl-name').value || "無題";
         const o = [0,1,2,3].map(i => document.getElementById(`sel-${i}`).value);
@@ -686,6 +428,7 @@
         document.getElementById('add-btn').innerText="＋ 追加";
         document.getElementById('cancel-btn').style.display="none";
     }
+
     function renderUI() {
         const cl = document.getElementById('reg-list'); cl.innerHTML="";
         cards.forEach((c,i)=>{
@@ -721,15 +464,18 @@
     }
 
     function startGame(i) { 
-        currentTarget=levels[i].order; isGameMode=true; 
-        document.getElementById('title-screen').style.display = 'none'; 
-        document.getElementById('game-ui').style.display = 'flex'; 
+        currentTarget=levels[i].order; 
+        isGameMode=true; 
+        document.getElementById('title-screen').style.display = 'none'; // タイトル消す
+        document.getElementById('game-ui').style.display = 'flex'; // ゲームUI出す
     }
+    
     function goTitle() { 
         isGameMode=false; 
-        document.getElementById('title-screen').style.display = 'flex'; 
-        document.getElementById('game-ui').style.display = 'none'; 
+        document.getElementById('title-screen').style.display = 'flex'; // タイトル出す
+        document.getElementById('game-ui').style.display = 'none'; // ゲームUI消す
     }
+    
     function judge() { 
         const isMatch = JSON.stringify(detected) === JSON.stringify(currentTarget); 
         const m = document.getElementById('res-msg'); 
@@ -737,8 +483,8 @@
         document.getElementById('result-view').style.display='flex';
     }
 
-    function saveLocal() { localStorage.setItem('cm_v23_data', JSON.stringify({cards,levels,blank:blankData})); }
-    function loadLocal() { const d=localStorage.getItem('cm_v23_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankData=j.blank;} }
+    function saveLocal() { localStorage.setItem('cm_v21_data', JSON.stringify({cards,levels,blank:blankData})); }
+    function loadLocal() { const d=localStorage.getItem('cm_v21_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankData=j.blank;} }
     function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
     function showToast(m) { const e=document.getElementById('status-msg'); e.innerText=m; e.style.opacity=1; setTimeout(()=>e.style.opacity=0,2000); }
     function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
