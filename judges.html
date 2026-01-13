@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Card Master V9 (Sync)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* --- デザイン定義 --- */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: #111; color: #fff; margin: 0; 
+            overflow: hidden; width: 100vw; height: 100dvh;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #app-container { 
+            position: relative; width: 100%; height: 100%; max-width: 600px; 
+            background: #000; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        video {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; opacity: 0.4; transition: opacity 0.5s;
+        }
+        video.active { opacity: 1.0; }
+
+        /* 画面共通 */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 15px; box-sizing: border-box; z-index: 10;
+            pointer-events: none; transition: opacity 0.3s;
+        }
+        .screen > * { pointer-events: auto; }
+        .hidden { display: none !important; opacity: 0; }
+
+        /* グリッド */
+        .slot-container {
+            width: 100%; height: 28vw; max-height: 180px; margin-top: 15vh;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .slot {
+            width: 20.2%; height: 100%; 
+            border: 2px solid rgba(0,255,0,0.5); background: rgba(255,255,255,0.05);
+            box-sizing: border-box; border-radius: 6px; position: relative;
+        }
+        .slot-info {
+            position: absolute; bottom: -25px; left: 0; width: 100%;
+            text-align: center; font-size: 11px; color: #0f0; font-weight: bold; text-shadow: 0 1px 2px #000;
+        }
+
+        /* タイトル・リスト */
+        h1 { font-size: 2.2rem; margin-top: 15%; color: #fff; letter-spacing: 2px; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
+        #level-list { width: 96%; flex: 1; overflow-y: auto; margin-top: 20px; padding-bottom: 20px;}
+        .level-item {
+            background: rgba(30,30,30,0.8); border: 1px solid #444;
+            padding: 12px 15px; margin-bottom: 8px; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            backdrop-filter: blur(5px); cursor: pointer;
+        }
+        
+        /* ボタン類 */
+        .judge-btn {
+            position: absolute; bottom: 40px; width: 85%;
+            padding: 15px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; color: white;
+            background: linear-gradient(to bottom, #28a745, #208030);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .btn-blue { background: #007bff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold;}
+        .btn-green { background: #28a745; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold;}
+
+        /* 設定オーバーレイ */
+        #settings-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #151515; z-index: 100; transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            padding: 20px; overflow-y: auto; box-sizing: border-box;
+        }
+        #settings-overlay.open { transform: translateY(0); }
+        .setting-box { background: #252525; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; font-size: 1rem; color: #ddd;}
+        
+        .card-list { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+        .card-thumb { 
+            min-width: 60px; height: 80px; background: #000; border: 1px solid #555; 
+            position: relative; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .card-thumb img { width: 100%; height: 60px; object-fit: contain; }
+        .card-name { font-size: 10px; text-align: center; width: 100%; overflow: hidden; white-space: nowrap; }
+
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid #555; background: #333; color: #fff; font-size: 16px; width: 100%; box-sizing: border-box; margin-bottom: 5px;}
+
+        /* QR同期エリア */
+        #sync-area { text-align: center; display: none; margin-top: 10px; background: #fff; padding: 10px; border-radius: 8px; }
+        #qrcode { display: inline-block; margin: 10px; }
+        
+        #result-view {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); display: none; z-index: 200;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        #gear-icon {
+            position:absolute; top:15px; right:15px; font-size:24px; z-index:50; cursor:pointer;
+            background: rgba(0,0,0,0.6); width: 40px; height: 40px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);
+        }
+        
+        /* 同期中表示 */
+        #sync-status-bar {
+            position: absolute; top: 0; left: 0; width: 100%; background: #007bff; color: white;
+            font-size: 12px; text-align: center; padding: 5px; z-index: 200; display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <video id="video-bg" autoplay playsinline muted></video>
+    
+    <div id="sync-status-bar">📡 データ同期中...</div>
+    <div id="gear-icon" onclick="openSettings()">⚙️</div>
+
+    <div id="screen-title" class="screen">
+        <h1>CARD MASTER</h1>
+        <div id="level-list"></div>
+    </div>
+
+    <div id="screen-game" class="screen hidden">
+        <button onclick="goTitle()" style="position:absolute; top:25px; left:20px; padding:8px 20px; background:rgba(0,0,0,0.6); border:1px solid #fff; color:#fff; border-radius:30px; font-weight:bold;">← BACK</button>
+        <div style="position:absolute; top:30px; width:100%; text-align:center; font-weight:bold; font-size:1.2rem; text-shadow:0 2px 5px #000;" id="game-title-text">LEVEL</div>
+        <div class="slot-container">
+            <div class="slot"><div class="slot-info" id="info-0">-</div></div>
+            <div class="slot"><div class="slot-info" id="info-1">-</div></div>
+            <div class="slot"><div class="slot-info" id="info-2">-</div></div>
+            <div class="slot"><div class="slot-info" id="info-3">-</div></div>
+        </div>
+        <button class="judge-btn" onclick="judge()">判 定 !</button>
+    </div>
+
+    <div id="settings-overlay">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0;">設定</h2>
+            <button onclick="closeSettings()" style="padding:8px 20px; background:#555; color:#fff; border:none; border-radius:20px;">閉じる</button>
+        </div>
+        
+        <div class="setting-box" style="border:1px solid #007bff;">
+            <h3 style="color:#00d4ff;">📡 テスト用：スマホへ即時同期</h3>
+            <p style="font-size:12px; color:#ccc;">PCで設定後、このボタンを押してスマホでQRを読み込むと、アップロードなしでテストできます。</p>
+            <button class="btn-blue" onclick="startHost()">QRコードを表示 (同期開始)</button>
+            <div id="sync-area">
+                <div style="color:#000; font-size:12px; margin-bottom:5px;">スマホのカメラで読み取ってください</div>
+                <div id="qrcode"></div>
+                <div id="sync-msg" style="color:#000; font-size:11px;">待機中...</div>
+            </div>
+        </div>
+
+        <div class="setting-box" style="border:1px solid #28a745;">
+            <h3 style="color:#28a745;">💾 本番用：HTMLとして保存</h3>
+            <p style="font-size:12px; color:#ccc;">現在のデータをすべて埋め込んだHTMLファイルをダウンロードします。これを1回アップロードすれば完了です。</p>
+            <button class="btn-green" onclick="downloadSelfContainedHTML()">設定込みHTMLをダウンロード</button>
+        </div>
+
+        <div class="setting-box">
+            <h3>1. カード登録 / 空白登録</h3>
+            <input type="text" id="reg-name" placeholder="カード名">
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <button onclick="registerCard('camera')" style="flex:1; background:#444; color:white; border:none; padding:10px; border-radius:6px;">📷 カメラ</button>
+                <label style="flex:1; background:#444; color:white; text-align:center; padding:10px; border-radius:6px; cursor:pointer;">
+                    📁 画像選択
+                    <input type="file" accept="image/*" onchange="registerCard('file', this)" style="display:none;">
+                </label>
+            </div>
+            <button onclick="registerBlankCard()" style="width:100%; padding:8px; background:#666; color:#fff; border:none; border-radius:6px; font-size:12px; margin-bottom:10px;">⬜ 「空白」状態を登録 (必須)</button>
+            <div class="card-list" id="reg-list"></div>
+        </div>
+
+        <div class="setting-box">
+            <h3>2. 問題作成</h3>
+            <input type="text" id="lvl-name" placeholder="タイトル">
+            <div style="display:flex; justify-content:space-between; gap:5px; margin-bottom:10px;">
+                <select id="sel-0"><option value="">(空白)</option></select>
+                <select id="sel-1"><option value="">(空白)</option></select>
+                <select id="sel-2"><option value="">(空白)</option></select>
+                <select id="sel-3"><option value="">(空白)</option></select>
+            </div>
+            <button onclick="addLevel()" style="width:100%; padding:12px; background:#28a745; color:white; border:none; border-radius:6px; font-weight:bold;">＋ 追加</button>
+        </div>
+
+        <div class="setting-box" style="background:#300;">
+            <button onclick="resetData()" style="width:100%; padding:10px; background:#d00; color:white; border:none; border-radius:6px;">⚠ 全データ削除</button>
+        </div>
+    </div>
+
+    <div id="result-view" onclick="this.style.display='none'">
+        <div id="res-msg" style="font-size:5rem; font-weight:900; margin-bottom:30px;"></div>
+        <div style="font-size:1.2rem;">Tap to close</div>
+    </div>
+</div>
+
+<script id="embedded-data" type="application/json">null</script>
+
+<canvas id="proc-canvas" style="display:none;"></canvas>
+
+<script>
+    // --- グローバル変数 ---
+    const SLOT_WIDTH_PCT = 0.2019; const GAP_PCT = 0.0641;        
+    const SLOT_X_PCT = [0, SLOT_WIDTH_PCT+GAP_PCT, (SLOT_WIDTH_PCT+GAP_PCT)*2, (SLOT_WIDTH_PCT+GAP_PCT)*3];
+
+    let cards = []; 
+    let levels = [];
+    let blankCardData = null; 
+    let currentTarget = [];
+    let detected = ["","","",""];
+
+    const video = document.getElementById('video-bg');
+    const pCanvas = document.getElementById('proc-canvas');
+    const pCtx = pCanvas.getContext('2d');
+
+    // --- 初期化 ---
+    window.onload = () => {
+        // 1. 埋め込みデータの確認（HTML保存されたファイルかどうか）
+        const embedded = document.getElementById('embedded-data').textContent;
+        if(embedded && embedded !== "null") {
+            const data = JSON.parse(embedded);
+            cards = data.cards; levels = data.levels; blankCardData = data.blank;
+            console.log("Loaded embedded data");
+        } else {
+            // 2. なければLocalStorage
+            loadFromLocal();
+        }
+
+        renderUI();
+        startCam();
+        
+        // 3. 同期モード確認 (URLパラメータ ?sync=PEER_ID)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hostId = urlParams.get('sync');
+        if(hostId) {
+            startClient(hostId);
+        }
+    };
+
+    function startCam() {
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+        }).then(stream => {
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                pCanvas.width = 320; pCanvas.height = 180; 
+                setInterval(process, 150);
+            };
+        }).catch(e => console.log(e));
+    }
+
+    // --- 同期機能 (P2P by PeerJS) ---
+    let peer = null;
+
+    // A. ホスト側 (PC: データを送る)
+    function startHost() {
+        if(peer) peer.destroy();
+        peer = new Peer(); // ID自動生成
+        
+        document.getElementById('sync-area').style.display = 'block';
+        document.getElementById('sync-msg').innerText = "接続サーバー待機中...";
+
+        peer.on('open', (id) => {
+            // 現在のURLにパラメータをつけてQR化
+            const baseUrl = window.location.href.split('?')[0];
+            const syncUrl = `${baseUrl}?sync=${id}`;
+            
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), { text: syncUrl, width: 128, height: 128 });
+            document.getElementById('sync-msg').innerText = "スマホで読み取ってください";
+        });
+
+        peer.on('connection', (conn) => {
+            document.getElementById('sync-msg').innerText = "接続されました！データを送信中...";
+            // 接続されたらデータを送る
+            conn.on('open', () => {
+                conn.send({ cards, levels, blank: blankCardData });
+                setTimeout(() => {
+                    document.getElementById('sync-msg').innerText = "送信完了！";
+                    alert("スマホへの送信が完了しました");
+                }, 500);
+            });
+        });
+    }
+
+    // B. クライアント側 (スマホ: データを受け取る)
+    function startClient(hostId) {
+        document.getElementById('sync-status-bar').style.display = 'block';
+        if(peer) peer.destroy();
+        peer = new Peer();
+
+        peer.on('open', () => {
+            const conn = peer.connect(hostId);
+            conn.on('open', () => {
+                console.log("Connected to PC");
+            });
+            conn.on('data', (data) => {
+                console.log("Received Data", data);
+                cards = data.cards;
+                levels = data.levels;
+                blankCardData = data.blank;
+                
+                // 保存して再描画
+                saveData();
+                renderUI();
+                
+                document.getElementById('sync-status-bar').innerText = "✅ 同期完了 (設定を保存しました)";
+                setTimeout(() => {
+                    document.getElementById('sync-status-bar').style.display = 'none';
+                    // クリーンなURLに戻す
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 3000);
+            });
+        });
+    }
+
+    // --- HTML書き出し機能 ---
+    function downloadSelfContainedHTML() {
+        // 現在のHTML全体を取得
+        let htmlContent = document.documentElement.outerHTML;
+        
+        // 現在のデータをJSON化
+        const data = JSON.stringify({ cards, levels, blank: blankCardData });
+        
+        // scriptタグの中身を置換 (null -> 実際のデータ)
+        // 注意: 単純置換だと他のscriptを壊す可能性があるのでID指定で探す
+        const targetStr = '<script id="embedded-data" type="application/json">null</script>';
+        const newStr = `<script id="embedded-data" type="application/json">${data}<\/script>`;
+        
+        if(htmlContent.includes(targetStr)) {
+            htmlContent = htmlContent.replace(targetStr, newStr);
+        } else {
+            // すでにデータが入っている場合（上書き保存）
+            // 正規表現で中身を置換
+            htmlContent = htmlContent.replace(/<script id="embedded-data" type="application\/json">.*?<\/script>/, newStr);
+        }
+
+        const blob = new Blob([htmlContent], {type: "text/html"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "index.html";
+        a.click();
+    }
+
+    // --- 画像処理・判定 (V8と同様) ---
+    function process() {
+        if(video.readyState !== 4) return;
+        pCtx.drawImage(video, 0, 0, pCanvas.width, pCanvas.height);
+        const frameW = pCanvas.width; const frameH = pCanvas.height;
+        const scanH = frameH * 0.3; const scanY = (frameH - scanH) / 2;
+        const binFrame = binarizeImageData(pCtx.getImageData(0,0,frameW,frameH));
+
+        let detectedNow = [];
+        for(let i=0; i<4; i++) {
+            const cx = SLOT_X_PCT[i] * frameW; const cw = SLOT_WIDTH_PCT * frameW;
+            const cutW = Math.floor(cw * 0.6); const cutX = Math.floor(cx + (cw - cutW)/2);
+            const feature = getBinaryRegion(binFrame, cutX, scanY, cutW, scanH, frameW);
+
+            let bestName = "?"; let minDiff = 1.0;
+            cards.forEach(c => {
+                const diff = compareBinary(feature, c.data);
+                if(diff < minDiff) { minDiff = diff; bestName = c.name; }
+            });
+            if(blankCardData) {
+                const bDiff = compareBinary(feature, blankCardData);
+                if(bDiff < minDiff && bDiff < 0.15) { bestName = ""; minDiff = bDiff; }
+            }
+            if(minDiff > 0.15) bestName = "?"; 
+
+            detectedNow.push(bestName);
+            const info = document.getElementById(`info-${i}`);
+            if(info) {
+                info.innerText = bestName === "" ? "" : bestName;
+                info.style.color = bestName === "?" ? "#555" : (bestName==="" ? "#aaa" : "#0f0");
+            }
+        }
+        detected = detectedNow;
+    }
+
+    // --- 登録系 ---
+    function captureFeature(slotIndex=0) {
+        pCtx.drawImage(video, 0, 0, pCanvas.width, pCanvas.height);
+        const frameW = pCanvas.width; const frameH = pCanvas.height;
+        const scanH = frameH * 0.3; const scanY = (frameH - scanH) / 2;
+        const cx = SLOT_X_PCT[slotIndex] * frameW; const cw = SLOT_WIDTH_PCT * frameW;
+        const cutW = Math.floor(cw * 0.6); const cutX = Math.floor(cx + (cw - cutW)/2);
+        const binFrame = binarizeImageData(pCtx.getImageData(0,0,frameW,frameH));
+        return getBinaryRegion(binFrame, cutX, scanY, cutW, scanH, frameW);
+    }
+
+    function registerBlankCard() {
+        if(!confirm("左端(Slot1)に「何も置いていない状態」ですか？")) return;
+        blankCardData = captureFeature(0);
+        saveData(); renderUI(); alert("空白状態を登録しました");
+    }
+
+    function registerCard(mode, fileInput=null) {
+        const name = document.getElementById('reg-name').value || "NoName";
+        if(mode === 'camera') {
+            const data = captureFeature(0);
+            const cut = getThumbnail(0);
+            addCard(name, data, cut);
+        } else if(mode === 'file' && fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const tCan = document.createElement('canvas');
+                    const frameW = pCanvas.width; const frameH = pCanvas.height;
+                    const cw = SLOT_WIDTH_PCT * frameW; const cutW = Math.floor(cw * 0.6); const scanH = frameH * 0.3;
+                    tCan.width = cutW; tCan.height = scanH;
+                    const tCtx = tCan.getContext('2d');
+                    tCtx.drawImage(img, 0, 0, cutW, scanH);
+                    const bin = binarizeImageData(tCtx.getImageData(0,0,cutW,scanH));
+                    const data = getBinaryRegion(bin, 0,0,cutW,scanH,cutW);
+                    tCtx.putImageData(bin, 0,0);
+                    addCard(name, data, tCan.toDataURL());
+                    fileInput.value = "";
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+    }
+    function addCard(name, data, thumb) {
+        cards.push({ name, data, thumb });
+        saveData(); renderUI();
+        document.getElementById('reg-name').value = "カード" + (cards.length + 1);
+    }
+    function getThumbnail(slotIndex) {
+        const frameW = pCanvas.width; const frameH = pCanvas.height;
+        const cw = SLOT_WIDTH_PCT * frameW; const cutW = Math.floor(cw * 0.6); 
+        const scanH = frameH * 0.3; const scanY = (frameH - scanH) / 2;
+        const cx = SLOT_X_PCT[slotIndex] * frameW; const cutX = Math.floor(cx + (cw - cutW)/2);
+        const tCan = document.createElement('canvas'); tCan.width = cutW; tCan.height = scanH;
+        const binFrame = binarizeImageData(pCtx.getImageData(0,0,frameW,frameH));
+        tCan.getContext('2d').putImageData(binFrame, -cutX, -scanY);
+        return tCan.toDataURL();
+    }
+
+    // --- UI/保存/その他 ---
+    function addLevel() {
+        const t = document.getElementById('lvl-name').value || "無題";
+        const o = [0,1,2,3].map(i => document.getElementById(`sel-${i}`).value);
+        levels.push({title:t, order:o});
+        saveData(); renderUI();
+    }
+    function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
+    function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+    
+    function renderUI() {
+        // カードリスト
+        const cl = document.getElementById('reg-list'); cl.innerHTML = "";
+        cards.forEach((c, i) => {
+            cl.innerHTML += `<div class="card-thumb"><img src="${c.thumb}"><div class="card-name">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:15px;height:15px;font-size:10px;color:white;text-align:center;" onclick="cards.splice(${i},1);saveData();renderUI()">×</div></div>`;
+        });
+        // Select
+        for(let i=0;i<4;i++){
+            const s=document.getElementById(`sel-${i}`); const v=s.value;
+            s.innerHTML = "<option value=''>- 空白 -</option>";
+            cards.forEach(c=>s.innerHTML+=`<option value='${c.name}'>${c.name}</option>`);
+            s.value = v;
+        }
+        // レベルリスト
+        const ll = document.getElementById('level-list'); ll.innerHTML = "";
+        if(levels.length===0) ll.innerHTML = "<p style='color:#aaa;text-align:center;margin-top:50px;'>問題を作成してください</p>";
+        levels.forEach((l,i) => {
+            ll.innerHTML += `<div class="level-item" onclick="startGame(${i})"><span>${l.title}</span><span onclick="event.stopPropagation();if(confirm('削除?')){levels.splice(${i},1);saveData();renderUI()}">🗑️</span></div>`;
+        });
+    }
+
+    function startGame(i) {
+        currentTarget = levels[i].order;
+        document.getElementById('game-title-text').innerText = levels[i].title;
+        document.getElementById('screen-title').classList.add('hidden');
+        document.getElementById('screen-game').classList.remove('hidden');
+        video.classList.add('active');
+    }
+    function goTitle() {
+        document.getElementById('screen-game').classList.add('hidden');
+        document.getElementById('screen-title').classList.remove('hidden');
+        video.classList.remove('active');
+    }
+    function judge() {
+        const isMatch = JSON.stringify(detected) === JSON.stringify(currentTarget);
+        const m = document.getElementById('res-msg');
+        m.innerText = isMatch ? "正解!!" : "不正解...";
+        m.style.color = isMatch ? "#0f0" : "#f00";
+        document.getElementById('result-view').style.display = 'flex';
+    }
+
+    function saveData() {
+        localStorage.setItem('cm_v9_cards', JSON.stringify(cards));
+        localStorage.setItem('cm_v9_levels', JSON.stringify(levels));
+        if(blankCardData) localStorage.setItem('cm_v9_blank', JSON.stringify(blankCardData));
+    }
+    function loadFromLocal() {
+        const c=localStorage.getItem('cm_v9_cards'); if(c) cards=JSON.parse(c);
+        const l=localStorage.getItem('cm_v9_levels'); if(l) levels=JSON.parse(l);
+        const b=localStorage.getItem('cm_v9_blank'); if(b) blankCardData=JSON.parse(b);
+    }
+    function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
+
+    function binarizeImageData(d) {
+        const bin=new ImageData(d.width,d.height); const bd=bin.data; const dd=d.data;
+        for(let i=0;i<dd.length;i+=4) {
+            const v = (dd[i]+dd[i+1]+dd[i+2])/3 < 90 ? 0 : 255;
+            bd[i]=bd[i+1]=bd[i+2]=v; bd[i+3]=255;
+        }
+        return bin;
+    }
+    function getBinaryRegion(b,x,y,w,h,tw) {
+        const p=[]; const dd=b.data; const s=3;
+        for(let py=y;py<y+h;py+=s) for(let px=x;px<x+w;px+=s) p.push(dd[(py*tw+px)*4]===0?1:0);
+        return p;
+    }
+    function compareBinary(a,b) {
+        if(a.length!==b.length) return 1.0;
+        let d=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i])d++;
+        return d/a.length;
+    }
+</script>
+</body>
+</html>
