@@ -3,138 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Card Master V13 (Cam Fix)</title>
+    <title>Card Master V13 (Debug Mode)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* --- デザイン定義 --- */
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: #111; color: #fff; margin: 0; 
-            overflow: hidden; width: 100vw; height: 100dvh;
-            display: flex; justify-content: center; align-items: center;
-        }
-        #app-container { 
-            position: relative; width: 100%; height: 100%; max-width: 600px; 
-            background: #000; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.8);
-        }
-        video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            object-fit: cover; opacity: 0; transition: opacity 0.5s; z-index: 1;
-        }
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; overflow: hidden; width: 100vw; height: 100dvh; display: flex; justify-content: center; align-items: center; }
+        #app-container { position: relative; width: 100%; height: 100%; max-width: 600px; background: #000; overflow: hidden; }
+        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
         video.active { opacity: 1.0; }
-
-        /* 画面共通 */
-        .screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; 
-            padding: 15px; box-sizing: border-box; z-index: 10;
-            pointer-events: none; transition: opacity 0.3s;
-        }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 15px; box-sizing: border-box; z-index: 10; pointer-events: none; }
         .screen > * { pointer-events: auto; }
         .hidden { display: none !important; opacity: 0; }
-
-        /* グリッド */
-        .slot-container {
-            width: 100%; height: 28vw; max-height: 180px; margin-top: 15vh;
-            display: flex; justify-content: space-between; align-items: center; pointer-events: none;
-        }
-        .slot {
-            width: 20.2%; height: 100%; 
-            border: 2px solid rgba(0,255,0,0.5); background: rgba(255,255,255,0.05);
-            box-sizing: border-box; border-radius: 6px; position: relative;
-        }
-        .slot-info {
-            position: absolute; bottom: -25px; left: 0; width: 100%;
-            text-align: center; font-size: 11px; color: #0f0; font-weight: bold; text-shadow: 0 1px 2px #000;
-        }
-
-        /* タイトル・リスト */
-        h1 { font-size: 2.2rem; margin-top: 15%; color: #fff; letter-spacing: 2px; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
-        #level-list { width: 96%; flex: 1; overflow-y: auto; margin-top: 20px; padding-bottom: 20px;}
-        .level-item {
-            background: rgba(40,40,40,0.9); border: 1px solid #555;
-            padding: 12px 15px; margin-bottom: 8px; border-radius: 8px;
-            display: flex; justify-content: space-between; align-items: center;
-            backdrop-filter: blur(5px); cursor: pointer; transition: background 0.2s;
-        }
-        .level-item:hover { background: rgba(60,60,60,1); }
         
-        /* ボタン類 */
-        .back-btn {
-            position: absolute; top: 25px; left: 20px; z-index: 100;
-            padding: 10px 25px; background: rgba(0,0,0,0.8); border: 1px solid #fff; 
-            color: #fff; border-radius: 30px; font-weight: bold; cursor: pointer;
-        }
-        .judge-btn {
-            position: absolute; bottom: 40px; width: 85%; z-index: 20;
-            padding: 15px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; color: white;
-            background: linear-gradient(to bottom, #28a745, #208030);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5); cursor: pointer;
-        }
+        /* 判定エリア */
+        .slot-container { width: 100%; height: 28vw; max-height: 180px; margin-top: 15vh; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+        .slot { width: 20.2%; height: 100%; border: 2px solid rgba(0,255,0,0.8); background: rgba(255,255,255,0.05); border-radius: 6px; position: relative; }
+        .slot-info { position: absolute; bottom: -40px; left: 0; width: 100%; text-align: center; font-size: 10px; color: #0f0; font-weight: bold; text-shadow: 0 1px 2px #000; line-height: 1.2; }
 
-        /* 設定オーバーレイ */
-        #settings-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #151515; z-index: 200; transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
-            padding: 20px; overflow-y: auto; box-sizing: border-box;
+        /* デバッグモニタ */
+        #debug-monitor { position: absolute; top: 10px; left: 10px; width: 120px; height: 68px; border: 2px solid yellow; z-index: 100; background: #000; }
+        #debug-label { position: absolute; top: 80px; left: 10px; font-size: 10px; color: yellow; z-index: 100; }
+
+        /* スライダー */
+        #threshold-slider-container {
+            position: absolute; bottom: 120px; width: 80%; z-index: 50; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px; text-align: center;
         }
+        input[type=range] { width: 100%; }
+
+        /* UIパーツ */
+        h1 { font-size: 2rem; margin-top: 20%; }
+        .judge-btn { position: absolute; bottom: 30px; width: 85%; padding: 15px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; color: white; background: linear-gradient(to bottom, #28a745, #208030); box-shadow: 0 5px 15px rgba(0,0,0,0.5); cursor: pointer; }
+        .back-btn { position: absolute; top: 20px; left: 20px; padding: 8px 20px; background: rgba(0,0,0,0.6); border: 1px solid #fff; color: #fff; border-radius: 30px; cursor: pointer; z-index: 200; }
+        
+        #settings-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #151515; z-index: 300; transform: translateY(100%); transition: transform 0.3s; padding: 20px; overflow-y: auto; box-sizing: border-box; }
         #settings-overlay.open { transform: translateY(0); }
         .setting-box { background: #252525; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; }
         
-        .card-list { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; min-height: 90px;}
-        .card-thumb { 
-            min-width: 60px; height: 80px; background: #000; border: 1px solid #555; 
-            position: relative; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
+        #gear-icon { position:absolute; top:15px; right:15px; font-size:24px; z-index:50; cursor:pointer; background:rgba(0,0,0,0.5); width:40px; height:40px; border-radius:50%; display:flex; justify-content:center; align-items:center; }
+        #result-view { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); display: none; z-index: 400; flex-direction: column; justify-content: center; align-items: center; }
+        
+        .card-list { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+        .card-thumb { min-width: 60px; height: 80px; background: #000; border: 1px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;}
         .card-thumb img { width: 100%; height: 60px; object-fit: contain; }
-        .card-name { font-size: 10px; text-align: center; width: 100%; overflow: hidden; white-space: nowrap; }
-
-        input[type="text"], select { 
-            padding: 10px; border-radius: 6px; border: 1px solid #555; 
-            background: #333; color: #fff; font-size: 16px; width: 100%; 
-            box-sizing: border-box; margin-bottom: 5px;
-        }
-
-        .file-label {
-            display: block; padding: 12px; background: #007bff; color: white; 
-            text-align: center; border-radius: 6px; cursor: pointer; font-weight: bold;
-            margin-bottom: 10px; transition: background 0.2s;
-        }
-
-        .edit-btn { background: #007bff; color: white; border:none; padding:5px 10px; border-radius:4px; margin-left:5px; cursor:pointer;}
-        .del-btn { background: #dc3545; color: white; border:none; padding:5px 10px; border-radius:4px; margin-left:5px; cursor:pointer;}
-
-        #gear-icon {
-            position:absolute; top:15px; right:15px; font-size:24px; z-index:50; cursor:pointer;
-            background: rgba(0,0,0,0.6); width: 40px; height: 40px; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);
-            user-select: none;
-        }
-        
-        #reload-cam-btn {
-            position:absolute; top:15px; left:15px; font-size:12px; z-index:50; cursor:pointer;
-            background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 20px;
-            display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);
-            user-select: none; border: 1px solid #555; color: #aaa;
-        }
-
-        #status-msg {
-            position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
-            background: rgba(40, 167, 69, 0.9); color: white; padding: 8px 20px;
-            border-radius: 20px; font-weight: bold; z-index: 300; 
-            opacity: 0; pointer-events: none; transition: opacity 0.5s;
-        }
-        
-        #sync-area { text-align: center; display: none; margin-top: 10px; background: #fff; padding: 10px; border-radius: 8px; }
-        #qrcode { display: inline-block; margin: 10px; }
-        
-        #result-view {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.9); display: none; z-index: 400;
-            flex-direction: column; justify-content: center; align-items: center;
-        }
+        input[type="text"], select { padding: 10px; width: 100%; margin-bottom: 5px; box-sizing: border-box; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px;}
+        .level-item { background: #333; padding: 10px; margin-bottom: 5px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between;}
     </style>
 </head>
 <body>
@@ -142,81 +54,70 @@
 <div id="app-container">
     <video id="video-bg" autoplay playsinline muted></video>
     
-    <div id="status-msg">保存しました！</div>
-    
-    <div id="reload-cam-btn" onclick="startCam(true)">📷 カメラ再起動</div>
-    
+    <canvas id="debug-monitor"></canvas>
+    <div id="debug-label">左:白黒モニタ<br>下:感度調整</div>
+
+    <div id="threshold-slider-container">
+        <label for="thresh-range">白黒判定の感度 (現在: <span id="thresh-val">90</span>)</label>
+        <input type="range" id="thresh-range" min="10" max="200" value="90" oninput="updateThreshold(this.value)">
+        <div style="font-size:10px; color:#aaa; margin-top:5px;">
+            ←暗い部屋 / 明るい部屋→<br>
+            ※モニタの絵柄がハッキリする位置に合わせてください
+        </div>
+    </div>
+
     <div id="gear-icon" onclick="openSettings()">⚙️</div>
 
     <div id="screen-title" class="screen">
         <h1>CARD MASTER</h1>
-        <div id="level-list"></div>
+        <div id="level-list" style="width:90%; margin-top:20px;"></div>
     </div>
 
     <div id="screen-game" class="screen hidden">
         <button class="back-btn" onclick="goTitle()">← BACK</button>
-        <div style="position:absolute; top:30px; width:100%; text-align:center; font-weight:bold; font-size:1.2rem; text-shadow:0 2px 5px #000;" id="game-title-text">LEVEL</div>
+        <div style="position:absolute; top:30px; width:100%; text-align:center; font-weight:bold; font-size:1.2rem;" id="game-title-text">LEVEL</div>
+        
         <div class="slot-container">
             <div class="slot"><div class="slot-info" id="info-0">-</div></div>
             <div class="slot"><div class="slot-info" id="info-1">-</div></div>
             <div class="slot"><div class="slot-info" id="info-2">-</div></div>
             <div class="slot"><div class="slot-info" id="info-3">-</div></div>
         </div>
+        
         <button class="judge-btn" onclick="judge()">判 定 !</button>
     </div>
 
     <div id="settings-overlay">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0;">設定</h2>
-            <button onclick="closeSettings()" style="padding:8px 20px; background:#555; color:#fff; border:none; border-radius:20px; cursor:pointer;">閉じる</button>
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <h2>設定</h2><button onclick="closeSettings()" style="padding:5px 15px;">閉じる</button>
         </div>
-        
         <div class="setting-box">
             <h3>1. 画像登録</h3>
-            <p style="font-size:12px; color:#ccc; margin-bottom:10px;">カードまたは空白用の画像をアップロードしてください。</p>
             <input type="text" id="reg-name" placeholder="名前">
-            <div style="background:#333; padding:10px; border-radius:6px; margin-bottom:10px;">
-                <label style="display:flex; align-items:center; cursor:pointer;">
-                    <input type="checkbox" id="is-blank-check" style="width:20px; margin:0 10px 0 0;">
-                    <span style="font-size:14px;">この画像を「空白」として登録</span>
-                </label>
-            </div>
-            <label class="file-label">📁 画像ファイルを選択<input type="file" accept="image/*" onchange="registerImage(this)" style="display:none;"></label>
+            <div style="background:#333; padding:5px; margin-bottom:5px;"><label><input type="checkbox" id="is-blank-check"> これを「空白」にする</label></div>
+            <label style="display:block; background:#007bff; padding:10px; text-align:center; border-radius:5px; cursor:pointer;">
+                📁 画像を選択
+                <input type="file" accept="image/*" onchange="registerImage(this)" style="display:none;">
+            </label>
             <div class="card-list" id="reg-list"></div>
         </div>
-
-        <div class="setting-box" id="level-editor-box">
-            <h3 id="editor-title">2. 問題の作成</h3>
-            <input type="hidden" id="edit-index" value="-1">
+        <div class="setting-box">
+            <h3>2. 問題作成</h3>
             <input type="text" id="lvl-name" placeholder="タイトル">
-            <div style="display:flex; justify-content:space-between; gap:5px; margin-bottom:10px;">
-                <select id="sel-0"><option value="">(空白)</option></select>
-                <select id="sel-1"><option value="">(空白)</option></select>
-                <select id="sel-2"><option value="">(空白)</option></select>
-                <select id="sel-3"><option value="">(空白)</option></select>
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <select id="sel-0"></select><select id="sel-1"></select><select id="sel-2"></select><select id="sel-3"></select>
             </div>
-            <button id="add-update-btn" onclick="addOrUpdateLevel()" style="width:100%; padding:12px; background:#28a745; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">＋ リストに追加</button>
-            <button id="cancel-btn" onclick="cancelEdit()" style="display:none; width:100%; padding:10px; background:#666; color:white; border:none; border-radius:6px; margin-top:5px; cursor:pointer;">キャンセル</button>
-            <div style="margin-top:20px; border-top:1px solid #444; padding-top:10px;">
-                <div id="settings-level-list"></div>
-            </div>
+            <button onclick="addLevel()" style="width:100%; padding:10px; background:#28a745; color:#fff; border:none; border-radius:5px;">＋ 追加</button>
         </div>
-
-        <div class="setting-box" style="border:1px solid #007bff;">
-            <h3 style="color:#00d4ff;">配布・同期</h3>
-            <button onclick="downloadSelfContainedHTML()" style="width:100%; padding:10px; background:#28a745; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:10px;">💾 設定込みHTMLを保存</button>
-            <button onclick="startHost()" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">📡 スマホへQR同期</button>
-            <div id="sync-area"><div id="qrcode"></div><div id="sync-msg" style="color:#000; font-size:11px;">待機中...</div></div>
-        </div>
-
-        <div class="setting-box" style="background:#300;">
-            <button onclick="resetData()" style="width:100%; padding:10px; background:#d00; color:white; border:none; border-radius:6px; cursor:pointer;">⚠ 全データ削除</button>
+        <div class="setting-box">
+            <button onclick="downloadHTML()" style="width:100%; padding:10px; background:#007bff; color:#fff; border:none; border-radius:5px; margin-bottom:10px;">💾 HTML保存</button>
+            <button onclick="resetData()" style="width:100%; padding:10px; background:#d00; color:#fff; border:none; border-radius:5px;">⚠ 全削除</button>
         </div>
     </div>
 
     <div id="result-view" onclick="this.style.display='none'">
-        <div id="res-msg" style="font-size:5rem; font-weight:900; margin-bottom:30px;"></div>
-        <div style="font-size:1.2rem;">Tap to close</div>
+        <div id="res-msg" style="font-size:4rem; font-weight:bold;"></div>
+        <div>Tap to close</div>
     </div>
 </div>
 
@@ -225,116 +126,213 @@
 
 <script>
     // --- 変数 ---
-    const SLOT_WIDTH_PCT = 0.2019; const GAP_PCT = 0.0641;        
+    const SLOT_WIDTH_PCT = 0.2019; const GAP_PCT = 0.0641;
     const SLOT_X_PCT = [0, SLOT_WIDTH_PCT+GAP_PCT, (SLOT_WIDTH_PCT+GAP_PCT)*2, (SLOT_WIDTH_PCT+GAP_PCT)*3];
-
-    let cards = []; let levels = []; let blankCardData = null; 
-    let currentTarget = []; let detected = ["","","",""];
     
+    let cards = []; let levels = []; let blankCardData = null;
+    let currentTarget = []; let detected = ["","","",""];
+    let threshold = 90; // デフォルト閾値
+
     const video = document.getElementById('video-bg');
     const pCanvas = document.getElementById('proc-canvas');
     const pCtx = pCanvas.getContext('2d');
+    const dbgCanvas = document.getElementById('debug-monitor');
+    const dbgCtx = dbgCanvas.getContext('2d');
 
     // --- 初期化 ---
     window.onload = () => {
         try {
-            const embedded = document.getElementById('embedded-data').textContent;
-            if(embedded && embedded !== "null") {
-                const data = JSON.parse(embedded);
-                cards = data.cards; levels = data.levels; blankCardData = data.blank;
-            } else { loadFromLocal(); }
-        } catch(e) { console.error(e); loadFromLocal(); }
-
-        renderUI();
-        startCam(); // 初回起動
+            const txt = document.getElementById('embedded-data').textContent;
+            if(txt && txt!=="null") { const d=JSON.parse(txt); cards=d.cards; levels=d.levels; blankCardData=d.blank; }
+            else loadLocal();
+        } catch(e){ loadLocal(); }
         
-        const urlParams = new URLSearchParams(window.location.search);
-        const hostId = urlParams.get('sync');
-        if(hostId) startClient(hostId);
+        renderUI();
+        startCam();
     };
 
-    // --- カメラ起動ロジック (重要修正) ---
-    async function startCam(isManual = false) {
-        // 既存のストリームがあれば止める
-        if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-        }
+    function updateThreshold(val) {
+        threshold = parseInt(val);
+        document.getElementById('thresh-val').innerText = threshold;
+    }
 
-        const constraints = {
-            audio: false,
-            video: { 
-                facingMode: { ideal: "environment" }, // スマホは背面優先
-                width: { ideal: 1280 }, height: { ideal: 720 } 
-            }
-        };
-
+    async function startCam() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
+            const s = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
+            });
+            video.srcObject = s;
             video.onloadedmetadata = () => {
-                video.play();
-                video.classList.add('active'); // 映像が出たら透明度を戻す
-                pCanvas.width = 320; pCanvas.height = 180; 
-                if(!window.procInterval) window.procInterval = setInterval(process, 150);
+                video.play(); video.classList.add('active');
+                pCanvas.width = 320; pCanvas.height = 180;
+                dbgCanvas.width = 320; dbgCanvas.height = 180; // モニタも同じサイズ
+                setInterval(process, 150);
             };
-            if(isManual) showToast("カメラを再起動しました");
-        } catch (err) {
-            console.error(err);
-            if(isManual) alert("カメラ起動エラー: " + err.name + "\n設定でカメラ権限を許可してください。");
+        } catch(e) { alert("カメラ起動失敗: "+e); }
+    }
+
+    // --- 画像処理 (デバッグ機能付き) ---
+    function process() {
+        if(video.readyState !== 4) return;
+        pCtx.drawImage(video, 0, 0, pCanvas.width, pCanvas.height);
+        
+        const w = pCanvas.width; const h = pCanvas.height;
+        const scanH = h * 0.3; const scanY = (h - scanH) / 2; // 中央30%の帯
+        
+        // 1. 全体を2値化してモニタに表示
+        const imgData = pCtx.getImageData(0, 0, w, h);
+        const bin = binarize(imgData);
+        
+        // デバッグモニタに描画（白黒画像）
+        dbgCtx.putImageData(bin, 0, 0);
+        // 認識エリア（緑枠）をモニタに描画
+        dbgCtx.strokeStyle = "yellow"; dbgCtx.lineWidth = 2;
+        for(let i=0; i<4; i++) {
+            const cx = SLOT_X_PCT[i] * w; const cw = SLOT_WIDTH_PCT * w;
+            const cutW = Math.floor(cw * 0.6); const cutX = Math.floor(cx + (cw-cutW)/2);
+            dbgCtx.strokeRect(cutX, scanY, cutW, scanH);
+        }
+
+        // 2. 判定ロジック
+        let detectedNow = [];
+        for(let i=0; i<4; i++) {
+            const cx = SLOT_X_PCT[i] * w; const cw = SLOT_WIDTH_PCT * w;
+            const cutW = Math.floor(cw * 0.6); const cutX = Math.floor(cx + (cw - cutW)/2);
+            const feat = getFeature(bin, cutX, scanY, cutW, scanH, w);
+
+            let best = "?"; let minD = 1.0;
             
-            // PCなどで背面がない場合、デフォルトカメラを試す
-            try {
-                const streamFallback = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = streamFallback;
-                video.onloadedmetadata = () => {
-                    video.play();
-                    video.classList.add('active');
-                };
-            } catch(e2) {
-                console.error("Fallback failed", e2);
+            // 通常カード
+            cards.forEach(c => {
+                if(c.isBlank) return;
+                const diff = compare(feat, c.data);
+                if(diff < minD) { minD = diff; best = c.name; }
+            });
+            // 空白
+            if(blankCardData) {
+                const bDiff = compare(feat, blankCardData);
+                if(bDiff < minD && bDiff < 0.20) { best = ""; minD = bDiff; } // 空白は少し緩めに
+            }
+
+            // 閾値判定 (0.20以下なら採用)
+            if(minD > 0.20) best = "?";
+
+            detectedNow.push({name: best, score: minD});
+            
+            const info = document.getElementById(`info-${i}`);
+            if(info) {
+                const dispName = best === "" ? "(空白)" : best;
+                // スコアを表示 (デバッグ用)
+                info.innerText = `${dispName}\n(Diff:${minD.toFixed(2)})`;
+                info.style.color = best === "?" ? "#f00" : "#0f0";
             }
         }
+        detected = detectedNow.map(d => d.name);
     }
 
-    // --- 同期 (PeerJS) ---
-    let peer = null;
-    function startHost() {
-        if(typeof Peer === 'undefined') { alert("通信エラー: ネット接続を確認してください"); return; }
-        if(peer) peer.destroy(); peer = new Peer(); 
-        document.getElementById('sync-area').style.display = 'block';
-        document.getElementById('sync-msg').innerText = "準備中...";
-        peer.on('open', (id) => {
-            const u = window.location.href.split('?')[0] + "?sync=" + id;
-            document.getElementById('qrcode').innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), { text: u, width: 128, height: 128 });
-            document.getElementById('sync-msg').innerText = "スマホで読み取ってください";
-        });
-        peer.on('connection', (c) => { 
-            c.on('open', () => { 
-                c.send({cards,levels,blank:blankCardData}); 
-                showToast("データを送信しました！");
-            }); 
-        });
-    }
-
-    function startClient(id) {
-        if(peer) peer.destroy(); peer = new Peer();
-        peer.on('open', () => {
-            const c = peer.connect(id);
-            c.on('data', (d) => { 
-                cards=d.cards; levels=d.levels; blankCardData=d.blank; 
-                saveData(); renderUI(); 
-                showToast("同期完了！保存しました");
-                window.history.replaceState({}, document.title, window.location.pathname);
+    // --- 画像登録 ---
+    function registerImage(input) {
+        if(!input.files[0]) return;
+        const name = document.getElementById('reg-name').value || "Img"+(cards.length+1);
+        const isBlank = document.getElementById('is-blank-check').checked;
+        
+        const r = new FileReader();
+        r.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                // Slot1のサイズに合わせて正規化
+                const w = pCanvas.width; const h = pCanvas.height;
+                const cw = SLOT_WIDTH_PCT * w; const cutW = Math.floor(cw * 0.6); 
+                const scanH = h * 0.3;
+                c.width = cutW; c.height = scanH;
+                const ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0, cutW, scanH);
                 
-                // ★重要: 同期後にカメラを強制リセットしてスマホのカメラを確実に掴む
-                setTimeout(() => startCam(false), 500); 
-            });
-        });
+                const b = binarize(ctx.getImageData(0,0,cutW,scanH));
+                const data = getFeature(b, 0, 0, cutW, scanH, cutW);
+                
+                ctx.putImageData(b, 0, 0); // サムネも白黒にする
+                const thumb = c.toDataURL();
+
+                if(isBlank) {
+                    blankCardData = data;
+                    cards = cards.filter(x => !x.isBlank);
+                    cards.unshift({name:"【空白】"+name, data, thumb, isBlank:true});
+                } else {
+                    cards.push({name, data, thumb, isBlank:false});
+                }
+                saveLocal(); renderUI();
+                input.value=""; document.getElementById('reg-name').value="";
+            };
+            img.src = e.target.result;
+        };
+        r.readAsDataURL(input.files[0]);
     }
 
-    // --- HTML保存 ---
-    function downloadSelfContainedHTML() {
+    // --- ユーティリティ ---
+    function binarize(imgData) {
+        const d = imgData.data;
+        const bin = new ImageData(imgData.width, imgData.height);
+        const bd = bin.data;
+        for(let i=0; i<d.length; i+=4) {
+            // スライダーの値(threshold)を使って白黒判定
+            const gray = (d[i]+d[i+1]+d[i+2])/3;
+            const v = gray < threshold ? 0 : 255;
+            bd[i]=bd[i+1]=bd[i+2]=v; bd[i+3]=255;
+        }
+        return bin;
+    }
+    function getFeature(b,x,y,w,h,tw) {
+        const p=[]; const d=b.data; const step=3;
+        for(let py=y; py<y+h; py+=step) for(let px=x; px<x+w; px+=step) {
+            p.push(d[(py*tw+px)*4]===0 ? 1 : 0);
+        }
+        return p;
+    }
+    function compare(a, b) {
+        if(!a || !b || a.length!==b.length) return 1.0;
+        let diff=0; for(let i=0; i<a.length; i++) if(a[i]!==b[i]) diff++;
+        return diff/a.length;
+    }
+
+    // --- UI/保存 ---
+    function addLevel() {
+        const t = document.getElementById('lvl-name').value || "無題";
+        const o = [0,1,2,3].map(i => document.getElementById(`sel-${i}`).value);
+        levels.push({title:t, order:o}); saveLocal(); renderUI();
+    }
+    function renderUI() {
+        const cl = document.getElementById('reg-list'); cl.innerHTML="";
+        cards.forEach((c,i)=>{
+            cl.innerHTML+=`<div class="card-thumb" style="${c.isBlank?'border:2px solid #0f0':''}"><img src="${c.thumb}"><div class="card-name">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:20px;color:white;text-align:center;cursor:pointer;" onclick="if(confirm('削除?')){cards.splice(${i},1);if(c.isBlank)blankCardData=null;saveLocal();renderUI();}">×</div></div>`;
+        });
+        for(let i=0;i<4;i++){
+            const s=document.getElementById(`sel-${i}`); const v=s.value; s.innerHTML="<option value=''>- 空白 -</option>";
+            cards.forEach(c=>{ if(!c.isBlank) s.innerHTML+=`<option value='${c.name}'>${c.name}</option>`; });
+            s.value=v;
+        }
+        const ll = document.getElementById('level-list'); ll.innerHTML="";
+        levels.forEach((l,i)=>{
+            ll.innerHTML+=`<div class="level-item" onclick="startGame(${i})"><span>${l.title}</span><span onclick="event.stopPropagation();if(confirm('削除?')){levels.splice(${i},1);saveLocal();renderUI()}">🗑️</span></div>`;
+        });
+    }
+    
+    function startGame(i) { currentTarget=levels[i].order; document.getElementById('game-title-text').innerText=levels[i].title; document.getElementById('screen-title').classList.add('hidden'); document.getElementById('screen-game').classList.remove('hidden'); video.classList.add('active'); }
+    function goTitle() { document.getElementById('screen-game').classList.add('hidden'); document.getElementById('screen-title').classList.remove('hidden'); video.classList.remove('active'); }
+    function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
+    function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+    function judge() {
+        const isMatch = JSON.stringify(detected) === JSON.stringify(currentTarget);
+        const m = document.getElementById('res-msg'); m.innerText = isMatch?"正解!!":"不正解..."; m.style.color=isMatch?"#0f0":"#f00";
+        document.getElementById('result-view').style.display='flex';
+    }
+    
+    function saveLocal() { localStorage.setItem('cm_v13_data', JSON.stringify({cards,levels,blank:blankCardData})); }
+    function loadLocal() { const d=localStorage.getItem('cm_v13_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankCardData=j.blank;} }
+    function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
+    
+    function downloadHTML() {
         let html = document.documentElement.outerHTML;
         const data = JSON.stringify({ cards, levels, blank: blankCardData });
         const targetId = 'embedded-data';
@@ -347,146 +345,6 @@
             const a = document.createElement('a'); a.href = url; a.download = "index.html"; a.click();
         } else { alert("保存エラー"); }
     }
-
-    // --- 画像処理 ---
-    function process() {
-        if(video.readyState !== 4) return;
-        pCtx.drawImage(video, 0, 0, pCanvas.width, pCanvas.height);
-        const frameW = pCanvas.width; const frameH = pCanvas.height;
-        const scanH = frameH * 0.3; const scanY = (frameH - scanH) / 2;
-        const binFrame = binarizeImageData(pCtx.getImageData(0,0,frameW,frameH));
-        
-        let detectedNow = [];
-        for(let i=0; i<4; i++) {
-            const cx = SLOT_X_PCT[i] * frameW; const cw = SLOT_WIDTH_PCT * frameW;
-            const cutW = Math.floor(cw * 0.6); const cutX = Math.floor(cx + (cw - cutW)/2);
-            const feature = getBinaryRegion(binFrame, cutX, scanY, cutW, scanH, frameW);
-            
-            let bestName = "?"; let minDiff = 1.0;
-            cards.forEach(c => {
-                if(c.isBlank) return;
-                const diff = compareBinary(feature, c.data);
-                if(diff < minDiff) { minDiff = diff; bestName = c.name; }
-            });
-            if(blankCardData) {
-                const bDiff = compareBinary(feature, blankCardData);
-                if(bDiff < minDiff && bDiff < 0.15) { bestName = ""; minDiff = bDiff; }
-            }
-            if(minDiff > 0.15) bestName = "?"; 
-            detectedNow.push(bestName);
-            
-            const info = document.getElementById(`info-${i}`);
-            if(info) {
-                info.innerText = bestName === "" ? "" : bestName;
-                info.style.color = bestName === "?" ? "#555" : (bestName==="" ? "#aaa" : "#0f0");
-            }
-        }
-        detected = detectedNow;
-    }
-
-    // --- 登録処理 ---
-    function registerImage(input) {
-        if (!input.files || !input.files[0]) return;
-        const nameInput = document.getElementById('reg-name');
-        const name = nameInput.value || "画像" + (cards.length + 1);
-        const isBlank = document.getElementById('is-blank-check').checked;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const tCan = document.createElement('canvas');
-                const frameW = pCanvas.width; const frameH = pCanvas.height;
-                const cw = SLOT_WIDTH_PCT * frameW; const cutW = Math.floor(cw * 0.6); const scanH = frameH * 0.3;
-                tCan.width = cutW; tCan.height = scanH;
-                const tCtx = tCan.getContext('2d');
-                tCtx.drawImage(img, 0, 0, cutW, scanH);
-                const bin = binarizeImageData(tCtx.getImageData(0,0,cutW,scanH));
-                const data = getBinaryRegion(bin, 0,0,cutW,scanH,cutW);
-                tCtx.putImageData(bin, 0,0);
-                const thumb = tCan.toDataURL();
-
-                if(isBlank) {
-                    blankCardData = data;
-                    const existing = cards.findIndex(c => c.isBlank);
-                    if(existing !== -1) cards.splice(existing, 1);
-                    cards.unshift({ name: "【空白】" + name, data: data, thumb: thumb, isBlank: true });
-                    showToast("空白として登録しました");
-                } else {
-                    cards.push({ name: name, data: data, thumb: thumb, isBlank: false });
-                    showToast("登録しました");
-                }
-                saveData(); renderUI();
-                input.value = ""; nameInput.value = ""; document.getElementById('is-blank-check').checked = false;
-            }
-            img.src = e.target.result;
-        }
-        reader.readAsDataURL(input.files[0]);
-    }
-
-    // --- 編集・保存・UI ---
-    function addOrUpdateLevel() {
-        const title = document.getElementById('lvl-name').value || "無題";
-        const order = [0,1,2,3].map(i => document.getElementById(`sel-${i}`).value);
-        const idx = parseInt(document.getElementById('edit-index').value);
-        if(idx >= 0) { levels[idx] = { title, order }; showToast("更新しました"); } 
-        else { levels.push({ title, order }); showToast("追加しました"); }
-        cancelEdit(); saveData(); renderUI();
-    }
-    function editLevel(idx) {
-        const l = levels[idx];
-        document.getElementById('lvl-name').value = l.title;
-        for(let i=0; i<4; i++) document.getElementById(`sel-${i}`).value = l.order[i];
-        document.getElementById('edit-index').value = idx;
-        document.getElementById('editor-title').innerText = "2. 問題の編集";
-        const btn = document.getElementById('add-update-btn'); btn.innerText = "🔄 更新する"; btn.style.background = "#007bff";
-        document.getElementById('cancel-btn').style.display = "block";
-        document.getElementById('level-editor-box').scrollIntoView({behavior: "smooth"});
-    }
-    function cancelEdit() {
-        document.getElementById('lvl-name').value = "";
-        for(let i=0; i<4; i++) document.getElementById(`sel-${i}`).value = "";
-        document.getElementById('edit-index').value = "-1";
-        document.getElementById('editor-title').innerText = "2. 問題の作成";
-        const btn = document.getElementById('add-update-btn'); btn.innerText = "＋ リストに追加"; btn.style.background = "#28a745";
-        document.getElementById('cancel-btn').style.display = "none";
-    }
-
-    function renderUI() {
-        const cl = document.getElementById('reg-list'); cl.innerHTML = "";
-        cards.forEach((c, i) => {
-            const style = c.isBlank ? 'border:2px solid #0f0;' : '';
-            cl.innerHTML += `<div class="card-thumb" style="${style}"><img src="${c.thumb}"><div class="card-name">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:20px;height:20px;font-size:14px;color:white;text-align:center;cursor:pointer;line-height:20px;" onclick="if(confirm('削除?')){cards.splice(${i},1);if(c.isBlank)blankCardData=null;saveData();renderUI();}">×</div></div>`;
-        });
-        for(let i=0;i<4;i++){
-            const s=document.getElementById(`sel-${i}`); const v=s.value;
-            s.innerHTML = "<option value=''>- 空白 -</option>";
-            cards.forEach(c => { if(!c.isBlank) s.innerHTML+=`<option value='${c.name}'>${c.name}</option>`; });
-            s.value = v;
-        }
-        const ml = document.getElementById('level-list'); ml.innerHTML = "";
-        const sl = document.getElementById('settings-level-list'); sl.innerHTML = "";
-        if(levels.length===0) ml.innerHTML = "<p style='color:#aaa;text-align:center;margin-top:50px;'>問題を作成してください</p>";
-        levels.forEach((l,i) => {
-            ml.innerHTML += `<div class="level-item" onclick="startGame(${i})"><span>${l.title}</span> <span style="font-size:12px; color:#aaa;">▶</span></div>`;
-            sl.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:#333; margin-bottom:5px; padding:8px; border-radius:4px;"><span style="font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:60%;">${l.title}</span><div><button class="edit-btn" onclick="editLevel(${i})">✎</button><button class="del-btn" onclick="if(confirm('削除?')){levels.splice(${i},1);saveData();renderUI();}">🗑️</button></div></div>`;
-        });
-    }
-
-    // --- その他 ---
-    function startGame(i) { currentTarget = levels[i].order; document.getElementById('game-title-text').innerText = levels[i].title; document.getElementById('screen-title').classList.add('hidden'); document.getElementById('screen-game').classList.remove('hidden'); video.classList.add('active'); }
-    function goTitle() { document.getElementById('screen-game').classList.add('hidden'); document.getElementById('screen-title').classList.remove('hidden'); video.classList.remove('active'); }
-    function judge() { const isMatch = JSON.stringify(detected) === JSON.stringify(currentTarget); const m = document.getElementById('res-msg'); m.innerText = isMatch ? "正解!!" : "不正解..."; m.style.color = isMatch ? "#0f0" : "#f00"; document.getElementById('result-view').style.display = 'flex'; }
-    function saveData() { localStorage.setItem('cm_v12_cards', JSON.stringify(cards)); localStorage.setItem('cm_v12_levels', JSON.stringify(levels)); if(blankCardData) localStorage.setItem('cm_v12_blank', JSON.stringify(blankCardData)); }
-    function loadFromLocal() { const c=localStorage.getItem('cm_v12_cards'); if(c) cards=JSON.parse(c); const l=localStorage.getItem('cm_v12_levels'); if(l) levels=JSON.parse(l); const b=localStorage.getItem('cm_v12_blank'); if(b) blankCardData=JSON.parse(b); }
-    function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
-    function showToast(msg) { const el = document.getElementById('status-msg'); el.innerText = msg; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 2000); }
-    function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
-    function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); cancelEdit(); }
-
-    function binarizeImageData(d) { const bin=new ImageData(d.width,d.height); const bd=bin.data; const dd=d.data; for(let i=0;i<dd.length;i+=4) { const v=(dd[i]+dd[i+1]+dd[i+2])/3 < 90 ? 0 : 255; bd[i]=bd[i+1]=bd[i+2]=v; bd[i+3]=255; } return bin; }
-    function getBinaryRegion(b,x,y,w,h,tw) { const p=[]; const dd=b.data; const s=3; for(let py=y;py<y+h;py+=s) for(let px=x;px<x+w;px+=s) p.push(dd[(py*tw+px)*4]===0?1:0); return p; }
-    function compareBinary(a,b) { if(!a || !b || a.length!==b.length) return 1.0; let d=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i])d++; return d/a.length; }
 </script>
 </body>
 </html>
