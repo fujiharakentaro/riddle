@@ -3,42 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Card Master V18 (Fixed & UI)</title>
+    <title>Card Master V19 (Fixed Registration)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; width: 100vw; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* メイン画面構成 */
+        /* メイン画面 */
         #canvas-container {
-            position: relative;
-            width: 100%; max-width: 640px;
-            aspect-ratio: 16 / 9; 
-            background: #222;
-            box-shadow: 0 0 20px rgba(0,255,0,0.2);
+            position: relative; width: 100%; max-width: 640px; aspect-ratio: 16 / 9; 
+            background: #222; box-shadow: 0 0 20px rgba(0,255,0,0.2);
         }
         canvas { width: 100%; height: 100%; display: block; }
 
         /* UIレイヤー */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* 下のCanvasをスルー */
-            display: flex; flex-direction: column; justify-content: space-between;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
         }
         
-        /* 共通ボタンスタイル */
-        button, .btn-float, .judge-btn, .file-label, .level-item { cursor: pointer; } /* カーソルを指に */
+        button, .btn-float, .judge-btn, .file-label, .level-item { cursor: pointer; pointer-events: auto; }
 
         .btn-float { 
-            pointer-events: auto;
             background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #fff; 
             padding: 8px 15px; border-radius: 20px; font-size: 12px; margin: 10px; 
-            transition: background 0.2s;
         }
         .btn-float:hover { background: rgba(255,255,255,0.2); }
 
         .judge-btn { 
-            pointer-events: auto;
             width: 80%; padding: 15px; font-size: 1.5rem; font-weight: bold; border: none; border-radius: 50px; 
             color: white; background: linear-gradient(to bottom, #28a745, #208030); 
             align-self: center; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -46,9 +38,7 @@
         .judge-btn:hover { transform: scale(1.02); }
 
         /* 調整パネル */
-        #controls {
-            width: 90%; max-width: 600px; background: #222; padding: 10px; border-radius: 10px; margin-top: 10px;
-        }
+        #controls { width: 90%; max-width: 600px; background: #222; padding: 10px; border-radius: 10px; margin-top: 10px; }
         .slider-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
         input[type=range] { width: 100%; cursor: grab; }
 
@@ -59,7 +49,6 @@
             transition: transform 0.3s; padding: 20px; overflow-y: auto; box-sizing: border-box; 
         }
         #settings-overlay.open { transform: translateY(0); }
-        
         .setting-box { background: #252525; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; }
         h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 5px; font-size:1rem; color:#ddd; }
 
@@ -75,33 +64,26 @@
             background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; 
         }
 
-        /* 問題リストのスタイル */
-        .level-list-container { margin-top: 10px; max-height: 300px; overflow-y: auto; }
+        /* 問題リスト */
         .level-row {
             background: #333; padding: 10px; margin-bottom: 5px; border-radius: 6px; border: 1px solid #444;
             display: flex; flex-direction: column; cursor: default;
         }
         .level-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .level-title-text { font-weight: bold; font-size: 14px; color: #fff; }
-        .level-detail { font-size: 11px; color: #aaa; background: #222; padding: 5px; border-radius: 4px; }
-        .btn-mini { padding: 4px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; margin-left: 5px; color: #fff;}
-        .btn-edit { background: #007bff; }
-        .btn-del { background: #dc3545; }
+        .btn-mini { padding: 4px 8px; font-size: 11px; border-radius: 4px; border: none; margin-left: 5px; color: #fff;}
+        .btn-edit { background: #007bff; } .btn-del { background: #dc3545; }
 
-        /* 結果表示 */
         #result-view { 
             position: fixed; top:0; left:0; width:100%; height:100%; 
             background: rgba(0,0,0,0.9); display: none; z-index: 400; 
             flex-direction: column; justify-content: center; align-items: center; cursor: pointer;
         }
         
-        /* ステータス通知 */
         #status-msg { 
             position: fixed; top: 10px; left: 50%; transform: translateX(-50%); 
             background: rgba(40,167,69,0.95); padding: 8px 20px; border-radius: 20px; 
             font-size:12px; opacity:0; transition:opacity 0.5s; z-index:300; pointer-events: none;
         }
-        
         video { display: none; }
     </style>
 </head>
@@ -110,16 +92,15 @@
 <div id="canvas-container">
     <canvas id="main-canvas"></canvas>
     <div class="ui-layer">
-        <div style="display:flex; justify-content:space-between; pointer-events:none;">
-            <button class="btn-float" onclick="startCam(true)" style="pointer-events:auto;">📷 再起動</button>
-            <button class="btn-float" onclick="openSettings()" style="pointer-events:auto;">⚙️ 設定</button>
+        <div style="display:flex; justify-content:space-between;">
+            <button class="btn-float" onclick="startCam(true)">📷 再起動</button>
+            <button class="btn-float" onclick="openSettings()">⚙️ 設定</button>
         </div>
         
-        <button id="btn-back" class="btn-float" onclick="goTitle()" style="display:none; position:absolute; top:50px; left:0; pointer-events:auto;">← タイトルへ</button>
-
+        <button id="btn-back" class="btn-float" onclick="goTitle()" style="display:none; position:absolute; top:50px; left:0;">← タイトルへ</button>
         <button id="btn-judge" class="judge-btn" onclick="judge()" style="display:none;">判 定 !</button>
         
-        <div id="title-ui" style="text-align:center; margin-top:15%; pointer-events:auto; width:100%; height:70%; overflow-y:auto;">
+        <div id="title-ui" style="text-align:center; margin-top:15%; width:100%; height:70%; overflow-y:auto;">
             <h1 style="text-shadow:0 0 10px #000; margin-bottom:10px;">CARD MASTER</h1>
             <p style="font-size:12px; color:#ccc;">問題を選択してスタート</p>
             <div id="title-level-list" style="width:80%; margin:0 auto; padding-bottom:20px;"></div>
@@ -179,7 +160,6 @@
         <button id="cancel-btn" onclick="cancelEdit()" style="width:100%; padding:8px; background:#666; color:#fff; border:none; border-radius:5px; margin-top:5px; display:none;">編集キャンセル</button>
         
         <div style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
-            <p style="font-size:12px; color:#aaa; margin-bottom:5px;">登録済み問題一覧</p>
             <div id="settings-level-list" class="level-list-container"></div>
         </div>
     </div>
@@ -203,7 +183,6 @@
 <script id="embedded-data" type="application/json">null</script>
 
 <script>
-    // --- コンフィグ ---
     const PROC_W = 320; const PROC_H = 180;
     const SLOT_W_PCT = 0.20; const GAP_PCT = 0.05;
     const START_X = (1.0 - (SLOT_W_PCT*4 + GAP_PCT*3)) / 2;
@@ -218,7 +197,6 @@
     const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
 
-    // --- 初期化 ---
     window.onload = () => {
         canvas.width = PROC_W; canvas.height = PROC_H;
         try {
@@ -249,17 +227,13 @@
         }
     }
 
-    // --- 描画ループ ---
     function loop() {
         if(video.readyState !== 4) return;
         ctx.drawImage(video, 0, 0, PROC_W, PROC_H);
         const imgData = ctx.getImageData(0, 0, PROC_W, PROC_H);
         const bin = binarize(imgData);
-        
-        // ユーザに白黒画面を見せる
         ctx.putImageData(bin, 0, 0); 
         
-        // 枠描画
         ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2; ctx.fillStyle = "#0f0"; ctx.font = "10px sans-serif";
         const scanH = PROC_H * 0.4; const scanY = (PROC_H - scanH) / 2;
         let detectedNow = [];
@@ -291,7 +265,7 @@
         detected = detectedNow;
     }
 
-    // --- 画像登録 ---
+    // --- 画像登録 (修正済み) ---
     function registerImage(input) {
         if(!input.files[0]) return;
         const name = document.getElementById('reg-name').value || "Card"+(cards.length+1);
@@ -301,26 +275,21 @@
         r.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                // 登録用一時キャンバス作成 (PROC_W/H ベース)
                 const c = document.createElement('canvas');
                 const cw = SLOT_WIDTH_PCT * PROC_W; const cutW = Math.floor(cw * 0.7); const scanH = PROC_H * 0.4;
                 c.width = cutW; c.height = scanH;
                 const tx = c.getContext('2d');
-                
-                // 画像をリサイズして描画
                 tx.drawImage(img, 0, 0, cutW, scanH);
                 
-                // データ化
+                // ★ここがバグの修正点：関数名を定義と一致させました★
                 const b = binarize(tx.getImageData(0,0,cutW,scanH));
                 const data = getFeature(b, 0, 0, cutW, scanH, cutW);
                 
-                // サムネ用白黒
                 tx.putImageData(b, 0, 0); 
                 const thumb = c.toDataURL();
 
                 if(isBlank) {
                     blankData = data;
-                    // 表示用ダミー
                     cards = cards.filter(x=>!x.isBlank);
                     cards.unshift({name:"【空白】"+name, data, thumb, isBlank:true});
                     showToast("空白として登録しました");
@@ -336,7 +305,7 @@
         r.readAsDataURL(input.files[0]);
     }
 
-    // --- コアロジック ---
+    // --- コア関数 (名前を統一) ---
     function binarize(d) {
         const bin=new ImageData(d.width,d.height); const bd=bin.data; const dd=d.data;
         for(let i=0;i<dd.length;i+=4) {
@@ -345,6 +314,7 @@
         }
         return bin;
     }
+    
     function getFeature(b,x,y,w,h,tw) {
         const p=[]; const d=b.data; const step=2;
         for(let py=0; py<h; py+=step) for(let px=0; px<w; px+=step) {
@@ -352,12 +322,11 @@
         }
         return p;
     }
+
     function compareShift(a, b, w, h, range) {
         if(!a || !b || a.length !== b.length) return 1.0;
         let minDiff = 1.0;
-        // センター
         minDiff = Math.min(minDiff, simpleCompare(a,b,0));
-        // シフト
         for(let s=1; s<=range; s++) {
             minDiff = Math.min(minDiff, simpleCompare(a,b,s));
             minDiff = Math.min(minDiff, simpleCompare(a,b,-s));
@@ -398,19 +367,16 @@
     }
 
     function renderUI() {
-        // カードリスト
         const cl = document.getElementById('reg-list'); cl.innerHTML="";
         cards.forEach((c,i)=>{
             const style = c.isBlank ? "border:2px dashed #0f0;" : "";
             cl.innerHTML+=`<div class="card-thumb" style="${style}"><img src="${c.thumb}"><div class="card-name">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:20px;color:white;text-align:center;cursor:pointer;" onclick="if(confirm('削除?')){cards.splice(${i},1);if(c.isBlank)blankData=null;saveLocal();renderUI();}">×</div></div>`;
         });
-        // Select
         for(let i=0;i<4;i++){
             const s=document.getElementById(`sel-${i}`); const v=s.value; s.innerHTML="<option value=''>- 空白 -</option>";
             cards.forEach(c=>{ if(!c.isBlank) s.innerHTML+=`<option value='${c.name}'>${c.name}</option>`; });
             s.value=v;
         }
-        // タイトル画面のリスト
         const tl = document.getElementById('title-level-list'); tl.innerHTML="";
         if(levels.length===0) tl.innerHTML="<div style='color:#777;margin-top:20px;'>※右上の設定⚙️から問題を作成してください</div>";
         levels.forEach((l,i)=>{
@@ -420,21 +386,16 @@
                 <span style="background:#007bff; padding:5px 10px; border-radius:15px; font-size:12px;">挑戦 ▶</span>
             </div>`;
         });
-        // 設定画面のリスト
         const sl = document.getElementById('settings-level-list'); sl.innerHTML="";
         levels.forEach((l,i)=>{
-            // 並び順の概要を作成
             const detail = l.order.map(n=>n===""?"_":n).join(", ");
             sl.innerHTML+=`
             <div class="level-row">
                 <div class="level-row-header">
-                    <span class="level-title-text">${l.title}</span>
-                    <div>
-                        <button class="btn-mini btn-edit" onclick="editLevel(${i})">編集</button>
-                        <button class="btn-mini btn-del" onclick="if(confirm('削除?')){levels.splice(${i},1);saveLocal();renderUI();}">削除</button>
-                    </div>
+                    <span style="font-weight:bold;">${l.title}</span>
+                    <div><button class="btn-mini btn-edit" onclick="editLevel(${i})">編集</button><button class="btn-mini btn-del" onclick="if(confirm('削除?')){levels.splice(${i},1);saveLocal();renderUI();}">削除</button></div>
                 </div>
-                <div class="level-detail">正解: [ ${detail} ]</div>
+                <div style="font-size:11px;color:#aaa;">正解: ${detail}</div>
             </div>`;
         });
     }
@@ -456,8 +417,8 @@
         document.getElementById('result-view').style.display='flex';
     }
 
-    function saveLocal() { localStorage.setItem('cm_v18_data', JSON.stringify({cards,levels,blank:blankData})); }
-    function loadLocal() { const d=localStorage.getItem('cm_v18_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankData=j.blank;} }
+    function saveLocal() { localStorage.setItem('cm_v19_data', JSON.stringify({cards,levels,blank:blankData})); }
+    function loadLocal() { const d=localStorage.getItem('cm_v19_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankData=j.blank;} }
     function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
     function showToast(m) { const e=document.getElementById('status-msg'); e.innerText=m; e.style.opacity=1; setTimeout(()=>e.style.opacity=0,2000); }
     function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
@@ -471,7 +432,6 @@
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], {type:"text/html"})); a.download = "index.html"; a.click();
     }
     
-    // PeerJS
     let peer=null;
     function startHost(){ if(typeof Peer==='undefined'){alert("通信エラー");return;} if(peer)peer.destroy(); peer=new Peer(); document.getElementById('sync-area').style.display='block'; document.getElementById('sync-msg').innerText="待機中..."; peer.on('open',id=>{ new QRCode(document.getElementById('qrcode'),{text:window.location.href.split('?')[0]+"?sync="+id,width:128,height:128});}); peer.on('connection',c=>{c.on('open',()=>c.send({cards,levels,blank:blankData}));});}
     function startClient(id){ if(peer)peer.destroy(); peer=new Peer(); peer.on('open',()=>{ const c=peer.connect(id); c.on('data',d=>{cards=d.cards;levels=d.levels;blankData=d.blank;saveLocal();renderUI();showToast("同期完了");window.history.replaceState({},document.title,window.location.pathname);}); });}
