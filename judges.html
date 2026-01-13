@@ -1,1 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Card Master V40 (Fixed)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; width: 100vw; height: 100dvh; display: flex; flex-direction: column; }
+        
+        /* 画面管理 */
+        .screen { position: absolute; top:0; left:0; width:100%; height:100%; display:none; flex-direction:column; align-items:center; justify-content:center; background:#222; z-index:10; }
+        #game-screen { background: #000; }
 
+        /* キャンバス：アスペクト比を維持して画面に収める */
+        #canvas-container { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        canvas { 
+            display: block; 
+            max-width: 100%; max-height: 100%; 
+            width: auto; height: auto; 
+            object-fit: contain; 
+        }
+        
+        /* 内部処理用（非表示） */
+        #proc-canvas { display: none; }
+        /* デバッグ用：右上に小さく表示 */
+        #debug-canvas { 
+            position: absolute; top: 10px; right: 10px; width: 120px; height: auto; 
+            border: 1px solid #0f0; background: black; z-index: 100; display:block;
+        }
+
+        /* UIレイヤー */
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; box-sizing: border-box; z-index: 20; }
+        button { pointer-events: auto; cursor: pointer; border: none; outline: none; }
+        .btn-float { background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #aaa; padding: 8px 16px; border-radius: 20px; font-size: 14px; margin: 10px; }
+        .judge-btn { width: 200px; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 50px; color: white; background: linear-gradient(to bottom, #28a745, #208030); align-self: center; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+
+        /* 横画面推奨メッセージ */
+        #rotate-msg {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 9999; color: white; 
+            flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+        @media screen and (orientation: portrait) {
+            #rotate-msg { display: flex; }
+        }
+
+        /* 結果オーバーレイ */
+        #result-overlay { display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); flex-direction:column; justify-content:center; align-items:center; z-index:500; }
+        
+        /* 設定画面 */
+        #settings-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #151515; z-index: 300; transform: translateY(100%); transition: transform 0.3s; padding: 20px; overflow-y: auto; box-sizing: border-box; }
+        #settings-overlay.open { transform: translateY(0); }
+        .setting-box { background: #252525; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; }
+        
+        .card-list { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; min-height: 80px;}
+        .card-thumb { min-width: 60px; height: 80px; background: #000; border: 1px solid #555; position: relative; }
+        .card-thumb img { width: 100%; height: 100%; object-fit: contain; }
+        #status-msg { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(40,167,69,0.9); padding: 8px 20px; border-radius: 20px; font-size:14px; opacity:0; transition:opacity 0.5s; z-index:400; pointer-events: none; }
+        #sync-area { display:none; background:#fff; padding:20px; margin-top:10px; text-align:center; border-radius:8px; color:#000; }
+        #qrcode-sync { margin: 10px auto; } 
+
+        video { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="rotate-msg">
+    <div style="font-size: 50px;">⟳</div>
+    <p>画面を横にしてご利用ください</p>
+</div>
+
+<div id="title-screen" class="screen">
+    <h1 style="margin-bottom:5px; text-shadow: 0 0 10px #0af;">CARD MASTER</h1>
+    <p style="color:#aaa; font-size:12px;">V40 Final Landscape (Fixed)</p>
+    <div id="title-list" style="width:90%; max-width:400px; margin-top:20px;"></div>
+    <div style="margin-top:20px;">
+        <button class="btn-float" onclick="openSettings()">⚙️ 設定・同期</button>
+    </div>
+</div>
+
+<div id="game-screen" class="screen">
+    <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="proc-canvas"></canvas>
+        <canvas id="debug-canvas"></canvas> </div>
+    <div class="ui-layer">
+        <div style="display:flex; justify-content:space-between; padding:10px;">
+            <button class="btn-float" onclick="goTitle()">🏠 タイトル</button>
+            <button class="btn-float" onclick="toggleDebug()">黒認識感度: <span id="debug-val">100</span></button>
+        </div>
+        <div style="text-align:center; margin-bottom:10px; pointer-events:auto;">
+            <div style="background:rgba(0,0,0,0.6); display:inline-block; padding:5px 15px; border-radius:15px; font-size:12px;">
+                <span style="color:#0f0; font-weight:bold;">黒い枠</span>を4つ並べて映してください
+            </div><br>
+            <button class="judge-btn" onclick="judge()">判 定 !</button>
+        </div>
+    </div>
+    <div id="result-overlay" onclick="closeResult()">
+        <div style="background:#333; padding:30px; border-radius:15px; text-align:center; width:90%; max-width:320px; pointer-events:auto;" onclick="event.stopPropagation()">
+            <h2 id="res-msg" style="font-size:2.5rem; margin:0 0 20px 0;"></h2>
+            <div id="res-detail" style="font-size:0.9rem; color:#ccc; margin-bottom:20px; text-align:left; line-height:1.6;"></div>
+            <button onclick="closeResult()" style="background:#555; color:#fff; padding:10px 30px; border-radius:20px;">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<div id="settings-overlay">
+    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+        <h2>設定・登録</h2><button onclick="closeSettings()" class="btn-float" style="margin:0; background:#555;">閉じる</button>
+    </div>
+    <div class="setting-box" style="border:1px solid #007bff;">
+        <h3>📡 データ同期</h3>
+        <button onclick="startHost()" style="width:100%; padding:10px; background:#007bff; color:#fff; border-radius:5px;">QRコードを表示</button>
+        <div id="sync-area">
+            <div id="qrcode-sync"></div>
+            <div id="sync-msg" style="font-size:12px; color:#333;">接続待機中...</div>
+            <button onclick="document.getElementById('sync-area').style.display='none'" style="margin-top:10px; padding:5px; background:#555; color:#fff;">閉じる</button>
+        </div>
+    </div>
+    <div class="setting-box">
+        <h3>カード登録</h3>
+        <input type="text" id="reg-name" placeholder="カード名" style="width:100%; padding:10px; box-sizing:border-box; margin-bottom:5px;">
+        <label style="display:flex; align-items:center; background:#333; padding:8px; margin-bottom:5px;"><input type="checkbox" id="is-blank-check" style="margin-right:10px;"> 空白として登録</label>
+        <label style="display:block; text-align:center; background:#007bff; padding:10px; border-radius:5px;">
+            📁 画像を選択
+            <input type="file" accept="image/*" onchange="registerImage(this)" style="display:none;">
+        </label>
+        <div class="card-list" id="reg-list" style="margin-top:10px;"></div>
+    </div>
+    <div class="setting-box">
+        <h3>問題作成 (並び順)</h3>
+        <input type="text" id="lvl-name" placeholder="問題名" style="width:100%; padding:10px; box-sizing:border-box; margin-bottom:5px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:10px;">
+            <div><span>1枚目</span><select id="sel-0" style="width:100%; padding:8px;"></select></div>
+            <div><span>2枚目</span><select id="sel-1" style="width:100%; padding:8px;"></select></div>
+            <div><span>3枚目</span><select id="sel-2" style="width:100%; padding:8px;"></select></div>
+            <div><span>4枚目</span><select id="sel-3" style="width:100%; padding:8px;"></select></div>
+        </div>
+        <button onclick="addLevel()" style="width:100%; padding:10px; background:#28a745; color:#fff; border-radius:5px;">＋ 追加</button>
+        <div id="level-list" style="margin-top:10px;"></div>
+    </div>
+    <div class="setting-box"><button onclick="resetData()" style="width:100%; padding:10px; background:#d00; color:#fff; border-radius:5px;">⚠ データ全消去</button></div>
+</div>
+
+<div id="status-msg"></div>
+<video id="video-source" autoplay playsinline muted></video>
+
+<script>
+    // --- 定数 ---
+    const CARD_ASPECT = 88/63; 
+    const WORK_W = 320; 
+    const WORK_H = 240; 
+    const SCAN_W = 64; 
+    const SCAN_H = Math.floor(SCAN_W * CARD_ASPECT);
+
+    let cards=[], levels=[], blankData=null;
+    // ★修正: 初期値を保持し、フレームごとにリセットしない
+    let detectedNames=["空白","空白","空白","空白"];
+    
+    let currentTarget=null;
+    let threshold = 100;
+    let videoStream=null, isGameRunning=false, peer=null;
+
+    const video = document.getElementById('video-source');
+    const canvas = document.getElementById('main-canvas');
+    const ctx = canvas.getContext('2d');
+    const procCanvas = document.getElementById('proc-canvas');
+    const procCtx = procCanvas.getContext('2d');
+    const debugCanvas = document.getElementById('debug-canvas');
+    const debugCtx = debugCanvas.getContext('2d');
+
+    window.onload = () => {
+        loadData(); renderTitleList(); showScreen('title-screen');
+        const u=new URLSearchParams(window.location.search);
+        if(u.get('sync')){ openSettings(); startClient(u.get('sync')); }
+    };
+
+    function showScreen(id){
+        document.querySelectorAll('.screen').forEach(el=>el.style.display='none');
+        document.getElementById(id).style.display='flex';
+    }
+
+    // --- ゲーム ---
+    function startGame(idx){
+        if(!levels[idx])return; currentTarget=levels[idx]; showScreen('game-screen');
+        if(!isGameRunning){ isGameRunning=true; startCamera(); }
+        showToast("開始: "+currentTarget.title);
+    }
+    function goTitle(){ isGameRunning=false; stopCamera(); showScreen('title-screen'); }
+
+    // --- カメラ ---
+    async function startCamera(){
+        try {
+            const constraints = { video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } };
+            const s = await navigator.mediaDevices.getUserMedia(constraints);
+            videoStream = s; video.srcObject = s;
+            // ★修正: iOS対応のため明示的に再生
+            video.play().catch(e => console.log(e));
+
+            video.onloadedmetadata = () => { 
+                canvas.width = video.videoWidth; 
+                canvas.height = video.videoHeight; 
+                
+                procCanvas.width = WORK_W; procCanvas.height = WORK_H;
+                debugCanvas.width = WORK_W; debugCanvas.height = WORK_H;
+                
+                requestAnimationFrame(loop); 
+            };
+        } catch(e) { alert("カメラエラー: " + e.message); goTitle(); }
+    }
+    function stopCamera(){ if(videoStream){ videoStream.getTracks().forEach(t=>t.stop()); videoStream=null; } }
+
+    let lastTime=0;
+    function loop(ts){
+        if(!isGameRunning)return; requestAnimationFrame(loop);
+        if(ts-lastTime<50)return; lastTime=ts; 
+        if(video.readyState!==4)return;
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        procCtx.drawImage(video, 0, 0, WORK_W, WORK_H);
+        const imgData = procCtx.getImageData(0,0,WORK_W,WORK_H);
+        
+        const blobs = findBlobs(imgData, threshold);
+        
+        const validBlobs = blobs.filter(b => {
+            const area = b.w * b.h;
+            const aspect = b.h / b.w;
+            return area > (WORK_W*WORK_H)*0.01 && aspect > 0.8 && aspect < 2.5; 
+        });
+
+        validBlobs.sort((a,b) => a.x - b.x);
+        const frames = validBlobs.slice(0, 4);
+
+        // ★修正:detectedNames = [] の削除。
+        // 代わりに検出されなかったスロットだけ後で空白にする。
+
+        debugCtx.putImageData(binarizeDebug(imgData), 0, 0);
+
+        frames.forEach((frame, i) => {
+            const scaleX = canvas.width / WORK_W;
+            const scaleY = canvas.height / WORK_H;
+            
+            const fx = Math.floor(frame.x * scaleX);
+            const fy = Math.floor(frame.y * scaleY);
+            const fw = Math.floor(frame.w * scaleX);
+            const fh = Math.floor(frame.h * scaleY);
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#0f0";
+            ctx.strokeRect(fx, fy, fw, fh);
+            ctx.fillStyle = "#0f0"; ctx.font = "bold 24px sans-serif";
+            ctx.fillText((i+1), fx, fy - 5);
+
+            const padding = fw * 0.1; 
+            
+            // ★修正: 切り出し範囲のはみ出し防止 (IndexSizeError回避)
+            const sx = Math.max(0, fx + padding);
+            const sy = Math.max(0, fy + padding);
+            const sw = Math.min(canvas.width - sx, fw - padding * 2);
+            const sh = Math.min(canvas.height - sy, fh - padding * 2);
+
+            if(sw > 0 && sh > 0) {
+                // 非同期処理
+                createImageBitmap(canvas, sx, sy, sw, sh).then(bmp => {
+                    const tempC = document.createElement('canvas');
+                    tempC.width = SCAN_W; tempC.height = SCAN_H;
+                    const tCtx = tempC.getContext('2d');
+                    tCtx.drawImage(bmp, 0, 0, SCAN_W, SCAN_H);
+                    
+                    const fData = tCtx.getImageData(0,0,SCAN_W,SCAN_H);
+                    const bin = binarize(fData);
+                    const feat = getFeature(bin, SCAN_W, SCAN_H);
+                    const res = identify(feat);
+                    
+                    const disp = (res.name==="" || res.name==="?") ? "空白" : res.name;
+                    
+                    // ★修正: 非同期完了後に特定のインデックスを更新
+                    detectedNames[i] = disp;
+                    
+                    ctx.fillStyle = "cyan"; ctx.font = "bold 20px sans-serif";
+                    ctx.fillText(disp, fx + fw/2 - 20, fy + fh + 30);
+                }).catch(e=>{}); // エラー握りつぶし(ループを止めないため)
+            }
+        });
+        
+        // ★修正: 検出数が4未満の場合、残りのスロットを空白にする
+        for(let k = frames.length; k < 4; k++) {
+            detectedNames[k] = "空白";
+        }
+    }
+
+    // --- Blob検出 ---
+    function findBlobs(imgData, thresh) {
+        const w = imgData.width; const h = imgData.height;
+        const d = imgData.data;
+        const visited = new Uint8Array(w * h);
+        const blobs = [];
+
+        for (let y = 0; y < h; y+=4) { 
+            for (let x = 0; x < w; x+=4) {
+                const idx = (y * w + x);
+                if (visited[idx]) continue;
+                const r = d[idx*4], g = d[idx*4+1], b = d[idx*4+2];
+                
+                if ((r+g+b)/3 < thresh) {
+                    const stack = [idx];
+                    visited[idx] = 1;
+                    let minX=x, maxX=x, minY=y, maxY=y;
+                    let count = 0;
+
+                    while(stack.length > 0) {
+                        const curr = stack.pop();
+                        const cy = Math.floor(curr / w);
+                        const cx = curr % w;
+                        if(cx < minX) minX = cx;
+                        if(cx > maxX) maxX = cx;
+                        if(cy < minY) minY = cy;
+                        if(cy > maxY) maxY = cy;
+                        count++;
+
+                        // ★修正: 画面端の折り返し防止チェックを追加
+                        const neighbors = [];
+                        if (cx > 0) neighbors.push(curr-1);
+                        if (cx < w-1) neighbors.push(curr+1);
+                        if (cy > 0) neighbors.push(curr-w);
+                        if (cy < h-1) neighbors.push(curr+w);
+
+                        for(let n of neighbors) {
+                            if(n >= 0 && n < w*h && !visited[n]) {
+                                const nr=d[n*4], ng=d[n*4+1], nb=d[n*4+2];
+                                if ((nr+ng+nb)/3 < thresh) {
+                                    visited[n] = 1;
+                                    if(count < 20000) stack.push(n); 
+                                }
+                            }
+                        }
+                    }
+                    blobs.push({x:minX, y:minY, w:maxX-minX, h:maxY-minY});
+                }
+            }
+        }
+        return blobs;
+    }
+
+    function identify(feat){
+        let best="?", minD=1.0;
+        cards.forEach(c=>{ if(!c.isBlank){ const d=compare(feat,c.data); if(d<minD){minD=d;best=c.name;} } });
+        if(blankData){ const d=compare(feat,blankData); if(d<minD){minD=d;best="";} }
+        const sc=1.0-minD; if(sc<0.6) best="?";
+        return {name:best, score:sc};
+    }
+
+    function judge(){
+        if(!currentTarget)return;
+        const ov=document.getElementById('result-overlay'); 
+        const m=document.getElementById('res-msg');
+        const d=document.getElementById('res-detail');
+        ov.style.display='flex';
+        
+        let ok = true;
+        let details = "";
+        for(let i=0; i<4; i++) {
+            const correct = currentTarget.order[i]; 
+            let detected = detectedNames[i] || "空白"; 
+            
+            // 空白の整合性チェック
+            if (correct === "" || correct === "空白") {
+                if (detected !== "空白" && detected !== "") ok = false;
+            } else {
+                if (detected !== correct) ok = false;
+            }
+            
+            const color = (detected === correct || (detected==="空白" && correct==="")) ? "#0f0" : "#f55";
+            const corStr = (correct==="") ? "空白" : correct;
+            details += `<span style="color:${color}">[${i+1}] 認識:${detected} / 正解:${corStr}</span><br>`;
+        }
+        
+        if(ok) { m.innerText="正解!! 🎉"; m.style.color="#0f0"; } 
+        else { m.innerText="不正解..."; m.style.color="#f55"; }
+        d.innerHTML = details;
+    }
+    function closeResult(){ document.getElementById('result-overlay').style.display='none'; }
+    
+    function toggleDebug(){ 
+        threshold = (threshold === 100) ? 150 : (threshold === 150) ? 60 : 100;
+        document.getElementById('debug-val').innerText = threshold; 
+    }
+
+    // --- 画像処理 (共通) ---
+    function binarize(d){const b=new ImageData(d.width,d.height),bd=b.data,dd=d.data;for(let i=0;i<dd.length;i+=4){const v=(dd[i]+dd[i+1]+dd[i+2])/3<threshold?0:255;bd[i]=bd[i+1]=bd[i+2]=v;bd[i+3]=255}return b;}
+    function binarizeDebug(d){const b=new ImageData(d.width,d.height),bd=b.data,dd=d.data;for(let i=0;i<dd.length;i+=4){const v=(dd[i]+dd[i+1]+dd[i+2])/3<threshold?0:255;bd[i]=v;bd[i+1]=v;bd[i+2]=v;bd[i+3]=255}return b;}
+    function getFeature(b,w,h){const p=[],d=b.data,step=2;for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step)p.push(d[((y*w+x)*4)]===0?1:0);return p;}
+    function compare(a,b){if(!a||!b||a.length!=b.length)return 1;let d=0,c=0;for(let i=0;i<a.length;i++){if(a[i]!=b[i])d++;c++}return c?d/c:1;}
+
+    // --- UI/Data ---
+    function registerImage(inp){
+        if(!inp.files[0])return; const n=document.getElementById('reg-name').value||"C"+(cards.length+1), ib=document.getElementById('is-blank-check').checked;
+        const r=new FileReader(); r.onload=e=>{
+            const i=new Image(); i.onload=()=>{
+                const c=document.createElement('canvas');c.width=SCAN_W;c.height=SCAN_H;
+                const t=c.getContext('2d');t.drawImage(i,0,0,SCAN_W,SCAN_H);
+                const b=binarize(t.getImageData(0,0,SCAN_W,SCAN_H)), f=getFeature(b,SCAN_W,SCAN_H);
+                t.putImageData(b,0,0); const th=c.toDataURL(); const nc={name:n,data:f,thumb:th,isBlank:ib};
+                if(ib){blankData=f;cards=cards.filter(x=>!x.isBlank);cards.unshift(nc)}else cards.push(nc);
+                saveData(); renderTitleList(); inp.value=""; showToast("登録:"+n);
+            }; i.src=e.target.result;
+        }; r.readAsDataURL(inp.files[0]);
+    }
+    function addLevel(){ 
+        const t=document.getElementById('lvl-name').value||"無題";
+        const order=[0,1,2,3].map(i=>document.getElementById('sel-'+i).value); 
+        levels.push({title:t,order:order}); saveData(); renderTitleList(); document.getElementById('lvl-name').value=""; 
+    }
+    function renderTitleList(){
+        const tl=document.getElementById('title-list'), gl=document.getElementById('reg-list');
+        tl.innerHTML=""; levels.forEach((l,i)=>tl.innerHTML+=`<div style="background:#333;padding:15px;margin-bottom:10px;border-radius:8px;display:flex;justify-content:space-between;border:1px solid #444;" onclick="startGame(${i})"><span>${l.title}</span><span style="background:#0af;color:black;padding:2px 8px;border-radius:10px;font-size:12px">挑戦</span></div>`);
+        gl.innerHTML=""; cards.forEach((c,i)=>gl.innerHTML+=`<div class="card-thumb" style="${c.isBlank?'border:2px dashed #0f0':''}"><img src="${c.thumb}"><div style="font-size:10px;text-align:center;overflow:hidden">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:20px;text-align:center;cursor:pointer;color:white" onclick="if(confirm('削除?')){cards.splice(${i},1);saveData();renderTitleList()}">×</div></div>`);
+        const ll=document.getElementById('level-list'); ll.innerHTML="";
+        levels.forEach((l,i)=>ll.innerHTML+=`<div style="background:#333;padding:10px;margin-bottom:5px;border-radius:4px;display:flex;justify-content:space-between;border:1px solid #555"><div><b>${l.title}</b><div style="font-size:10px;color:#aaa">${l.order.join(', ')}</div></div><button style="background:#d00;color:white;padding:5px;border-radius:4px" onclick="if(confirm('削除?')){levels.splice(${i},1);saveData();renderTitleList()}">削除</button></div>`);
+        [0,1,2,3].forEach(id=>{ 
+            const s=document.getElementById('sel-'+id); s.innerHTML="<option value=''>- 空白 -</option>"; 
+            cards.forEach(c=>{if(!c.isBlank)s.innerHTML+=`<option value="${c.name}">${c.name}</option>`}); 
+        });
+    }
+    
+    function saveData(){ localStorage.setItem('cm_v40',JSON.stringify({cards,levels,blankData})); }
+    function loadData(){ const d=localStorage.getItem('cm_v40'); if(d){try{const j=JSON.parse(d);cards=j.cards||[];levels=j.levels||[];blankData=j.blankData}catch(e){}} }
+    function resetData(){ if(confirm("消去?")){localStorage.removeItem('cm_v40');location.reload();} }
+    function showToast(m){const e=document.getElementById('status-msg');e.innerText=m;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,2000);}
+    function openSettings(){document.getElementById('settings-overlay').classList.add('open');}
+    function closeSettings(){document.getElementById('settings-overlay').classList.remove('open');}
+
+    // --- 同期 ---
+    function startHost(){
+        if(typeof Peer==='undefined'){alert("通信エラー");return;} if(peer)peer.destroy();
+        try{peer=new Peer();}catch(e){alert(e);return;}
+        const a=document.getElementById('sync-area'),q=document.getElementById('qrcode-sync'),m=document.getElementById('sync-msg');
+        a.style.display='block'; q.innerHTML=""; m.innerText="接続待機中...";
+        peer.on('open',id=>{ new QRCode(q,{text:window.location.href.split('?')[0]+"?sync="+id,width:150,height:150}); });
+        peer.on('error',e=>m.innerText="エラー:"+e.type);
+        peer.on('connection',c=>{ m.innerText="接続! 送信中..."; c.on('open',()=>{ c.send({cards,levels,blankData}); setTimeout(()=>m.innerText="送信完了!",500); }); });
+    }
+    function startClient(id){
+        if(typeof Peer==='undefined')return; if(peer)peer.destroy(); peer=new Peer(); showToast("同期中...");
+        peer.on('open',()=>{ const c=peer.connect(id); c.on('open',()=>showToast("ホスト接続")); c.on('data',d=>{ if(d.cards){ cards=d.cards;levels=d.levels;blankData=d.blankData; saveData();renderTitleList(); showToast("完了!"); window.history.replaceState({},document.title,window.location.pathname); } }); });
+    }
+</script>
+</body>
+</html>
