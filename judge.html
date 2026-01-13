@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Card Master V6 (Black/White)</title>
+    <style>
+        /* --- レイアウト定義 --- */
+        body { 
+            font-family: sans-serif; background: #000; color: #fff; margin: 0; 
+            overflow: hidden; width: 100vw; height: 100dvh;
+        }
+        
+        #app-container { 
+            position: relative; width: 100%; height: 100%; max-width: 600px; margin: 0 auto;
+        }
+
+        video {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; opacity: 0.4; transition: opacity 0.5s;
+        }
+        video.active { opacity: 1.0; }
+
+        /* 画面レイヤー */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 10px; box-sizing: border-box; z-index: 10;
+            pointer-events: none; /* UI操作は子要素で有効化 */
+        }
+        .screen > * { pointer-events: auto; }
+        .hidden { display: none !important; }
+
+        /* --- V6専用：幾何学比率グリッド --- */
+        /* 物理幅合計 = 63*4 + 20*3 = 312mm
+           カード幅率 = 63 / 312 = 20.19%
+           隙間率 = 20 / 312 = 6.41%
+        */
+        .slot-container {
+            width: 100%; 
+            /* アスペクト比固定 (312 : 88) = 高さはおよそ幅の28% */
+            height: 30vw; max-height: 200px; 
+            margin-top: 20vh; /* 画面上部からの位置 */
+            display: flex; 
+            justify-content: space-between; /* 両端揃え */
+            align-items: center;
+        }
+        
+        .slot {
+            width: 20.2%; /* 計算された物理比率 */
+            height: 100%; 
+            border: 2px solid #0f0; 
+            background: rgba(255,255,255,0.1);
+            box-sizing: border-box;
+            border-radius: 4px;
+            position: relative;
+        }
+        /* 枠番号と認識結果の表示 */
+        .slot-info {
+            position: absolute; bottom: -20px; left: 0; width: 100%;
+            text-align: center; font-size: 10px; color: #0f0; text-shadow: 0 1px 2px #000;
+        }
+
+        /* --- UIパーツ --- */
+        h1 { font-size: 2rem; margin-top: 20%; color: #fff; text-shadow: 0 0 10px #fff; }
+        
+        /* タイトル画面のリスト */
+        #level-list {
+            width: 90%; flex: 1; overflow-y: auto; margin-top: 20px;
+        }
+        .level-item {
+            background: #222; border: 1px solid #444; color: white;
+            padding: 15px; margin-bottom: 8px; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer;
+        }
+
+        /* ボタン */
+        .btn-main {
+            padding: 15px 40px; font-size: 1.2rem; font-weight: bold;
+            background: #007bff; color: white; border: none; border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .judge-btn {
+            position: absolute; bottom: 50px; width: 80%;
+            background: linear-gradient(to bottom, #28a745, #1e7e34);
+        }
+
+        /* 設定画面 */
+        #settings-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; z-index: 100; transform: translateY(100%);
+            transition: transform 0.3s; padding: 20px; overflow-y: auto;
+        }
+        #settings-overlay.open { transform: translateY(0); }
+        
+        .setting-box { background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .card-list { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+        .card-thumb { 
+            min-width: 60px; height: 80px; background: #fff; 
+            border: 1px solid #ccc; position: relative;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card-thumb img { width: 100%; height: 100%; object-fit: contain; filter: grayscale(100%) contrast(150%); }
+
+        /* 結果表示 */
+        #result-view {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); display: none; z-index: 200;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        /* 2値化確認用の小さいモニタ（デバッグ用：右上に表示） */
+        #binary-monitor {
+            position: absolute; top: 10px; left: 10px; width: 80px; height: 60px;
+            border: 1px solid #555; background: #000; z-index: 50; opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <video id="video-bg" autoplay playsinline muted></video>
+    
+    <canvas id="binary-monitor"></canvas>
+
+    <div onclick="openSettings()" style="position:absolute; top:15px; right:15px; font-size:30px; z-index:50; cursor:pointer;">⚙️</div>
+
+    <div id="screen-title" class="screen">
+        <h1>CARD MASTER</h1>
+        <div id="level-list"></div>
+    </div>
+
+    <div id="screen-game" class="screen hidden">
+        <button onclick="goTitle()" style="position:absolute; top:20px; left:20px; padding:5px 15px; background:rgba(0,0,0,0.5); border:1px solid #fff; color:#fff; border-radius:20px;">BACK</button>
+        <div style="position:absolute; top:25px; width:100%; text-align:center; font-weight:bold;" id="game-title-text">LEVEL</div>
+
+        <div class="slot-container">
+            <div class="slot"><div class="slot-info" id="info-0">-</div></div>
+            <div class="slot"><div class="slot-info" id="info-1">-</div></div>
+            <div class="slot"><div class="slot-info" id="info-2">-</div></div>
+            <div class="slot"><div class="slot-info" id="info-3">-</div></div>
+        </div>
+
+        <button class="btn-main judge-btn" onclick="judge()">判 定 !</button>
+    </div>
+
+    <div id="settings-overlay">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h2>設定</h2>
+            <button onclick="closeSettings()" style="padding:5px 15px;">閉じる</button>
+        </div>
+
+        <div class="setting-box">
+            <h3>カード登録 (白黒2値で記録)</h3>
+            <p style="font-size:12px; color:#aaa;">左端(Slot1)に置いて登録。黒アイコン推奨。</p>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="reg-name" placeholder="名前" style="flex:1; padding:10px;">
+                <button onclick="registerCard()" style="background:#007bff; color:white; border:none; padding:10px;">登録</button>
+            </div>
+            <div class="card-list" id="reg-list"></div>
+        </div>
+
+        <div class="setting-box">
+            <h3>問題作成</h3>
+            <input type="text" id="lvl-name" placeholder="タイトル" style="width:100%; padding:10px; box-sizing:border-box; margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <select id="sel-0" style="width:23%"><option>-</option></select>
+                <select id="sel-1" style="width:23%"><option>-</option></select>
+                <select id="sel-2" style="width:23%"><option>-</option></select>
+                <select id="sel-3" style="width:23%"><option>-</option></select>
+            </div>
+            <button onclick="addLevel()" style="width:100%; padding:15px; background:#28a745; color:white; border:none; font-weight:bold;">追加</button>
+        </div>
+
+        <button onclick="resetData()" style="width:100%; padding:15px; background:#d00; color:white; border:none; margin-top:20px;">全データ削除</button>
+    </div>
+
+    <div id="result-view" onclick="this.style.display='none'">
+        <div id="res-msg" style="font-size:4rem; font-weight:bold; margin-bottom:20px;"></div>
+        <div>Tap to close</div>
+    </div>
+</div>
+
+<canvas id="proc-canvas" style="display:none;"></canvas>
+
+<script>
+    // --- 定数：物理比率に基づく画面分割 ---
+    // Total 312mm (63*4 + 20*3) に対する割合
+    const SLOT_WIDTH_PCT = 0.2019; // 20.19%
+    const GAP_PCT = 0.0641;        // 6.41%
+    // 左端からの開始位置 (0, 1, 2, 3番目)
+    const SLOT_X_PCT = [
+        0, 
+        SLOT_WIDTH_PCT + GAP_PCT, 
+        (SLOT_WIDTH_PCT + GAP_PCT) * 2, 
+        (SLOT_WIDTH_PCT + GAP_PCT) * 3
+    ];
+
+    let cards = []; // {name, data(0/1 array), thumb}
+    let levels = [];
+    let currentTarget = [];
+    let detected = ["","","",""];
+
+    const video = document.getElementById('video-bg');
+    const pCanvas = document.getElementById('proc-canvas');
+    const pCtx = pCanvas.getContext('2d');
+    const monCanvas = document.getElementById('binary-monitor');
+    const monCtx = monCanvas.getContext('2d');
+
+    // --- 初期化 ---
+    window.onload = () => {
+        loadData();
+        startCam();
+    };
+
+    function startCam() {
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+        }).then(stream => {
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                // 処理負荷軽減のため低解像度で解析
+                pCanvas.width = 320; 
+                pCanvas.height = 180; 
+                // モニタも合わせる
+                monCanvas.width = 320; monCanvas.height = 180;
+                setInterval(process, 150);
+            };
+        }).catch(e => alert("カメラ起動エラー: " + e));
+    }
+
+    // --- 画像処理コア：2値化と認識 ---
+    function process() {
+        if(cards.length === 0) return;
+
+        // 1. 映像取得
+        pCtx.drawImage(video, 0, 0, pCanvas.width, pCanvas.height);
+        
+        // 2. 2値化処理 (白黒はっきりさせる)
+        // プレイマットの「Slot」に相当するエリアを計算
+        const frameW = pCanvas.width; // 全幅
+        const frameH = pCanvas.height;
+        
+        // 解析エリア（画面中央の帯）
+        const scanH = frameH * 0.3; // 高さは30%分だけ見る
+        const scanY = (frameH - scanH) / 2;
+
+        let detectedNow = [];
+
+        // モニタ用に2値化画像を描画
+        const frameData = pCtx.getImageData(0, 0, frameW, frameH);
+        const binaryFrame = binarizeImageData(frameData);
+        monCtx.putImageData(binaryFrame, 0, 0); // 左上の小窓に表示
+
+        // 3. 各スロット判定
+        for(let i=0; i<4; i++) {
+            // 物理比率に基づいて切り出し位置を計算
+            // 左右の余白(はみ出し)を考慮して、枠の中心 60% 程度だけを判定に使う（安全策）
+            const cx = SLOT_X_PCT[i] * frameW;     // 左端
+            const cw = SLOT_WIDTH_PCT * frameW;    // 幅
+            
+            const safeMargin = cw * 0.2; // 左右20%ずつ捨てる
+            const cutX = Math.floor(cx + safeMargin);
+            const cutW = Math.floor(cw - safeMargin * 2);
+            
+            // 切り出した2値データ
+            const slotData = getBinaryRegion(binaryFrame, cutX, scanY, cutW, scanH, frameW);
+
+            // マッチング
+            let bestName = "?";
+            let minScore = Infinity; // 違いの少なさ
+
+            cards.forEach(c => {
+                const diff = compareBinary(slotData, c.data);
+                if(diff < minScore) {
+                    minScore = diff;
+                    // 閾値: ピクセルの不一致率が15%未満なら同一とみなす
+                    // 白黒アイコンならかなり厳しくしても合うはず
+                    if(diff < 0.15) bestName = c.name; 
+                }
+            });
+            detectedNow.push(bestName);
+            
+            // 画面表示更新
+            const info = document.getElementById(`info-${i}`);
+            if(info) {
+                info.innerText = bestName === "?" ? "" : bestName;
+                info.style.color = bestName === "?" ? "#555" : "#0f0";
+            }
+        }
+        detected = detectedNow;
+    }
+
+    // 画像データを2値化(0 or 255)する
+    function binarizeImageData(imgData) {
+        const d = imgData.data;
+        const w = imgData.width;
+        const h = imgData.height;
+        // 新しいImageData作成
+        const bin = new ImageData(w, h);
+        const bd = bin.data;
+
+        for(let i=0; i<d.length; i+=4) {
+            // グレースケール化 (R+G+B)/3
+            const gray = (d[i] + d[i+1] + d[i+2]) / 3;
+            // 閾値処理 (100以下なら黒、それ以外は白)
+            // 黒アイコン(黒インク)はかなり暗いので、閾値100くらいで十分
+            const val = gray < 100 ? 0 : 255; 
+            bd[i] = val;   // R
+            bd[i+1] = val; // G
+            bd[i+2] = val; // B
+            bd[i+3] = 255; // Alpha
+        }
+        return bin;
+    }
+
+    // 2値化された全体画像から、特定エリアの「0(黒)」のパターン配列を抽出
+    // 比較高速化のため、単なる 0/1 の配列にして返す
+    function getBinaryRegion(binImg, x, y, w, h, totalW) {
+        const d = binImg.data;
+        let pattern = [];
+        // 間引きながら取得 (高速化)
+        const step = 4; 
+        for(let py=y; py<y+h; py+=step) {
+            for(let px=x; px<x+w; px+=step) {
+                const idx = (py * totalW + px) * 4;
+                // 黒(0)なら1、白(255)なら0 という特徴量にする（黒インクのある場所が重要）
+                pattern.push(d[idx] === 0 ? 1 : 0);
+            }
+        }
+        return pattern;
+    }
+
+    // 2つのパターン(0/1配列)を比較して、不一致率(0.0 ~ 1.0)を返す
+    function compareBinary(pat1, pat2) {
+        if(pat1.length !== pat2.length) return 1.0;
+        let diff = 0;
+        for(let i=0; i<pat1.length; i++) {
+            if(pat1[i] !== pat2[i]) diff++;
+        }
+        return diff / pat1.length;
+    }
+
+    // --- データ登録 ---
+    function registerCard() {
+        const name = document.getElementById('reg-name').value || "NoName";
+        
+        // 現在のフレームを取得して2値化
+        pCtx.drawImage(video, 0, 0, pCanvas.width, pCanvas.height);
+        const frameData = pCtx.getImageData(0, 0, pCanvas.width, pCanvas.height);
+        const binaryFrame = binarizeImageData(frameData);
+        
+        // Slot 1 (一番左) のエリアを切り出し
+        const frameW = pCanvas.width;
+        const frameH = pCanvas.height;
+        const cx = SLOT_X_PCT[0] * frameW;
+        const cw = SLOT_WIDTH_PCT * frameW;
+        const scanH = frameH * 0.3;
+        const scanY = (frameH - scanH) / 2;
+        
+        const safeMargin = cw * 0.2;
+        const cutX = Math.floor(cx + safeMargin);
+        const cutW = Math.floor(cw - safeMargin * 2);
+
+        // 特徴データ抽出
+        const featureData = getBinaryRegion(binaryFrame, cutX, scanY, cutW, scanH, frameW);
+
+        // サムネイル用（見た目は白黒画像そのまま保存）
+        // 切り出してCanvas作成
+        const tCan = document.createElement('canvas');
+        tCan.width = cutW; tCan.height = scanH;
+        const tCtx = tCan.getContext('2d');
+        tCtx.putImageData(binaryFrame, -cutX, -scanY); // ※簡易クリッピング
+        // 正確にはputImageDataは切り抜き位置指定できないので、別途ImageData作るのが正しいが
+        // ここでは簡易的にDataURL化のみ実装（表示用）
+        
+        // サムネイルは元画像から切り抜くほうがきれい
+        const thumbCan = document.createElement('canvas');
+        thumbCan.width = cutW; thumbCan.height = scanH;
+        thumbCan.getContext('2d').drawImage(pCanvas, cutX, scanY, cutW, scanH, 0, 0, cutW, scanH);
+
+        cards.push({ name: name, data: featureData, thumb: thumbCan.toDataURL() });
+        saveData();
+        renderSettings();
+        
+        // 次の名前
+        document.getElementById('reg-name').value = String.fromCharCode(name.charCodeAt(0)+1);
+    }
+
+    // --- UI/保存周り (V5ベース) ---
+    function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
+    function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+    
+    function renderSettings() {
+        const list = document.getElementById('reg-list');
+        list.innerHTML = "";
+        cards.forEach((c, i) => {
+            list.innerHTML += `<div class="card-thumb" onclick="delCard(${i})"><img src="${c.thumb}"><div style="position:absolute;bottom:0;background:rgba(0,0,0,0.5);color:#fff;width:100%;text-align:center;font-size:9px;">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:15px;height:15px;font-size:10px;color:#fff;text-align:center;">×</div></div>`;
+        });
+        
+        // Select更新
+        for(let j=0; j<4; j++) {
+            const sel = document.getElementById(`sel-${j}`);
+            const old = sel.value;
+            sel.innerHTML = "<option>-</option>";
+            cards.forEach(c => sel.innerHTML += `<option>${c.name}</option>`);
+            sel.value = old;
+        }
+    }
+
+    function addLevel() {
+        const t = document.getElementById('lvl-name').value || "No Title";
+        const o = [0,1,2,3].map(i=>document.getElementById(`sel-${i}`).value);
+        if(o.includes("-")) return alert("全て選択してください");
+        levels.push({title:t, order:o});
+        saveData();
+        renderLevels();
+        alert("追加しました");
+    }
+
+    function renderLevels() {
+        const d = document.getElementById('level-list');
+        d.innerHTML = "";
+        levels.forEach((l, i) => {
+            d.innerHTML += `<div class="level-item" onclick="startLevel(${i})"><span>${l.title}</span> <span onclick="event.stopPropagation();delLevel(${i})">🗑️</span></div>`;
+        });
+    }
+
+    function startLevel(i) {
+        currentTarget = levels[i].order;
+        document.getElementById('game-title-text').innerText = levels[i].title;
+        document.getElementById('screen-title').classList.add('hidden');
+        document.getElementById('screen-game').classList.remove('hidden');
+        video.classList.add('active');
+    }
+    
+    function goTitle() {
+        document.getElementById('screen-game').classList.add('hidden');
+        document.getElementById('screen-title').classList.remove('hidden');
+        video.classList.remove('active');
+    }
+
+    function judge() {
+        const ok = JSON.stringify(detected) === JSON.stringify(currentTarget);
+        const v = document.getElementById('result-view');
+        const m = document.getElementById('res-msg');
+        m.innerText = ok ? "正解!!" : "不正解...";
+        m.style.color = ok ? "#0f0" : "#f00";
+        v.style.display = 'flex';
+    }
+
+    // データ永続化
+    function saveData() {
+        localStorage.setItem('cm_v6_cards', JSON.stringify(cards));
+        localStorage.setItem('cm_v6_levels', JSON.stringify(levels));
+    }
+    function loadData() {
+        const c = localStorage.getItem('cm_v6_cards');
+        const l = localStorage.getItem('cm_v6_levels');
+        if(c) cards = JSON.parse(c);
+        if(l) levels = JSON.parse(l);
+        renderSettings();
+        renderLevels();
+    }
+    function delCard(i) { if(confirm("削除?")) { cards.splice(i,1); saveData(); renderSettings(); } }
+    function delLevel(i) { if(confirm("削除?")) { levels.splice(i,1); saveData(); renderLevels(); } }
+    function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
+
+</script>
+</body>
+</html>
