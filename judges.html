@@ -3,22 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Card Master V20 (Aspect Fixed)</title>
+    <title>Card Master V21 (Ratio Fixed)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; width: 100vw; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* メイン画面コンテナ */
         #canvas-container {
             position: relative; width: 100%; max-width: 640px; 
-            /* アスペクト比はJSで制御するためCSS固定は削除 */
             background: #222; box-shadow: 0 0 20px rgba(0,255,0,0.2);
             display: flex; justify-content: center; align-items: center;
         }
         canvas { width: 100%; height: auto; display: block; }
 
-        /* ゲーム中UI（戻るボタンなど） */
         .game-ui {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; z-index: 10;
@@ -38,22 +35,19 @@
             align-self: center; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        /* タイトル画面（全画面オーバーレイに変更） */
         #title-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #111; z-index: 100; /* 最前面 */
+            background: #111; z-index: 100;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         #title-content {
             width: 90%; max-width: 500px; height: 80%; overflow-y: auto; text-align: center;
         }
 
-        /* 調整パネル */
         #controls { width: 90%; max-width: 600px; background: #222; padding: 10px; border-radius: 10px; margin-top: 10px; z-index: 5; }
         .slider-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
         input[type=range] { width: 100%; cursor: grab; }
 
-        /* 設定画面 */
         #settings-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: #151515; z-index: 200; transform: translateY(100%); 
@@ -75,7 +69,6 @@
             background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; 
         }
 
-        /* 問題リスト */
         .level-row {
             background: #333; padding: 10px; margin-bottom: 5px; border-radius: 6px; border: 1px solid #444;
             display: flex; flex-direction: column; cursor: default;
@@ -116,6 +109,9 @@
         <div style="display:flex; justify-content:space-between;">
             <button class="btn-float" onclick="startCam(true)">📷 再起動</button>
             <button class="btn-float" onclick="goTitle()">🏠 タイトルへ</button>
+        </div>
+        <div style="position:absolute; bottom:80px; left:10px;">
+            <button class="btn-float" onclick="toggleViewMode()">🎨 表示切替</button>
         </div>
         <button id="btn-judge" class="judge-btn" onclick="judge()">判 定 !</button>
     </div>
@@ -192,12 +188,16 @@
 <script id="embedded-data" type="application/json">null</script>
 
 <script>
-    // 初期設定値（後で動的に変わる）
+    // 定数・初期設定
     let PROC_W = 320; 
-    let PROC_H = 180; // startCamでアスペクト比に合わせて更新される
+    let PROC_H = 180;
     
-    // 横のスロット設定
-    const SLOT_W_PCT = 0.20; const GAP_PCT = 0.05;
+    // カード比率 (88/63 = 約1.396)
+    const CARD_ASPECT = 88 / 63;
+    
+    // スロット幅の定義 (画面幅に対する%)
+    const SLOT_W_PCT = 0.20; 
+    const GAP_PCT = 0.05;
     const START_X = (1.0 - (SLOT_W_PCT*4 + GAP_PCT*3)) / 2;
     const SLOT_X_PCT = [START_X, START_X+SLOT_W_PCT+GAP_PCT, START_X+(SLOT_W_PCT+GAP_PCT)*2, START_X+(SLOT_W_PCT+GAP_PCT)*3];
 
@@ -206,6 +206,9 @@
     let currentTarget=[];
     let isGameMode = false;
     let threshold = 90; let tolerance = 0.6;
+    
+    // 表示モード (false:カラー, true:白黒)
+    let showBinarized = false;
 
     const video = document.getElementById('video-source');
     const canvas = document.getElementById('main-canvas');
@@ -219,7 +222,7 @@
         } catch(e){ loadLocal(); }
         
         renderUI();
-        startCam(); // カメラ起動
+        startCam();
         
         const u = new URLSearchParams(window.location.search);
         if(u.get('sync')) startClient(u.get('sync'));
@@ -229,25 +232,23 @@
         if(type==='thr') { threshold=parseInt(val); document.getElementById('val-thr').innerText=threshold; }
         if(type==='tol') { tolerance=parseFloat(val); document.getElementById('val-tol').innerText=tolerance>=0.8?"無理やり":tolerance.toFixed(2); }
     }
+    
+    function toggleViewMode() {
+        showBinarized = !showBinarized;
+        showToast(showBinarized ? "白黒モード" : "カラーモード");
+    }
 
     async function startCam(manual=false) {
         if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
         try {
-            // 環境側カメラを優先、解像度は理想値を指定
             const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } });
             video.srcObject = s;
             video.onloadedmetadata = () => {
-                // ここでアスペクト比を計算してcanvasサイズを決定
-                const vw = video.videoWidth;
-                const vh = video.videoHeight;
+                const vw = video.videoWidth; const vh = video.videoHeight;
                 const aspect = vh / vw;
-                
-                PROC_W = 320; // 幅は固定
-                PROC_H = Math.floor(PROC_W * aspect); // 高さを比率に合わせて計算
-                
-                canvas.width = PROC_W;
-                canvas.height = PROC_H;
-                
+                PROC_W = 320; 
+                PROC_H = Math.floor(PROC_W * aspect); 
+                canvas.width = PROC_W; canvas.height = PROC_H;
                 video.play();
                 setInterval(loop, 100);
             };
@@ -267,34 +268,42 @@
 
     function loop() {
         if(video.readyState !== 4) return;
-        
-        // タイトル画面なら描画しない（設定が開いているときは裏で見たいので描画する）
         const isTitle = document.getElementById('title-screen').style.display !== 'none';
         const isSettings = document.getElementById('settings-overlay').classList.contains('open');
-        
-        // タイトル画面 かつ 設定が開いていない ならストップ
         if(isTitle && !isSettings) return;
 
+        // まずカラー映像を描画
         ctx.drawImage(video, 0, 0, PROC_W, PROC_H);
         const imgData = ctx.getImageData(0, 0, PROC_W, PROC_H);
+        
+        // 判定用に二値化
         const bin = binarize(imgData);
-        ctx.putImageData(bin, 0, 0); 
+        
+        // 白黒モードなら上書き
+        if(showBinarized) {
+            ctx.putImageData(bin, 0, 0); 
+        }
         
         ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2; ctx.fillStyle = "#0f0"; ctx.font = "10px sans-serif";
         
-        // アスペクト比対応：画面の高さの40%をスキャンエリアとする
-        const scanH = Math.floor(PROC_H * 0.4); 
+        // ★修正点: 高さ(scanH)を幅(cutW)から計算して、カードの縦横比に合わせる
+        // 幅基準
+        const cw = SLOT_W_PCT * PROC_W; 
+        const cutW = Math.floor(cw); // 枠の幅
+        
+        // 高さ基準 (88/63比率)
+        const scanH = Math.floor(cutW * CARD_ASPECT);
         const scanY = Math.floor((PROC_H - scanH) / 2);
+        
         let detectedNow = [];
 
         for(let i=0; i<4; i++) {
             const cx = SLOT_X_PCT[i] * PROC_W; 
-            const cw = SLOT_W_PCT * PROC_W; 
-            const cutW = Math.floor(cw * 0.7); 
             const cutX = Math.floor(cx + (cw - cutW)/2);
             
             ctx.strokeRect(cutX, scanY, cutW, scanH);
             
+            // 判定は見た目の枠と同じ範囲で行う
             const feat = getFeature(bin, cutX, scanY, cutW, scanH, PROC_W);
             let best = "?"; let minD = 1.0;
 
@@ -328,10 +337,11 @@
             const img = new Image();
             img.onload = () => {
                 const c = document.createElement('canvas');
-                // 現在のPROC_Hを使って同じ比率で切り出す
+                
+                // ★修正点: 登録時も同じ縦横比で切り抜く
                 const cw = SLOT_W_PCT * PROC_W; 
-                const cutW = Math.floor(cw * 0.7); 
-                const scanH = Math.floor(PROC_H * 0.4); 
+                const cutW = Math.floor(cw);
+                const scanH = Math.floor(cutW * CARD_ASPECT);
                 
                 c.width = cutW; c.height = scanH;
                 const tx = c.getContext('2d');
@@ -473,9 +483,9 @@
         document.getElementById('result-view').style.display='flex';
     }
 
-    function saveLocal() { localStorage.setItem('cm_v20_data', JSON.stringify({cards,levels,blank:blankData})); }
-    function loadLocal() { const d=localStorage.getItem('cm_v20_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankData=j.blank;} }
-    function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
+    function saveLocal() { localStorage.setItem('cm_v21_data', JSON.stringify({cards,levels,blank:blankData})); }
+    function loadLocal() { const d=localStorage.getItem('cm_v21_data'); if(d){ const j=JSON.parse(d); cards=j.cards; levels=j.levels; blankData=j.blank;} }
+    function resetData() { if(confirm("全消去しますか?")) { localStorage.clear(); location.reload(); } }
     function showToast(m) { const e=document.getElementById('status-msg'); e.innerText=m; e.style.opacity=1; setTimeout(()=>e.style.opacity=0,2000); }
     function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
     function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); cancelEdit(); }
