@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Card Master V19 (Fixed Registration)</title>
+    <title>Card Master V19 (Fixed)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -190,6 +190,7 @@
 
     let cards=[], levels=[], blankData=null;
     let currentOrder=[], detected=["","","",""];
+    let currentTarget=[]; // 追加：明示的に定義
     let isGameMode = false;
     let threshold = 90; let tolerance = 0.6;
 
@@ -239,7 +240,9 @@
         let detectedNow = [];
 
         for(let i=0; i<4; i++) {
-            const cx = SLOT_X_PCT[i] * PROC_W; const cw = SLOT_WIDTH_PCT * PROC_W;
+            const cx = SLOT_X_PCT[i] * PROC_W; 
+            // 修正：SLOT_WIDTH_PCT を SLOT_W_PCT に変更
+            const cw = SLOT_W_PCT * PROC_W; 
             const cutW = Math.floor(cw * 0.7); const cutX = Math.floor(cx + (cw - cutW)/2);
             ctx.strokeRect(cutX, scanY, cutW, scanH);
             
@@ -265,7 +268,7 @@
         detected = detectedNow;
     }
 
-    // --- 画像登録 (修正済み) ---
+    // --- 画像登録 ---
     function registerImage(input) {
         if(!input.files[0]) return;
         const name = document.getElementById('reg-name').value || "Card"+(cards.length+1);
@@ -276,12 +279,13 @@
             const img = new Image();
             img.onload = () => {
                 const c = document.createElement('canvas');
-                const cw = SLOT_WIDTH_PCT * PROC_W; const cutW = Math.floor(cw * 0.7); const scanH = PROC_H * 0.4;
+                // 修正：SLOT_WIDTH_PCT を SLOT_W_PCT に変更
+                const cw = SLOT_W_PCT * PROC_W; 
+                const cutW = Math.floor(cw * 0.7); const scanH = PROC_H * 0.4;
                 c.width = cutW; c.height = scanH;
                 const tx = c.getContext('2d');
                 tx.drawImage(img, 0, 0, cutW, scanH);
                 
-                // ★ここがバグの修正点：関数名を定義と一致させました★
                 const b = binarize(tx.getImageData(0,0,cutW,scanH));
                 const data = getFeature(b, 0, 0, cutW, scanH, cutW);
                 
@@ -305,7 +309,7 @@
         r.readAsDataURL(input.files[0]);
     }
 
-    // --- コア関数 (名前を統一) ---
+    // --- コア関数 ---
     function binarize(d) {
         const bin=new ImageData(d.width,d.height); const bd=bin.data; const dd=d.data;
         for(let i=0;i<dd.length;i+=4) {
