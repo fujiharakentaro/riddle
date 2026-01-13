@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Card Master V10 (Fixed)</title>
+    <title>Card Master V11 (Final Fix)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -106,7 +106,7 @@
             position:absolute; top:15px; right:15px; font-size:24px; z-index:50; cursor:pointer;
             background: rgba(0,0,0,0.6); width: 40px; height: 40px; border-radius: 50%;
             display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);
-            user-select: none; /* PCでの誤選択防止 */
+            user-select: none;
         }
         
         /* 同期中表示 */
@@ -160,7 +160,7 @@
 
         <div class="setting-box" style="border:1px solid #28a745;">
             <h3 style="color:#28a745;">💾 本番用：HTMLとして保存</h3>
-            <p style="font-size:12px; color:#ccc;">現在のデータをすべて埋め込んだHTMLファイルをダウンロードします。これを1回アップロードすれば完了です。</p>
+            <p style="font-size:12px; color:#ccc;">現在のデータを埋め込んだHTMLファイルをダウンロードします。これをGithub等にアップロードしてください。</p>
             <button class="btn-green" onclick="downloadSelfContainedHTML()">設定込みHTMLをダウンロード</button>
         </div>
 
@@ -248,7 +248,6 @@
     };
 
     function startCam() {
-        // PC/スマホ両対応のためconstraintsを調整
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
         }).then(stream => {
@@ -258,23 +257,21 @@
                 setInterval(process, 150);
             };
         }).catch(e => {
-            console.log("Camera failed, trying default", e);
-            // PCで背面カメラがない場合などのフォールバック
+            console.log("WebCam error, trying fallback:", e);
             navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => {
-                        pCanvas.width = 320; pCanvas.height = 180; 
-                        setInterval(process, 150);
-                    };
-                }).catch(err => alert("カメラが使用できませんでした"));
+            .then(stream => {
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    pCanvas.width = 320; pCanvas.height = 180; 
+                    setInterval(process, 150);
+                };
+            }).catch(err => console.log("No camera found"));
         });
     }
 
-    // --- 同期機能 (P2P by PeerJS) ---
+    // --- 同期機能 (PeerJS) ---
     let peer = null;
 
-    // A. ホスト側 (PC)
     function startHost() {
         if(peer) peer.destroy();
         peer = new Peer(); 
@@ -302,7 +299,6 @@
         });
     }
 
-    // B. クライアント側 (スマホ)
     function startClient(hostId) {
         document.getElementById('sync-status-bar').style.display = 'block';
         if(peer) peer.destroy();
@@ -323,32 +319,31 @@
         });
     }
 
-    // --- HTML書き出し機能 (バグ修正済み) ---
+    // --- HTML書き出し機能 (修正済み) ---
     function downloadSelfContainedHTML() {
-        let htmlContent = document.documentElement.outerHTML;
+        let html = document.documentElement.outerHTML;
         const data = JSON.stringify({ cards, levels, blank: blankCardData });
         
-        // 修正ポイント：スクリプトタグを文字列分割して結合することで、ブラウザの誤認を防ぐ
-        const scriptStart = '<script id="embedded-data" type="application/json">';
-        const scriptEnd = '<' + '/script>'; // ここを分割するのが重要
+        // バグ修正: スクリプトタグ文字をエスケープシーケンス(\x3c)で記述し、ブラウザの誤認を防ぐ
+        const targetId = 'embedded-data';
+        // 正規表現で既存のタグを検索 (改行なども含むため [\s\S]*? を使用)
+        // \x3c は '<'、 \x3e は '>' になります。
+        const regex = new RegExp('\x3cscript id="' + targetId + '" type="application/json"\x3e[\\s\\S]*?\x3c/script\x3e', 'i');
         
-        // 既存のタグを探して置換
-        const regex = /<script id="embedded-data" type="application\/json">[\s\S]*?<\/script>/;
-        const newTag = scriptStart + data + scriptEnd;
+        const newTag = '\x3cscript id="' + targetId + '" type="application/json"\x3e' + data + '\x3c/script\x3e';
         
-        if(regex.test(htmlContent)) {
-            htmlContent = htmlContent.replace(regex, newTag);
+        if(regex.test(html)) {
+            html = html.replace(regex, newTag);
+            
+            const blob = new Blob([html], {type: "text/html"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "index.html";
+            a.click();
         } else {
-            alert("エラー: 埋め込み場所が見つかりません");
-            return;
+            alert("保存エラー: データ埋め込み場所が見つかりません。");
         }
-
-        const blob = new Blob([htmlContent], {type: "text/html"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "index.html";
-        a.click();
     }
 
     // --- 画像処理・判定 ---
@@ -496,14 +491,14 @@
     }
 
     function saveData() {
-        localStorage.setItem('cm_v9_cards', JSON.stringify(cards));
-        localStorage.setItem('cm_v9_levels', JSON.stringify(levels));
-        if(blankCardData) localStorage.setItem('cm_v9_blank', JSON.stringify(blankCardData));
+        localStorage.setItem('cm_v11_cards', JSON.stringify(cards));
+        localStorage.setItem('cm_v11_levels', JSON.stringify(levels));
+        if(blankCardData) localStorage.setItem('cm_v11_blank', JSON.stringify(blankCardData));
     }
     function loadFromLocal() {
-        const c=localStorage.getItem('cm_v9_cards'); if(c) cards=JSON.parse(c);
-        const l=localStorage.getItem('cm_v9_levels'); if(l) levels=JSON.parse(l);
-        const b=localStorage.getItem('cm_v9_blank'); if(b) blankCardData=JSON.parse(b);
+        const c=localStorage.getItem('cm_v11_cards'); if(c) cards=JSON.parse(c);
+        const l=localStorage.getItem('cm_v11_levels'); if(l) levels=JSON.parse(l);
+        const b=localStorage.getItem('cm_v11_blank'); if(b) blankCardData=JSON.parse(b);
     }
     function resetData() { if(confirm("全消去?")) { localStorage.clear(); location.reload(); } }
 
