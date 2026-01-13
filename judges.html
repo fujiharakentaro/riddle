@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Card Master V31 (Sync Fix)</title>
+    <title>Card Master V32 (Debug)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://unpkg.com/js-aruco@0.0.1/src/cv.js"></script>
@@ -27,34 +27,30 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; box-sizing: border-box; z-index: 10;
         }
+
+        /* デバッグ情報ウィンドウ */
+        #debug-info {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.7); color: #0f0;
+            padding: 10px; border-radius: 8px; font-family: monospace; font-size: 12px;
+            pointer-events: none; text-align: left;
+            border: 1px solid #0f0;
+            white-space: pre-wrap;
+        }
         
         button { pointer-events: auto; cursor: pointer; border: none; outline: none; }
-        .btn-float { 
-            background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #aaa; 
-            padding: 8px 16px; border-radius: 20px; font-size: 14px; margin: 10px; 
-        }
-        .judge-btn { 
-            width: 200px; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 50px; 
-            color: white; background: linear-gradient(to bottom, #28a745, #208030); 
-            align-self: center; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
+        .btn-float { background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #aaa; padding: 8px 16px; border-radius: 20px; font-size: 14px; margin: 10px; }
+        .judge-btn { width: 200px; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 50px; color: white; background: linear-gradient(to bottom, #28a745, #208030); align-self: center; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
         #result-overlay {
             display:none; position:absolute; top:0; left:0; width:100%; height:100%; 
             background:rgba(0,0,0,0.9); flex-direction:column; justify-content:center; align-items:center; z-index:200;
         }
-        #result-content { 
-            background: #333; padding: 30px; border-radius: 15px; text-align: center; width: 80%; max-width: 300px;
-            pointer-events: auto;
-        }
+        #result-content { background: #333; padding: 30px; border-radius: 15px; text-align: center; width: 80%; max-width: 300px; pointer-events: auto; }
 
         #title-list { width: 90%; max-width: 400px; overflow-y: auto; max-height: 60%; margin-top: 20px; }
-        .level-item { 
-            background: #333; padding: 15px; margin-bottom: 10px; border-radius: 8px; 
-            display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #444;
-        }
-        .level-item:active { background: #444; }
-
+        .level-item { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #444; }
+        
         #settings-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: #151515; z-index: 300; transform: translateY(100%); 
@@ -67,11 +63,7 @@
         .card-thumb { min-width: 60px; height: 80px; background: #000; border: 1px solid #555; position: relative; }
         .card-thumb img { width: 100%; height: 100%; object-fit: contain; }
         
-        #status-msg { 
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); 
-            background: rgba(40,167,69,0.9); padding: 8px 20px; border-radius: 20px; 
-            font-size:14px; opacity:0; transition:opacity 0.5s; z-index:400; pointer-events: none;
-        }
+        #status-msg { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(40,167,69,0.9); padding: 8px 20px; border-radius: 20px; font-size:14px; opacity:0; transition:opacity 0.5s; z-index:400; pointer-events: none; }
         #sync-area { display:none; background:#fff; padding:20px; margin-top:10px; text-align:center; border-radius:8px; color:#000; }
         #qrcode { margin: 10px auto; }
         
@@ -82,10 +74,8 @@
 
 <div id="title-screen" class="screen">
     <h1 style="margin-bottom:5px; text-shadow: 0 0 10px #0af;">CARD MASTER</h1>
-    <p style="color:#aaa; font-size:12px;">V31 (Sync Fix)</p>
-    
+    <p style="color:#aaa; font-size:12px;">V32 Debug Edition</p>
     <div id="title-list"></div>
-
     <div style="margin-top:20px;">
         <button class="btn-float" onclick="openSettings()">⚙️ 設定・作成・同期</button>
     </div>
@@ -96,6 +86,8 @@
         <canvas id="main-canvas"></canvas>
         <canvas id="proc-canvas"></canvas>
     </div>
+
+    <div id="debug-info">Scanning...</div>
 
     <div class="ui-layer">
         <div style="display:flex; justify-content:space-between; padding:10px;">
@@ -127,14 +119,16 @@
     </div>
     
     <div class="setting-box" style="border:1px solid #aaa;">
-        <h3>🖨️ マーカー準備 (必須)</h3>
-        <p style="font-size:12px; color:#ccc;">マーカー(0, 10, 20, 30)を使用します。余白を残して切り取ってください。</p>
+        <h3>🖨️ マーカー準備 (最重要)</h3>
+        <p style="font-size:12px; color:#ccc;">
+            <b>【重要】</b> 黒枠の周りに必ず「白い余白」を残して切り取ってください。<br>
+            ここから正しいマーカーを表示できます。
+        </p>
         <button onclick="showMarkers()" style="width:100%; padding:10px; background:#e0a800; color:#000; border-radius:5px; font-weight:bold;">マーカーを表示</button>
     </div>
 
     <div class="setting-box" style="border:1px solid #007bff;">
         <h3>📡 データ同期</h3>
-        <p style="font-size:11px; color:#ccc;">PCのデータをスマホに送ります。</p>
         <button onclick="startHost()" style="width:100%; padding:10px; background:#007bff; color:#fff; border-radius:5px;">QRコードを表示</button>
         <div id="sync-area">
             <div id="qrcode"></div>
@@ -196,6 +190,7 @@
     const ctx = canvas.getContext('2d');
     const procCanvas = document.getElementById('proc-canvas');
     const procCtx = procCanvas.getContext('2d');
+    const debugInfo = document.getElementById('debug-info');
 
     window.onload = () => {
         loadData();
@@ -211,7 +206,6 @@
         document.getElementById(id).style.display = 'flex';
     }
 
-    // --- ゲーム管理 ---
     function startGame(idx) {
         if(!levels[idx]) return;
         currentTarget = levels[idx];
@@ -231,7 +225,6 @@
         showScreen('title-screen');
     }
 
-    // --- カメラ処理 ---
     async function startCamera() {
         try {
             const constraints = { video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } } };
@@ -268,17 +261,25 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
+        // マーカー検出
         let markers = [];
         if(detector) markers = detector.detect(imgData);
 
+        // --- デバッグ情報作成 ---
+        let debugText = `Detected: ${markers.length}\n`;
+        markers.forEach(m => {
+            debugText += `[ID:${m.id}] `;
+            drawRawMarker(ctx, m); // 見つかったものは全て赤枠で表示
+        });
+        debugInfo.innerText = debugText;
+
+        // グループ化
         let markersById = {};
         TARGET_IDS.forEach(id => markersById[id] = []);
         markers.forEach(m => { if(TARGET_IDS.includes(m.id)) markersById[m.id].push(m); });
 
         detectedInfo = {};
         TARGET_IDS.forEach(id => detectedInfo[id] = { name: "?", score: 0, rect: null });
-
-        markers.forEach(m => drawMarkerDebug(ctx, m));
 
         TARGET_IDS.forEach(id => {
             const ms = markersById[id];
@@ -302,22 +303,42 @@
         });
     }
 
-    // --- 描画・判定 ---
-    function drawMarkerDebug(ctx, m) {
-        ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2;
-        ctx.beginPath(); m.corners.forEach((p,i)=>{ i==0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); }); ctx.closePath(); ctx.stroke();
-        ctx.fillStyle = "#0f0"; ctx.font = "10px sans-serif"; ctx.fillText("ID:"+m.id, m.corners[0].x, m.corners[0].y - 2);
+    // --- 描画系 ---
+    function drawRawMarker(ctx, m) {
+        // 全ての検出マーカーを赤枠で表示（動作確認用）
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.lineWidth = 2;
+        ctx.beginPath();
+        m.corners.forEach((p,i)=>{ i==0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); });
+        ctx.closePath(); ctx.stroke();
+        // IDも表示
+        ctx.fillStyle = "red"; ctx.font = "12px monospace";
+        ctx.fillText(m.id, m.corners[0].x, m.corners[0].y - 5);
     }
 
     function drawResultOverlay(ctx, r, id, name, score) {
+        // 認識成功時の青枠
         ctx.strokeStyle = "rgba(0, 255, 255, 0.8)"; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h);
-        ctx.fillStyle = "cyan"; ctx.font = "bold 12px sans-serif"; ctx.fillText(`ID:${id}`, r.x, r.y - 5);
+        ctx.fillStyle = "cyan"; ctx.font = "bold 12px sans-serif"; ctx.fillText(`ID:${id} PAIR`, r.x, r.y - 5);
+        
         const label = (name==="") ? "空白" : (name==="?") ? "?" : name;
         ctx.fillStyle = (name==="?") ? "gray" : "white"; ctx.shadowColor="black"; ctx.shadowBlur=3;
         ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText(label, r.x + r.w/2, r.y + r.h/2);
-        ctx.font = "11px sans-serif"; ctx.fillStyle = "#ddd"; ctx.fillText(`Score: ${Math.floor(score*100)}`, r.x + r.w/2, r.y + r.h/2 + 15);
+        
+        ctx.font = "11px sans-serif"; ctx.fillStyle = "#ddd"; 
+        ctx.fillText(`Score: ${Math.floor(score*100)}`, r.x + r.w/2, r.y + r.h/2 + 15);
         ctx.shadowBlur=0; ctx.textAlign = "start";
     }
+
+    // --- 計算・判定 (変更なし) ---
+    function getCenter(corners){let x=0,y=0;corners.forEach(p=>{x+=p.x;y+=p.y;});return{x:x/4,y:y/4};}
+    function getBoundingRect(p1,p2,s){const minX=Math.min(p1.x,p2.x),maxX=Math.max(p1.x,p2.x),minY=Math.min(p1.y,p2.y),maxY=Math.max(p1.y,p2.y),w=maxX-minX,h=maxY-minY,cx=minX+w/2,cy=minY+h/2,nw=w*s,nh=h*s;return{x:cx-nw/2,y:cy-nh/2,w:nw,h:nh};}
+    function getHomography(src,dst){let A=[],B=[];for(let i=0;i<4;i++){let sx=src[i*2],sy=src[i*2+1],dx=dst[i*2],dy=dst[i*2+1];A.push([sx,sy,1,0,0,0,-sx*dx,-sy*dx]);A.push([0,0,0,sx,sy,1,-sx*dy,-sy*dy]);B.push(dx);B.push(dy);}return solveGaussian(A,B).concat([1.0]);}
+    function solveGaussian(A,B){let n=A.length;let x=new Array(n);for(let i=0;i<n;i++){let max=Math.abs(A[i][i]),r=i;for(let k=i+1;k<n;k++)if(Math.abs(A[k][i])>max){max=Math.abs(A[k][i]);r=k;}for(let k=i;k<n;k++){let t=A[r][k];A[r][k]=A[i][k];A[i][k]=t;}let t=B[r];B[r]=B[i];B[i]=t;for(let k=i+1;k<n;k++){let c=-A[k][i]/A[i][i];for(let j=i;j<n;j++)if(i==j)A[k][j]=0;else A[k][j]+=c*A[i][j];B[k]+=c*B[i];}}for(let i=n-1;i>=0;i--){let s=0;for(let j=i+1;j<n;j++)s+=A[i][j]*x[j];x[i]=(B[i]-s)/A[i][i];}return x;}
+    function invertMatrix(m){const n11=m[0],n12=m[1],n13=m[2],n21=m[3],n22=m[4],n23=m[5],n31=m[6],n32=m[7],n33=m[8],t11=n33*n22-n32*n23,t12=n32*n13-n33*n12,t13=n23*n12-n22*n13,det=n11*t11+n21*t12+n31*t13;if(det===0)return m;const i=1/det;return[t11*i,(n31*n23-n33*n21)*i,(n32*n21-n31*n22)*i,t12*i,(n33*n11-n31*n13)*i,(n31*n12-n32*n11)*i,t13*i,(n21*n13-n23*n11)*i,(n22*n11-n21*n12)*i];}
+    function warpImage(src,ctxDst,H){const w=ctxDst.canvas.width,h=ctxDst.canvas.height,dstD=ctxDst.createImageData(w,h),dd=dstD.data,srcD=src.data,sw=src.width,sh=src.height,Hi=invertMatrix(H);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const u=Hi[0]*x+Hi[1]*y+Hi[2],v=Hi[3]*x+Hi[4]*y+Hi[5],s=Hi[6]*x+Hi[7]*y+Hi[8],sx=Math.floor(u/s),sy=Math.floor(v/s),di=(y*w+x)*4;if(sx>=0&&sx<sw&&sy>=0&&sy<sh){const si=(sy*sw+sx)*4;dd[di]=srcD[si];dd[di+1]=srcD[si+1];dd[di+2]=srcD[si+2];dd[di+3]=255;}else dd[di+3]=0;}ctxDst.putImageData(dstD,0,0);}
+    function binarize(d){const b=new ImageData(d.width,d.height),bd=b.data,dd=d.data;for(let i=0;i<dd.length;i+=4){const v=(dd[i]+dd[i+1]+dd[i+2])/3<100?0:255;bd[i]=bd[i+1]=bd[i+2]=v;bd[i+3]=255;}return b;}
+    function getFeature(b,w,h){const p=[],d=b.data,step=3;for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step)p.push(d[((y*w+x)*4)]===0?1:0);return p;}
+    function compare(a,b){if(!a||!b||a.length!=b.length)return 1;let d=0,c=0;for(let i=0;i<a.length;i++){if(a[i]!=b[i])d++;c++;}return c?d/c:1;}
 
     function identifyCard(feat) {
         let bestName = "?"; let minDiff = 1.0;
@@ -335,7 +356,6 @@
         return { name: bestName, score: score };
     }
 
-    // --- ボタン処理 ---
     function judge() {
         if(!currentTarget) return;
         let ok = true;
@@ -351,12 +371,11 @@
     function closeResult() { document.getElementById('result-overlay').style.display = 'none'; }
     function toggleDebug() { marginScale = (marginScale===1.0)?1.2:1.0; document.getElementById('debug-val').innerText=Math.round(marginScale*100)+"%"; }
 
-    // --- 同期 (修正版) ---
+    // --- 同期 ---
     function startHost(){
-        if(typeof Peer==='undefined'){ alert("ライブラリ読み込みエラー: ネット接続を確認してください"); return; }
+        if(typeof Peer==='undefined'){alert("通信エラー");return;}
         if(peer) peer.destroy();
-        
-        try { peer = new Peer(); } catch(e) { alert("Peer作成エラー: " + e); return; }
+        try { peer = new Peer(); } catch(e) { alert("Peer作成エラー: "+e); return; }
 
         const area = document.getElementById('sync-area');
         const qrel = document.getElementById('qrcode');
@@ -370,15 +389,12 @@
             new QRCode(qrel, {text: url, width: 150, height: 150});
             msg.innerText = "スマホのカメラで読み取ってください";
         });
-        peer.on('error', err => {
-            msg.innerText = "エラー: 通信サーバーに接続できませんでした";
-            alert("通信エラー: " + err.type);
-        });
+        peer.on('error', err => { msg.innerText = "エラー: "+err.type; });
         peer.on('connection', conn => {
             msg.innerText = "接続されました！送信中...";
             conn.on('open', () => {
                 conn.send({cards, levels, blankData});
-                setTimeout(()=>{ msg.innerText="送信完了！スマホを確認してください"; }, 500);
+                setTimeout(()=>{ msg.innerText="送信完了！"; }, 500);
             });
         });
     }
@@ -389,32 +405,25 @@
         showToast("データ同期中...");
         peer.on('open', ()=>{
             const conn = peer.connect(id);
-            conn.on('open', ()=>{ showToast("ホストに接続しました"); });
+            conn.on('open', ()=>{ showToast("ホストに接続"); });
             conn.on('data', d=>{
                 if(d && d.cards) {
                     cards=d.cards; levels=d.levels; blankData=d.blankData;
-                    saveData(); renderTitleList(); showToast("同期完了！保存しました");
+                    saveData(); renderTitleList(); showToast("同期完了");
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             });
         });
-        peer.on('error', e => showToast("同期エラー: " + e.type));
     }
 
-    // --- データ保存 ---
-    // cm_v31 というキーで保存
     function saveData(){ localStorage.setItem('cm_v31', JSON.stringify({cards,levels,blankData})); }
     function loadData(){
         const d=localStorage.getItem('cm_v31');
-        if(d){ 
-            try {
-                const j=JSON.parse(d); cards=j.cards||[]; levels=j.levels||[]; blankData=j.blankData;
-            } catch(e) { console.error("Data load error", e); }
-        }
+        if(d){ try { const j=JSON.parse(d); cards=j.cards||[]; levels=j.levels||[]; blankData=j.blankData; } catch(e){} }
     }
     function resetData(){ if(confirm("全消去?")){ localStorage.removeItem('cm_v31'); location.reload(); } }
-
-    // --- UI/画像登録 ---
+    
+    // --- UI Helpers ---
     function registerImage(input) {
         if(!input.files[0]) return;
         const name = document.getElementById('reg-name').value || "Card"+(cards.length+1);
@@ -443,12 +452,10 @@
     function renderTitleList() {
         const tl = document.getElementById('title-list');
         const gl = document.getElementById('reg-list');
-        // タイトルリスト更新
         if(levels.length===0) tl.innerHTML = "<div style='text-align:center;color:#777;margin-top:20px;'>問題がありません<br>設定から作成してください</div>";
         else {
             tl.innerHTML=""; levels.forEach((l,i)=> tl.innerHTML+=`<div class="level-item" onclick="startGame(${i})"><span>${l.title}</span><span style="background:#0af;color:#000;padding:2px 8px;border-radius:10px;font-size:12px;">挑戦</span></div>`);
         }
-        // 設定画面リスト更新
         gl.innerHTML=""; cards.forEach((c,i)=> gl.innerHTML+=`<div class="card-thumb" style="${c.isBlank?'border:2px dashed #0f0':''}"><img src="${c.thumb}"><div style="font-size:10px;text-align:center;overflow:hidden;">${c.name}</div><div style="position:absolute;top:0;right:0;background:red;width:20px;text-align:center;cursor:pointer;color:white;" onclick="if(confirm('削除?')){cards.splice(${i},1);saveData();renderTitleList();}">×</div></div>`);
         const ll=document.getElementById('level-list'); ll.innerHTML="";
         levels.forEach((l,i)=> ll.innerHTML+=`<div style="background:#333;padding:10px;margin-bottom:5px;border-radius:4px;display:flex;justify-content:space-between;border:1px solid #555;"><div><b>${l.title}</b><div style="font-size:10px;color:#aaa;">${l.order.join(', ')}</div></div><button style="background:#d00;color:white;padding:5px 10px;border-radius:4px;" onclick="if(confirm('削除?')){levels.splice(${i},1);saveData();renderTitleList();}">削除</button></div>`);
@@ -457,17 +464,6 @@
             cards.forEach(c=>{ if(!c.isBlank) s.innerHTML+=`<option value="${c.name}">${c.name}</option>`; });
         });
     }
-    
-    // 共通計算
-    function getCenter(corners){let x=0,y=0;corners.forEach(p=>{x+=p.x;y+=p.y;});return{x:x/4,y:y/4};}
-    function getBoundingRect(p1,p2,s){const minX=Math.min(p1.x,p2.x),maxX=Math.max(p1.x,p2.x),minY=Math.min(p1.y,p2.y),maxY=Math.max(p1.y,p2.y),w=maxX-minX,h=maxY-minY,cx=minX+w/2,cy=minY+h/2,nw=w*s,nh=h*s;return{x:cx-nw/2,y:cy-nh/2,w:nw,h:nh};}
-    function getHomography(src,dst){let A=[],B=[];for(let i=0;i<4;i++){let sx=src[i*2],sy=src[i*2+1],dx=dst[i*2],dy=dst[i*2+1];A.push([sx,sy,1,0,0,0,-sx*dx,-sy*dx]);A.push([0,0,0,sx,sy,1,-sx*dy,-sy*dy]);B.push(dx);B.push(dy);}return solveGaussian(A,B).concat([1.0]);}
-    function solveGaussian(A,B){let n=A.length;let x=new Array(n);for(let i=0;i<n;i++){let max=Math.abs(A[i][i]),r=i;for(let k=i+1;k<n;k++)if(Math.abs(A[k][i])>max){max=Math.abs(A[k][i]);r=k;}for(let k=i;k<n;k++){let t=A[r][k];A[r][k]=A[i][k];A[i][k]=t;}let t=B[r];B[r]=B[i];B[i]=t;for(let k=i+1;k<n;k++){let c=-A[k][i]/A[i][i];for(let j=i;j<n;j++)if(i==j)A[k][j]=0;else A[k][j]+=c*A[i][j];B[k]+=c*B[i];}}for(let i=n-1;i>=0;i--){let s=0;for(let j=i+1;j<n;j++)s+=A[i][j]*x[j];x[i]=(B[i]-s)/A[i][i];}return x;}
-    function invertMatrix(m){const n11=m[0],n12=m[1],n13=m[2],n21=m[3],n22=m[4],n23=m[5],n31=m[6],n32=m[7],n33=m[8],t11=n33*n22-n32*n23,t12=n32*n13-n33*n12,t13=n23*n12-n22*n13,det=n11*t11+n21*t12+n31*t13;if(det===0)return m;const i=1/det;return[t11*i,(n31*n23-n33*n21)*i,(n32*n21-n31*n22)*i,t12*i,(n33*n11-n31*n13)*i,(n31*n12-n32*n11)*i,t13*i,(n21*n13-n23*n11)*i,(n22*n11-n21*n12)*i];}
-    function warpImage(src,ctxDst,H){const w=ctxDst.canvas.width,h=ctxDst.canvas.height,dstD=ctxDst.createImageData(w,h),dd=dstD.data,srcD=src.data,sw=src.width,sh=src.height,Hi=invertMatrix(H);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const u=Hi[0]*x+Hi[1]*y+Hi[2],v=Hi[3]*x+Hi[4]*y+Hi[5],s=Hi[6]*x+Hi[7]*y+Hi[8],sx=Math.floor(u/s),sy=Math.floor(v/s),di=(y*w+x)*4;if(sx>=0&&sx<sw&&sy>=0&&sy<sh){const si=(sy*sw+sx)*4;dd[di]=srcD[si];dd[di+1]=srcD[si+1];dd[di+2]=srcD[si+2];dd[di+3]=255;}else dd[di+3]=0;}ctxDst.putImageData(dstD,0,0);}
-    function binarize(d){const b=new ImageData(d.width,d.height),bd=b.data,dd=d.data;for(let i=0;i<dd.length;i+=4){const v=(dd[i]+dd[i+1]+dd[i+2])/3<100?0:255;bd[i]=bd[i+1]=bd[i+2]=v;bd[i+3]=255;}return b;}
-    function getFeature(b,w,h){const p=[],d=b.data,step=3;for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step)p.push(d[((y*w+x)*4)]===0?1:0);return p;}
-    function compare(a,b){if(!a||!b||a.length!=b.length)return 1;let d=0,c=0;for(let i=0;i<a.length;i++){if(a[i]!=b[i])d++;c++;}return c?d/c:1;}
     function showToast(m){const e=document.getElementById('status-msg');e.innerText=m;e.style.opacity=1;setTimeout(()=>e.style.opacity=0,2000);}
     function openSettings(){document.getElementById('settings-overlay').classList.add('open');}
     function closeSettings(){document.getElementById('settings-overlay').classList.remove('open');}
