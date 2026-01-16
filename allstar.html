@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V5</title>
+    <title>All-Star Quiz System V6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Anton&display=swap" rel="stylesheet">
@@ -55,7 +55,27 @@
         .menu-btn:hover { transform: scale(1.05); border-color: #fff; background: linear-gradient(to bottom, #666, #333); }
 
         /* --- ホスト（出題）画面 --- */
-        #host-view { display: flex; padding: 20px; box-sizing: border-box; }
+        #host-view { display: flex; padding: 20px; box-sizing: border-box; position: relative; }
+
+        /* 問題選択画面 overlay */
+        #question-select-view {
+            background: rgba(0,0,0,0.9); z-index: 800;
+            display: flex; flex-direction: column; align-items: center; padding: 30px;
+        }
+        .select-container {
+            width: 90%; max-width: 1000px; height: 80%;
+            background: #222; border: 3px solid #888; border-radius: 15px;
+            padding: 20px; overflow-y: auto;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;
+        }
+        .select-btn {
+            background: linear-gradient(to bottom, #0044cc, #002288);
+            border: 2px solid #4488ff; border-radius: 10px;
+            padding: 15px; color: #fff; font-size: 20px; font-weight: bold;
+            cursor: pointer; transition: 0.2s; box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .select-btn:hover { transform: scale(1.03); background: linear-gradient(to bottom, #0066ff, #0033cc); border-color: #fff; }
 
         /* Qテロップ */
         .q-container {
@@ -103,10 +123,16 @@
         .layout-text .opt-val { color: #fff; font-size: 3vw; font-weight: 900; text-shadow: 0 0 5px #00f; flex: 1; }
         .layout-text .vote-count { position: absolute; right: 30px; font-family: 'Anton'; font-size: 50px; color: #ffd700; text-shadow: 2px 2px 0 #000; opacity: 0; }
 
-        /* Layout B: 画像 */
-        .layout-image { flex-direction: row; width: 100%; height: 100%; padding: 40px; }
-        .layout-image .options-area { width: 70%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; }
-        .layout-image .option-panel { position: relative; border-radius: 20px; overflow: hidden; background: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 4px solid #fff; }
+        /* Layout B: 画像 (修正版) */
+        .layout-image { flex-direction: row; width: 100%; height: 100%; padding: 20px; gap: 20px; }
+        .layout-image .options-area {
+            flex: 2; height: 100%;
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px;
+        }
+        .layout-image .option-panel {
+            position: relative; border-radius: 20px; overflow: hidden; background: #000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 4px solid #fff; height: 100%;
+        }
         .layout-image .opt-img { width: 100%; height: 100%; object-fit: cover; }
         .layout-image .opt-num {
             position: absolute; top: 15px; left: 15px; width: 50px; height: 50px; border-radius: 50%;
@@ -115,11 +141,20 @@
             border: 3px solid #fff; z-index: 5;
             box-shadow: 2px 2px 5px rgba(0,0,0,0.8), inset 0 5px 10px rgba(255,255,255,0.4);
         }
-        .layout-image .side-panel { width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding-left: 20px; }
-        .layout-image .q-container { width: 100%; height: 80%; flex-direction: column; padding: 20px 10px; background: linear-gradient(to bottom, #3a0088, #5500aa); }
-        .layout-image .q-icon { margin: 0 0 10px 0; font-size: 100px; }
-        .layout-image .q-text-box { width: 100%; height: 100%; }
-        .layout-image .q-text-content { writing-mode: vertical-rl; text-orientation: upright; font-size: 4vw; letter-spacing: 0.5rem; }
+        .layout-image .side-panel {
+            flex: 1; height: 100%; display: flex; flex-direction: column;
+        }
+        .layout-image .q-container {
+            width: 100%; height: 100%;
+            flex-direction: column; padding: 20px 10px;
+            background: linear-gradient(to bottom, #3a0088, #5500aa);
+        }
+        .layout-image .q-icon { margin: 0 0 20px 0; font-size: 100px; }
+        .layout-image .q-text-box { width: 100%; flex: 1; }
+        .layout-image .q-text-content {
+            writing-mode: vertical-rl; text-orientation: upright;
+            font-size: 4vw; letter-spacing: 0.5rem; height: 100%;
+        }
         .layout-image .vote-count { position: absolute; bottom: 10px; right: 10px; font-family: 'Anton'; font-size: 60px; color: #ffd700; text-shadow: 3px 3px 0 #000; opacity: 0; z-index: 10; }
 
         /* Colors */
@@ -145,21 +180,17 @@
         }
         #timer-text { font-family: 'Anton', sans-serif; font-size: 70px; color: #ff0000; text-shadow: 0 0 10px #ff0000; }
 
-        /* --- ランキング画面（新デザイン） --- */
+        /* Ranking */
         #ranking-modal { 
             background: rgba(0,0,0,0.85); z-index: 200; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        
         .ranking-board {
             display: flex; width: 95%; max-width: 1000px; height: 80%;
             background: linear-gradient(to right, #0033cc, #0066ff);
             border: 4px solid #4488ff; border-radius: 20px;
-            padding: 20px; box-shadow: 0 0 50px rgba(0, 50, 255, 0.8);
-            position: relative;
+            padding: 20px; box-shadow: 0 0 50px rgba(0, 50, 255, 0.8); position: relative;
         }
-
-        /* 左サイドバー（縦書きタイトル） */
         .ranking-sidebar {
             width: 100px; margin-right: 15px;
             background: linear-gradient(to bottom, #00eeff 0%, #0088ff 50%, #0044aa 100%);
@@ -173,17 +204,9 @@
             font-size: 42px; color: #002266; letter-spacing: 5px;
             text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
         }
-
-        /* リストエリア */
-        .rank-list-area {
-            flex: 1; display: flex; flex-direction: column; gap: 8px;
-            overflow-y: hidden; justify-content: center;
-        }
-
-        /* 各行デザイン */
+        .rank-list-area { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: hidden; justify-content: center; }
         .rank-row {
-            height: 65px;
-            background: linear-gradient(to bottom, #0055aa, #002288);
+            height: 65px; background: linear-gradient(to bottom, #0055aa, #002288);
             border: 2px solid #66aaff; border-radius: 10px;
             display: flex; align-items: center; padding: 0 15px;
             box-shadow: inset 0 5px 10px rgba(255,255,255,0.2), 0 3px 6px rgba(0,0,0,0.5);
@@ -191,28 +214,19 @@
             opacity: 0; animation: slideRank 0.5s ease-out forwards;
         }
         @keyframes slideRank { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
-
         .rank-num { width: 60px; text-align: right; margin-right: 20px; font-family: 'Anton'; }
         .rank-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 2px 2px 2px #000; }
-        
         .rank-time-box {
             background: #000033; border: 2px solid #4488ff; border-radius: 5px;
             padding: 0 15px; min-width: 110px; text-align: right;
             font-family: 'Anton'; font-size: 38px; color: #ffdd00;
             text-shadow: 0 0 10px #ffaa00; box-shadow: inset 0 0 5px #000;
         }
+        .ranking-footer { margin-top: 20px; color: #aaa; font-size: 20px; font-weight: bold; text-shadow: 1px 1px 2px #000; }
 
-        .ranking-footer {
-            margin-top: 20px; color: #aaa; font-size: 20px; font-weight: bold;
-            text-shadow: 1px 1px 2px #000;
-        }
-
-        /* --- 設定画面 --- */
+        /* --- Setup --- */
         #setup-view { background: #1a1a1a; }
-        .setup-container {
-            width: 800px; height: 90vh; background: #2a2a2a; border-radius: 10px;
-            display: flex; flex-direction: column; padding: 20px; color: #fff;
-        }
+        .setup-container { width: 800px; height: 90vh; background: #2a2a2a; border-radius: 10px; display: flex; flex-direction: column; padding: 20px; color: #fff; }
         .setup-scroll { flex: 1; overflow-y: auto; padding-right: 10px; }
         input, select { background: #111; color: #fff; border: 1px solid #555; padding: 5px; width: 100%; box-sizing: border-box; }
         .q-card { background: #333; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
@@ -221,12 +235,7 @@
 
         /* --- Client --- */
         #client-view { background: #111; }
-        .ans-btn {
-            border: none; border-radius: 15px; font-family: 'Anton', sans-serif;
-            font-size: 80px; color: rgba(0,0,0,0.5);
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5); transition: 0.1s;
-        }
+        .ans-btn { border: none; border-radius: 15px; font-family: 'Anton', sans-serif; font-size: 80px; color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); transition: 0.1s; }
         .ans-btn:active { transform: scale(0.95); filter: brightness(1.2); }
         .btn-1 { background: var(--col-1); } .btn-2 { background: var(--col-2); }
         .btn-3 { background: var(--col-3); } .btn-4 { background: var(--col-4); }
@@ -266,8 +275,15 @@
         <h2 style="color:#fff;">ENTRY</h2>
         <div id="qrcode" style="background:#fff; padding:20px; border-radius:10px;"></div>
         <p id="p-count" style="font-size:30px; margin-top:20px; font-weight:bold;">参加者: 0人</p>
-        <button class="menu-btn" onclick="closeQrAndStart()">START</button>
+        <button class="menu-btn" onclick="closeQrAndStart()">START (Space)</button>
         <button class="btn" onclick="goTitle()" style="margin-top:10px;">中止</button>
+    </div>
+
+    <div id="question-select-view" class="full-screen hidden flex-center">
+        <h2 style="color:#fff; text-shadow:2px 2px 5px #000;">問題を選択してください</h2>
+        <div class="select-container" id="select-container">
+            </div>
+        <button class="btn" onclick="goTitle()" style="margin-top:20px;">タイトルへ戻る</button>
     </div>
 
     <div id="game-layout" class="layout-text">
@@ -293,13 +309,10 @@
 
     <div id="ranking-modal" class="full-screen hidden">
         <div class="ranking-board">
-            <div class="ranking-sidebar">
-                <div class="side-text">早押しベスト10</div>
-            </div>
-            <div class="rank-list-area" id="rank-list">
-                </div>
+            <div class="ranking-sidebar"><div class="side-text">早押しベスト10</div></div>
+            <div class="rank-list-area" id="rank-list"></div>
         </div>
-        <div class="ranking-footer">Spaceキーでタイトルへ</div>
+        <div class="ranking-footer">Spaceキーで問題選択に戻る</div>
     </div>
 </div>
 
@@ -327,7 +340,8 @@
     
     // System
     let peer, conn, conns={}, myId;
-    let currentQIndex=0, hostState=0, answers={}, participants={}, clientStartTime=0, bgmAudio=null;
+    let currentQIndex=0, hostState=0; // 0:Select, 1:Standby, 2:Open, 3:Count, 4:TimeUp, 5:Votes, 6:Correct, 7:Rank
+    let answers={}, participants={}, clientStartTime=0, bgmAudio=null;
 
     window.onload = () => {
         const u = new URLSearchParams(window.location.search);
@@ -358,26 +372,7 @@
         const l=document.getElementById('q-list'); l.innerHTML="";
         questions.forEach((q,i)=>{
             const d=document.createElement('div'); d.className='q-card';
-            d.innerHTML=`
-                <div style="display:flex;justify-content:space-between;"><b>Q${i+1}</b><button class="btn btn-red" onclick="delQ(${i})">削除</button></div>
-                <input type="text" value="${q.q}" onchange="upQ(${i},'q',this.value)" placeholder="問題文">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;">
-                    ${[1,2,3,4].map(k=>`
-                        <div style="background:#222;padding:5px;">
-                            <span style="font-size:12px;color:#aaa;">選択肢${k}</span>
-                            <div style="display:flex;gap:5px;margin-bottom:2px;font-size:10px;">
-                                <label><input type="radio" name="t-${i}-${k}" ${q.options[k].type=='text'?'checked':''} onchange="setType(${i},${k},'text')">文</label>
-                                <label><input type="radio" name="t-${i}-${k}" ${q.options[k].type=='image'?'checked':''} onchange="setType(${i},${k},'image')">画</label>
-                            </div>
-                            ${q.options[k].type=='text'?
-                                `<input type="text" value="${q.options[k].val}" onchange="upOpt(${i},${k},this.value)">`:
-                                `<input type="file" accept="image/*" style="font-size:10px;" onchange="upImg(this,${i},${k})">${q.options[k].val?`<img src="${q.options[k].val}" style="height:30px;">`:''}`
-                            }
-                        </div>
-                    `).join('')}
-                </div>
-                <div style="margin-top:5px;">正解: <select onchange="upQ(${i},'correct',this.value)">${[1,2,3,4].map(k=>`<option value="${k}" ${q.correct==k?'selected':''}>${k}</option>`).join('')}</select></div>
-            `;
+            d.innerHTML=`<div style="display:flex;justify-content:space-between;"><b>Q${i+1}</b><button class="btn btn-red" onclick="delQ(${i})">削除</button></div><input type="text" value="${q.q}" onchange="upQ(${i},'q',this.value)" placeholder="問題文"><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;">${[1,2,3,4].map(k=>`<div style="background:#222;padding:5px;"><span style="font-size:12px;color:#aaa;">選択肢${k}</span><div style="display:flex;gap:5px;margin-bottom:2px;font-size:10px;"><label><input type="radio" name="t-${i}-${k}" ${q.options[k].type=='text'?'checked':''} onchange="setType(${i},${k},'text')">文</label><label><input type="radio" name="t-${i}-${k}" ${q.options[k].type=='image'?'checked':''} onchange="setType(${i},${k},'image')">画</label></div>${q.options[k].type=='text'?`<input type="text" value="${q.options[k].val}" onchange="upOpt(${i},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upImg(this,${i},${k})">${q.options[k].val?`<img src="${q.options[k].val}" style="height:30px;">`:''}`}</div>`).join('')}</div><div style="margin-top:5px;">正解: <select onchange="upQ(${i},'correct',this.value)">${[1,2,3,4].map(k=>`<option value="${k}" ${q.correct==k?'selected':''}>${k}</option>`).join('')}</select></div>`;
             l.appendChild(d);
         });
     }
@@ -392,9 +387,12 @@
     function startHostGame(){
         if(!questions.length)return alert("問題がありません");
         showScreen('host-view');
+        document.getElementById('qr-overlay').classList.remove('hidden');
+        document.getElementById('question-select-view').classList.add('hidden');
         peer=new Peer();
         peer.on('open',id=>{
-            new QRCode(document.getElementById("qrcode"), {text:location.href.split('?')[0]+'?host='+id, width:200, height:200});
+            const qrEl = document.getElementById("qrcode"); qrEl.innerHTML="";
+            new QRCode(qrEl, {text:location.href.split('?')[0]+'?host='+id, width:200, height:200});
         });
         peer.on('connection',c=>{
             c.on('open',()=>{
@@ -408,17 +406,34 @@
         });
     }
     document.addEventListener('keydown',e=>{ if(!document.getElementById('host-view').classList.contains('hidden') && e.code==='Space'){e.preventDefault();nextPhase();} });
-    document.getElementById('host-view').addEventListener('click',e=>{if(document.getElementById('qr-overlay').classList.contains('hidden') && e.target.tagName!=='BUTTON')nextPhase();});
+    document.getElementById('host-view').addEventListener('click',e=>{if(document.getElementById('qr-overlay').classList.contains('hidden') && document.getElementById('question-select-view').classList.contains('hidden') && e.target.tagName!=='BUTTON')nextPhase();});
 
-    function closeQrAndStart(){ document.getElementById('qr-overlay').classList.add('hidden'); hostState=0; currentQIndex=-1; nextPhase(); }
+    function closeQrAndStart(){
+        document.getElementById('qr-overlay').classList.add('hidden');
+        hostState = 0; nextPhase(); // Go to Question Select
+    }
+
+    function renderQuestionSelect(){
+        const c = document.getElementById('select-container'); c.innerHTML="";
+        questions.forEach((q,i)=>{
+            const btn = document.createElement('button'); btn.className='select-btn';
+            btn.innerText = `Q${i+1}. ${q.q}`;
+            btn.onclick = ()=>{ selectQuestion(i); };
+            c.appendChild(btn);
+        });
+        document.getElementById('question-select-view').classList.remove('hidden');
+    }
+
+    function selectQuestion(i){
+        currentQIndex = i;
+        document.getElementById('question-select-view').classList.add('hidden');
+        resetDisp(); hostState=1; broadcast({type:'STANDBY'});
+    }
 
     function nextPhase(){
-        const Q = questions[currentQIndex];
         switch(hostState){
-            case 0: // Next
-                currentQIndex++;
-                if(currentQIndex>=questions.length){alert("終了");goTitle();return;}
-                resetDisp(); hostState=1; broadcast({type:'STANDBY'});
+            case 0: // Question Select
+                renderQuestionSelect();
                 break;
             case 1: // Open
                 displayQ(questions[currentQIndex]); playAudio('q_open'); hostState=2;
@@ -437,9 +452,9 @@
             case 6: // Rank
                 showRank(); hostState=7;
                 break;
-            case 7: // Finish
+            case 7: // Back to Select
                 document.getElementById('ranking-modal').classList.add('hidden');
-                goTitle();
+                hostState = 0; nextPhase();
                 break;
         }
     }
@@ -448,27 +463,17 @@
     function resetDisp(){
         document.getElementById('q-text').innerText=""; document.getElementById('q-text-side').innerText="";
         for(let k=1;k<=4;k++){
-            const p=document.getElementById('opt-'+k);
-            p.classList.remove('dimmed','highlighted');
-            document.getElementById('val-'+k).innerHTML="";
-            document.getElementById('vote-'+k).style.opacity=0;
+            const p=document.getElementById('opt-'+k); p.classList.remove('dimmed','highlighted');
+            document.getElementById('val-'+k).innerHTML=""; document.getElementById('vote-'+k).style.opacity=0;
         }
-        document.getElementById('timer-display').classList.add('hidden');
-        answers={}; stopAudio();
+        document.getElementById('timer-display').classList.add('hidden'); answers={}; stopAudio();
     }
 
     function displayQ(q){
         const isImg = Object.values(q.options).some(o=>o.type==='image');
-        const gl=document.getElementById('game-layout');
-        const ql=document.getElementById('q-area-l');
-        const sp=document.getElementById('side-panel');
-        if(isImg){
-            gl.className='layout-image'; ql.classList.add('hidden'); sp.classList.remove('hidden');
-            document.getElementById('q-text-side').innerText=q.q;
-        } else {
-            gl.className='layout-text'; ql.classList.remove('hidden'); sp.classList.add('hidden');
-            document.getElementById('q-text').innerText=q.q;
-        }
+        const gl=document.getElementById('game-layout'); const ql=document.getElementById('q-area-l'); const sp=document.getElementById('side-panel');
+        if(isImg){ gl.className='layout-image'; ql.classList.add('hidden'); sp.classList.remove('hidden'); document.getElementById('q-text-side').innerText=q.q; }
+        else { gl.className='layout-text'; ql.classList.remove('hidden'); sp.classList.add('hidden'); document.getElementById('q-text').innerText=q.q; }
         for(let k=1;k<=4;k++){
             const el=document.getElementById('val-'+k);
             if(q.options[k].type==='image') el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`;
@@ -480,46 +485,24 @@
     function startTimer(){
         const el=document.getElementById('timer-display'); el.classList.remove('hidden');
         let t=10.00; const s=Date.now();
-        tId=setInterval(()=>{
-            t=10.00-(Date.now()-s)/1000;
-            if(t<=0){t=0;stopTimer();}
-            document.getElementById('timer-text').innerText=Math.floor(t);
-        },50);
+        tId=setInterval(()=>{ t=10.00-(Date.now()-s)/1000; if(t<=0){t=0;stopTimer();} document.getElementById('timer-text').innerText=Math.floor(t); },50);
     }
     function stopTimer(){ clearInterval(tId); document.getElementById('timer-display').classList.add('hidden'); hostState=4; broadcast({type:'TIMEUP'}); stopAudio(); }
 
     function showVotes(){
-        let c={1:0,2:0,3:0,4:0};
-        Object.values(answers).forEach(v=>c[v.choice]++);
-        for(let k=1;k<=4;k++){
-            const el=document.getElementById('vote-'+k); el.innerText=c[k]; el.style.opacity=1;
-        }
+        let c={1:0,2:0,3:0,4:0}; Object.values(answers).forEach(v=>c[v.choice]++);
+        for(let k=1;k<=4;k++){ const el=document.getElementById('vote-'+k); el.innerText=c[k]; el.style.opacity=1; }
     }
     function showCorrect(){
         const cor=questions[currentQIndex].correct;
-        for(let k=1;k<=4;k++){
-            const p=document.getElementById('opt-'+k);
-            if(k==cor) p.classList.add('highlighted');
-            else p.classList.add('dimmed');
-        }
+        for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); if(k==cor) p.classList.add('highlighted'); else p.classList.add('dimmed'); }
     }
-    
     function showRank(){
-        const cor=questions[currentQIndex].correct;
-        const l=document.getElementById('rank-list'); l.innerHTML="";
-        let w=[];
-        for(let id in answers) if(answers[id].choice==cor) w.push({n:participants[id]||"Unknown", t:answers[id].time});
+        const cor=questions[currentQIndex].correct; const l=document.getElementById('rank-list'); l.innerHTML="";
+        let w=[]; for(let id in answers) if(answers[id].choice==cor) w.push({n:participants[id]||"Unknown", t:answers[id].time});
         w.sort((a,b)=>a.t-b.t);
-        
         if(!w.length) l.innerHTML="<div style='text-align:center;font-size:40px;color:#fff;'>正解者なし</div>";
-        else w.slice(0,5).forEach((p,i)=>{
-            l.innerHTML+=`
-            <div class="rank-row" style="animation-delay:${i*0.1}s">
-                <div class="rank-num">${i+1}</div>
-                <div class="rank-name">${p.n}</div>
-                <div class="rank-time-box">${p.t.toFixed(2)}</div>
-            </div>`;
-        });
+        else w.slice(0,10).forEach((p,i)=>{ l.innerHTML+=`<div class="rank-row" style="animation-delay:${i*0.1}s"><div class="rank-num">${i+1}</div><div class="rank-name">${p.n}</div><div class="rank-time-box">${p.t.toFixed(2)}</div></div>`; });
         document.getElementById('ranking-modal').classList.remove('hidden');
     }
 
@@ -535,16 +518,8 @@
             });
         });
     }
-    function joinGame(){
-        const n=document.getElementById('user-name').value;
-        if(!n)return;
-        conn.send({type:'LOGIN', name:n});
-        showScreen('client-view');
-    }
-    function sendAnswer(c){
-        conn.send({type:'ANSWER', choice:c, time:(Date.now()-clientStartTime)/1000});
-        document.getElementById('wait-screen').classList.remove('hidden');
-    }
+    function joinGame(){ const n=document.getElementById('user-name').value; if(!n)return; conn.send({type:'LOGIN', name:n}); showScreen('client-view'); }
+    function sendAnswer(c){ conn.send({type:'ANSWER', choice:c, time:(Date.now()-clientStartTime)/1000}); document.getElementById('wait-screen').classList.remove('hidden'); }
 </script>
 </body>
 </html>
