@@ -3,43 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V9</title>
+    <title>All-Star Quiz System V11</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Anton&display=swap" rel="stylesheet">
     <style>
         :root { --col-1: #0088ff; --col-2: #ff2222; --col-3: #00cc00; --col-4: #ffcc00; }
-        body { margin: 0; padding: 0; font-family: 'M PLUS Rounded 1c', sans-serif; overflow: hidden; height: 100vh; width: 100vw; user-select: none; background-color: #000; }
+        body { 
+            margin: 0; padding: 0; font-family: 'M PLUS Rounded 1c', sans-serif; 
+            width: 100vw; min-height: 100vh; overflow: hidden; user-select: none; background-color: #000; 
+        }
         .hidden { display: none !important; }
         .flex-center { display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .full-screen { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         
-        /* 背景 (全画面共通) */
+        /* 背景 (全画面共通・固定) */
         .tv-background {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
             background: radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px), linear-gradient(135deg, #00bfff 0%, #00008b 100%);
             background-size: 550px 550px, 350px 350px, 250px 250px, 100% 100%; animation: bgMove 60s linear infinite;
         }
         @keyframes bgMove { from { background-position: 0 0, 40px 60px, 130px 270px, 0 0; } to { background-position: 550px 550px, 390px 410px, 380px 820px, 0 0; } }
 
         /* --- TITLE --- */
-        #title-view { z-index: 100; }
-        .title-logo-container { position: relative; margin-top: 50px; margin-bottom: 60px; transform: scale(1.1); text-align: center; }
+        #title-view { z-index: 100; position: relative; height: 100vh; width: 100vw; }
+        .title-logo-container { position: relative; margin-top: 5vh; margin-bottom: 5vh; transform: scale(1.1); text-align: center; }
         .title-logo-main {
-            font-family: 'Anton', sans-serif; font-size: 130px; letter-spacing: 5px; line-height: 1;
+            font-family: 'Anton', sans-serif; font-size: 15vh; letter-spacing: 5px; line-height: 1;
             background: linear-gradient(to bottom, #ffffcc 0%, #ffd700 30%, #b8860b 70%, #8b4500 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             filter: drop-shadow(0 5px 0 #8b4500) drop-shadow(0 0 20px #ffd700);
             transform: perspective(500px) rotateX(10deg);
         }
         .title-logo-sub {
-            position: absolute; top: -30px; left: 50%; transform: translateX(-50%) perspective(500px) rotateX(10deg);
-            font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 900; font-size: 45px;
+            position: absolute; top: -4vh; left: 50%; transform: translateX(-50%) perspective(500px) rotateX(10deg);
+            font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 900; font-size: 5vh;
             background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 10px #fff); white-space: nowrap;
         }
-        
-        /* タイトルボタン (ゲーム画面のパネル風) */
         .title-btn {
             width: 400px; padding: 20px; margin: 15px; font-size: 32px; font-weight: 900; color: #fff;
             border-radius: 50px; cursor: pointer; border: 3px solid #fff;
@@ -52,60 +54,34 @@
         .btn-settings:hover { transform: scale(1.05); background: linear-gradient(to bottom, #4488ff, #0055cc); }
 
         /* --- SETUP --- */
-        #setup-view { background: #1a1a1a; color: #fff; } 
+        #setup-view { background: #1a1a1a; color: #fff; position: relative; height: 100vh; } 
         .setup-container { width: 950px; max-width: 95%; height: 90vh; background: #2a2a2a; border-radius: 10px; display: flex; flex-direction: column; padding: 20px; } 
         .setup-scroll { flex: 1; overflow-y: auto; padding-right: 15px; } 
-        
-        .connect-info-box {
-            background: #000; border: 2px solid #00ff00; padding: 15px; border-radius: 10px;
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
-        }
+        .connect-info-box { background: #000; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .qr-area { background: #fff; padding: 5px; border-radius: 5px; }
         .url-area { flex: 1; margin-left: 20px; }
         .url-input { width: 100%; background: #222; color: #0f0; border: 1px solid #00ff00; padding: 10px; font-family: monospace; font-size: 16px; margin-top: 5px; }
-
         input[type="text"], select { background: #111; color: #fff; border: 1px solid #555; padding: 5px; } 
         .p-card { background: #333; padding: 20px; margin-bottom: 30px; border: 2px solid #555; border-radius: 10px; position: relative; } 
-        .p-card::before { content: "PERIOD"; position: absolute; top: -12px; left: 20px; background: #555; padding: 0 10px; font-weight: bold; font-size: 14px; border-radius: 5px; }
-        
         .q-card { background: #222; padding: 15px; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; } 
-        
-        /* 山分けクイズ設定エリア */
-        .sort-card {
-            background: linear-gradient(to bottom, #332200, #221100); 
-            border: 2px solid #ffd700; padding: 15px; margin-top: 15px; border-radius: 8px;
-        }
-        .sort-header { color: #ffd700; font-weight: bold; margin-bottom: 10px; display: block; border-bottom: 1px solid #ffd700; padding-bottom: 5px; }
-
+        .sort-card { background: linear-gradient(to bottom, #332200, #221100); border: 2px solid #ffd700; padding: 15px; margin-top: 15px; border-radius: 8px; }
         .btn { padding: 8px 16px; border-radius: 5px; cursor: pointer; border: none; font-weight: bold; color: #fff; } 
         .btn-blue { background: #0066ff; } .btn-red { background: #cc0000; } .btn-green { background: #00aa00; }
-
-        /* オプション編集グリッド */
-        .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
         .opt-cell { background: #111; padding: 5px; border: 1px solid #333; }
 
         /* --- HOST GAME --- */
-        #host-view { display: flex; padding: 20px; box-sizing: border-box; position: relative; }
-        #period-select-view { background: rgba(0,0,0,0.95); z-index: 800; }
+        #host-view { display: flex; padding: 20px; box-sizing: border-box; position: relative; height: 100vh; }
+        #period-select-view { background: rgba(0,0,0,0.9); z-index: 800; }
         .period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; width: 90%; max-height: 70%; overflow-y: auto; padding: 20px; }
-        .period-btn {
-            background: linear-gradient(to bottom, #cc8800, #884400); border: 3px solid #ffcc00; border-radius: 15px;
-            padding: 30px 20px; color: #fff; font-size: 28px; font-weight: 900; cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center; font-family: 'Anton'; letter-spacing: 2px;
-        }
-        .period-btn:hover { transform: scale(1.05); background: linear-gradient(to bottom, #ffaa00, #aa6600); color: #ff0; }
-
+        .period-btn { background: linear-gradient(to bottom, #cc8800, #884400); border: 3px solid #ffcc00; border-radius: 15px; padding: 30px 20px; color: #fff; font-size: 28px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center; font-family: 'Anton'; letter-spacing: 2px; }
+        
         /* Q & Layouts */
-        .q-container {
-            position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088);
-            border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3);
-        }
+        .q-container { position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); }
         .q-icon { font-family: 'Anton'; font-size: 80px; color: #00ffff; text-shadow: 3px 3px 0 #004444, 0 0 10px #00ffff; margin: 0 20px; transform: skewX(-10deg); }
         .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
         .q-text-content { color: #000066; font-size: 3.5vw; font-weight: 900; text-align: center; line-height: 1.2; }
 
-        /* Layout A (Text) */
+        /* Layout A (Text) & Sorting (Updated) */
         .layout-text { flex-direction: column; width: 100%; height: 100%; }
         .layout-text .q-container { width: 90%; height: 22%; margin: 20px auto 30px auto; }
         .layout-text .options-area { width: 85%; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
@@ -114,12 +90,11 @@
         .layout-text .opt-val { color: #fff; font-size: 3vw; font-weight: 900; text-shadow: 0 0 5px #00f; flex: 1; }
         .layout-text .vote-count { position: absolute; right: 30px; font-family: 'Anton'; font-size: 50px; color: #ffd700; text-shadow: 2px 2px 0 #000; opacity: 0; }
 
-        /* Layout B (Image/Sort) */
+        /* Layout B (Image) */
         .layout-image { flex-direction: row; width: 100%; height: 100%; padding: 20px; gap: 20px; }
-        .layout-image .options-area { flex: 2; height: 100%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; }
-        .layout-image .option-panel { position: relative; border-radius: 20px; overflow: hidden; background: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 4px solid #fff; height: 100%; }
+        .layout-image .options-area { flex: 2; height: 100%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; position: relative; }
+        .layout-image .option-panel { position: relative; border-radius: 20px; overflow: hidden; background: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 4px solid #fff; height: 100%; transition: 0.5s; }
         .layout-image .opt-img { width: 100%; height: 100%; object-fit: cover; }
-        .layout-image .opt-text-sort { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 4vw; font-weight: 900; color: #fff; text-shadow: 0 0 5px #000; background: rgba(0,0,0,0.5); }
         .layout-image .opt-num { position: absolute; top: 15px; left: 15px; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-family: 'Anton'; font-size: 30px; color: #fff; border: 3px solid #fff; z-index: 5; box-shadow: 2px 2px 5px rgba(0,0,0,0.8), inset 0 5px 10px rgba(255,255,255,0.4); }
         .layout-image .side-panel { flex: 1; height: 100%; display: flex; flex-direction: column; }
         .layout-image .q-container { width: 100%; height: 100%; flex-direction: column; padding: 20px 10px; background: linear-gradient(to bottom, #3a0088, #5500aa); }
@@ -127,10 +102,14 @@
         .layout-image .q-text-box { width: 100%; flex: 1; }
         .layout-image .q-text-content { writing-mode: vertical-rl; text-orientation: upright; font-size: 4vw; letter-spacing: 0.5rem; height: 100%; }
         .layout-image .vote-count { position: absolute; bottom: 10px; right: 10px; font-family: 'Anton'; font-size: 60px; color: #ffd700; text-shadow: 3px 3px 0 #000; opacity: 0; z-index: 10; }
-        
-        .sort-order-display { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 20px; z-index: 50; }
-        .sort-order-item { width: 100px; height: 100px; border-radius: 50%; font-family: 'Anton'; font-size: 60px; color: #fff; display: flex; justify-content: center; align-items: center; border: 5px solid #fff; box-shadow: 0 0 30px #fff; animation: popIn 0.5s backwards; background:rgba(0,0,0,0.7);}
-        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Sort Result Overlay (Vertical List) */
+        #sort-result-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .sort-res-container { display: flex; flex-direction: column; gap: 15px; width: 60%; }
+        .sort-res-item { background: linear-gradient(to right, #003399, #0066ff); border: 3px solid #fff; border-radius: 50px; padding: 10px 30px; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); opacity: 0; animation: slideInLeft 0.5s forwards; }
+        .sort-res-rank { width: 60px; height: 60px; border-radius: 50%; background: #fff; color: #000; font-family: 'Anton'; font-size: 35px; display: flex; justify-content: center; align-items: center; margin-right: 20px; border: 3px solid #000; }
+        .sort-res-text { color: #fff; font-size: 30px; font-weight: 900; text-shadow: 1px 1px 2px #000; }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-50px); } to { opacity: 1; transform: translateX(0); } }
 
         /* Colors & Timer */
         .col-1 { background: radial-gradient(circle at 30% 30%, #44aaff, var(--col-1)); border-color: #fff; } .col-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); border-color: #fff; } .col-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); border-color: #fff; } .col-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); border-color: #fff; }
@@ -146,22 +125,42 @@
         #ranking-modal { background: rgba(0,0,0,0.95); z-index: 200; } .ranking-board { display: flex; width: 95%; max-width: 1000px; height: 80%; background: linear-gradient(to right, #0033cc, #0066ff); border: 4px solid #4488ff; border-radius: 20px; padding: 20px; position: relative; } .ranking-sidebar { width: 100px; margin-right: 15px; background: linear-gradient(to bottom, #00eeff 0%, #0088ff 50%, #0044aa 100%); border-radius: 15px; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; } .side-text { writing-mode: vertical-rl; text-orientation: upright; font-weight: 900; font-size: 42px; color: #002266; letter-spacing: 5px; } .rank-list-area { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: hidden; justify-content: center; } .rank-row { height: 65px; background: linear-gradient(to bottom, #0055aa, #002288); border: 2px solid #66aaff; border-radius: 10px; display: flex; align-items: center; padding: 0 15px; color: #fff; font-size: 32px; font-weight: 800; animation: slideRank 0.5s ease-out forwards; } @keyframes slideRank { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } } .rank-num { width: 60px; text-align: right; margin-right: 20px; font-family: 'Anton'; } .rank-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .rank-score-box { background: #000033; border: 2px solid #4488ff; border-radius: 5px; padding: 0 15px; min-width: 100px; text-align: right; font-family: 'Anton'; font-size: 38px; color: #ffdd00; }
 
         /* --- CLIENT --- */
-        #client-view { background: #000; }
-        #client-score { position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); color: #ffd700; text-align: center; padding: 10px; font-size: 24px; font-weight: 900; z-index: 100; border-bottom: 2px solid #ffd700; box-sizing: border-box;}
-        #client-pad { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100%; height: calc(100vh - 60px); margin-top: 60px; gap: 5px; padding: 5px; box-sizing: border-box; }
-        .ans-btn { border: none; border-radius: 15px; font-family: 'Anton'; font-size: 60px; color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); transition: 0.1s; height: 100%; }
-        .ans-btn:active { transform: scale(0.95); filter: brightness(1.2); }
-        .btn-1 { background: var(--col-1); } .btn-2 { background: var(--col-2); } .btn-3 { background: var(--col-3); } .btn-4 { background: var(--col-4); }
-        .client-wait-overlay { background: #000; z-index: 50; color: #fff; font-size: 28px; font-weight: bold; text-align: center; padding: 20px; }
-        .sort-ui-selected { font-size: 24px; color: #ff0; margin-bottom: 20px; min-height: 30px; }
-        .ans-btn.selected { filter: brightness(0.5); pointer-events: none; position: relative; }
-        .ans-btn.selected::after { content: attr(data-order); position: absolute; color: #fff; font-size: 40px; z-index: 10; }
+        #client-view { background: #000; position: relative; height: 100vh; }
+        .tv-background-client { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #001133 0%, #000000 100%); }
+        #client-score { position: fixed; top: 0; left: 0; width: 100%; background: linear-gradient(to bottom, #222, #000); color: #ffd700; text-align: center; padding: 15px; font-size: 24px; font-weight: 900; z-index: 100; border-bottom: 2px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.3); box-sizing: border-box; }
+        #client-pad { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100%; height: calc(100vh - 70px); margin-top: 70px; gap: 10px; padding: 10px; box-sizing: border-box; }
+        .ans-btn { 
+            border: 3px solid rgba(255,255,255,0.3); border-radius: 20px; font-family: 'Anton'; font-size: 60px; color: #fff; 
+            display: flex; justify-content: center; align-items: center; 
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.2); 
+            transition: 0.1s; height: 100%; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+        }
+        .ans-btn:active { transform: scale(0.95); filter: brightness(1.2); border-color: #fff; }
+        .btn-1 { background: radial-gradient(circle at 30% 30%, #44aaff, var(--col-1)); } 
+        .btn-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); } 
+        .btn-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); } 
+        .btn-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); }
+        
+        /* Client Overlays */
+        .client-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; 
+            background: rgba(0,0,0,0.9); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 30px; box-sizing: border-box; text-align: center;
+        }
+        .client-msg-box { border: 2px solid #fff; padding: 20px; border-radius: 15px; background: rgba(0,0,100,0.5); width: 100%; }
+        .client-msg-title { font-size: 20px; color: #aaa; margin-bottom: 10px; }
+        .client-msg-main { font-size: 32px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #0af; }
+        .sort-ui-selected { font-size: 24px; color: #ff0; margin-bottom: 20px; min-height: 30px; letter-spacing: 2px; }
+        .ans-btn.selected { filter: brightness(0.4); pointer-events: none; position: relative; border-color: #888; }
+        .ans-btn.selected::after { content: attr(data-order); position: absolute; color: #fff; font-size: 50px; z-index: 10; font-family: 'Anton'; text-shadow: 0 0 10px #000; }
 
     </style>
 </head>
 <body>
 
-<div id="title-view" class="screen flex-center tv-background">
+<div class="tv-background"></div>
+
+<div id="title-view" class="screen flex-center">
     <div class="title-logo-container">
         <div class="title-logo-sub">オールスター</div>
         <div class="title-logo-main">感謝祭</div>
@@ -195,7 +194,7 @@
     </div>
 </div>
 
-<div id="host-view" class="screen hidden tv-background">
+<div id="host-view" class="screen hidden">
     <div id="period-select-view" class="full-screen hidden flex-center">
         <h1 style="color:#fff; text-shadow:2px 2px 5px #000; font-size:50px;">ピリオド選択</h1>
         <div class="period-grid" id="period-grid"></div>
@@ -206,12 +205,16 @@
         <div class="q-container" id="q-area-l"><div class="q-icon">Q</div><div class="q-text-box"><div class="q-text-content" id="q-text"></div></div></div>
         <div class="side-panel hidden" id="side-panel"><div class="q-container" style="height:100%;"><div class="q-icon">Q</div><div class="q-text-box"><div class="q-text-content" id="q-text-side"></div></div></div></div>
         <div class="options-area" id="opt-area">
-            <div id="opt-1" class="option-panel border-1"><div class="opt-num col-1">1</div><div class="opt-val opt-img-box" id="val-1"></div><div class="vote-count" id="vote-1">0</div></div>
-            <div id="opt-2" class="option-panel border-2"><div class="opt-num col-2">2</div><div class="opt-val opt-img-box" id="val-2"></div><div class="vote-count" id="vote-2">0</div></div>
-            <div id="opt-3" class="option-panel border-3"><div class="opt-num col-3">3</div><div class="opt-val opt-img-box" id="val-3"></div><div class="vote-count" id="vote-3">0</div></div>
-            <div id="opt-4" class="option-panel border-4"><div class="opt-num col-4">4</div><div class="opt-val opt-img-box" id="val-4"></div><div class="vote-count" id="vote-4">0</div></div>
+            <div id="opt-1" class="option-panel border-1"><div class="opt-num col-1">1</div><div class="opt-val" id="val-1"></div><div class="vote-count" id="vote-1">0</div></div>
+            <div id="opt-2" class="option-panel border-2"><div class="opt-num col-2">2</div><div class="opt-val" id="val-2"></div><div class="vote-count" id="vote-2">0</div></div>
+            <div id="opt-3" class="option-panel border-3"><div class="opt-num col-3">3</div><div class="opt-val" id="val-3"></div><div class="vote-count" id="vote-3">0</div></div>
+            <div id="opt-4" class="option-panel border-4"><div class="opt-num col-4">4</div><div class="opt-val" id="val-4"></div><div class="vote-count" id="vote-4">0</div></div>
         </div>
-        <div id="sort-order-disp" class="sort-order-display hidden"></div>
+        
+        <div id="sort-result-overlay" class="hidden">
+            <div class="sort-res-container" id="sort-res-container">
+                </div>
+        </div>
     </div>
     <div id="timer-display" class="hidden"><div id="timer-text">10</div></div>
 
@@ -235,14 +238,23 @@
     </div>
 </div>
 <div id="client-view" class="screen hidden">
+    <div class="tv-background-client"></div>
     <div id="client-score">現在の得点: 0点</div>
-    <div id="client-pad">
+    
+    <div id="client-pad" class="hidden">
         <button class="ans-btn btn-1" onclick="sendAnswer('1')">1</button><button class="ans-btn btn-2" onclick="sendAnswer('2')">2</button>
         <button class="ans-btn btn-3" onclick="sendAnswer('3')">3</button><button class="ans-btn btn-4" onclick="sendAnswer('4')">4</button>
     </div>
-    <div id="wait-screen" class="full-screen flex-center hidden">
-        <div id="wait-msg">問題の出題をお待ちください</div>
-        <div id="sort-ui" class="hidden" style="margin-top:20px;"><div class="sort-ui-selected" id="sort-sel"></div><button class="btn btn-red" onclick="resetSort()">リセット</button></div>
+
+    <div id="client-overlay" class="client-overlay">
+        <div class="client-msg-box">
+            <div class="client-msg-title" id="cli-msg-title">STATUS</div>
+            <div class="client-msg-main" id="cli-msg-main">出題をお待ちください</div>
+        </div>
+        <div id="sort-ui" class="hidden" style="margin-top:20px;">
+            <div class="sort-ui-selected" id="sort-sel"></div>
+            <button class="btn btn-red" onclick="resetSort()" style="padding:15px 30px; font-size:20px;">リセット</button>
+        </div>
     </div>
 </div>
 
@@ -257,7 +269,7 @@
     
     // System State
     let peer, conn, conns={}, myId;
-    let currentPIdx=0, currentQIdx=0, hostState=0; // 0:P-Sel, 1:Standby, 2:Open, 3:Count, 4:TimeUp, 5:Votes, 6:Correct, 7:P-End, 8:SortOpen, 9:SortCount, 10:SortTimeUp, 11:SortChamp, 12:SortCorrect, 13:Rank
+    let currentPIdx=0, currentQIdx=0, hostState=0; 
     let answers={}, participants={}, scores={}, periodScores={}, clientStartTime=0, bgmAudio=null;
     let isSorting=false, clientSortAns=[];
 
@@ -267,14 +279,14 @@
         if(u.get('host')) { showScreen('client-login'); initClient(u.get('host')); } 
         else { 
             showScreen('title-view');
-            initHost(); // Initialize PeerJS immediately for Settings/QR
+            initHost(); // Host Peer Init
         }
         document.addEventListener('keydown', e => { 
             if(e.code==='Escape') goTitle();
             if(!document.getElementById('host-view').classList.contains('hidden') && e.code==='Space'){ e.preventDefault(); nextPhase(); }
         });
     };
-    function showScreen(id){ document.querySelectorAll('.screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); if(['host-view','title-view','setup-view'].includes(id)) document.getElementById(id).style.display='flex'; }
+    function showScreen(id){ document.querySelectorAll('.screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); if(['host-view','setup-view'].includes(id)) document.getElementById(id).style.display='flex'; }
     function goTitle(){ stopAudio(); showScreen('title-view'); resetHost(); }
     function goPeriodSelect(){ showScreen('host-view'); hostState=0; nextPhase(); }
     function resetHost(){ document.getElementById('period-select-view').classList.add('hidden'); document.getElementById('period-end-view').classList.add('hidden'); document.getElementById('ranking-modal').classList.add('hidden'); }
@@ -284,13 +296,10 @@
     function playAudio(k,loop=false){if(!audioFiles[k])return;if(bgmAudio){bgmAudio.pause();bgmAudio=null;}const a=new Audio(audioFiles[k]);a.loop=loop;a.play().catch(()=>{});if(loop)bgmAudio=a;}
     function stopAudio(){if(bgmAudio){bgmAudio.pause();bgmAudio=null;}}
 
-    // --- Setup with Flexible Sorting Editor ---
+    // --- Setup ---
     function startSetup(){ renderPList(); showScreen('setup-view'); }
-    
-    // Peer Init for Host (QR Gen)
     function initHost(){
-        if(peer) return;
-        peer=new Peer();
+        if(peer) return; peer=new Peer();
         peer.on('open', id=>{
             myId=id;
             const url = location.href.split('?')[0] + '?host=' + id;
@@ -305,6 +314,7 @@
         });
     }
 
+    // Flexible Sorting Editor & Render
     function renderPList(){
         const l=document.getElementById('p-list'); l.innerHTML="";
         periods.forEach((p,pi)=>{
@@ -316,14 +326,11 @@
                 </div>
                 <div id="p-${pi}-qs"></div>
                 <button class="btn btn-green" onclick="addQ(${pi})">＋ 問題追加</button>
-                
                 <div class="sort-card">
-                    <span class="sort-header">山分けクイズ (並べ替え)</span>
-                    <input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value" placeholder="問題文">
-                    <div class="opt-grid">
-                        ${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}
-                    </div>
-                    <div style="margin-top:10px;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',')" style="width:150px;"></div>
+                    <span class="sort-header">山分けクイズ設定</span>
+                    <input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value" placeholder="問題文" style="margin-bottom:10px;">
+                    <div class="opt-grid">${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}</div>
+                    <div style="margin-top:10px; color:#ffd700;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',')" style="width:150px; background:#443300; color:#fff; font-weight:bold;"></div>
                 </div>
             `;
             l.appendChild(pd); renderQList(pi);
@@ -332,13 +339,12 @@
     
     function renderSortOpt(pi, k, opt) {
         return `<div class="opt-cell">
-            <span style="font-size:12px;color:#aaa;">${k}</span>
+            <span style="font-size:12px;color:#aaa;">選択肢${k}</span>
             <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='text'?'checked':''} onchange="setSortType(${pi},${k},'text')">文</label>
             <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='image'?'checked':''} onchange="setSortType(${pi},${k},'image')">画</label>
             ${opt.type=='text'?`<input type="text" value="${opt.val}" onchange="upSortOv(${pi},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upSortImg(this,${pi},${k})">${opt.val?`<img src="${opt.val}" style="height:20px;">`:''}`}
         </div>`;
     }
-
     function renderQList(pi){
         const ql=document.getElementById(`p-${pi}-qs`); ql.innerHTML="";
         periods[pi].questions.forEach((q,qi)=>{
@@ -347,8 +353,7 @@
             ql.appendChild(qd);
         });
     }
-    
-    // State Updaters
+    // Updaters
     function addPeriod(){periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}});renderPList();} function delP(pi){periods.splice(pi,1);renderPList();}
     function addQ(pi){periods[pi].questions.push({q:"",correct:"1",options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});renderQList(pi);} function delQ(pi,qi){periods[pi].questions.splice(qi,1);renderQList(pi);}
     function setT(pi,qi,k,t){periods[pi].questions[qi].options[k].type=t;periods[pi].questions[qi].options[k].val="";renderQList(pi);} function upOv(pi,qi,k,v){periods[pi].questions[qi].options[k].val=v;} function upImg(el,pi,qi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].questions[qi].options[k].val=e.target.result;renderQList(pi);};r.readAsDataURL(el.files[0]);}}
@@ -377,31 +382,38 @@
                 document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
                 setTimeout(()=>document.getElementById('champ-name').classList.remove('hidden'), 1000);
                 hostState=8; break;
-            case 8: // Sort Open
+            case 8: // Sort Open (Using Text Layout logic but forced to Text Display for user visibility as per request)
                 document.getElementById('period-end-view').classList.add('hidden'); resetDisp(); isSorting=true;
+                // Force displayQ to use text-style layout for Sorting Q even if sortingQ is sorting
                 displayQ(P.sortingQ); playAudio('q_open'); hostState=9; break;
             case 9: // Sort Start
                 startTimer(30); playAudio('thinking',true); hostState=10; broadcast({type:'START', sort:true}); break;
             case 10: stopTimer(); break; // Sort Stop
-            case 11: hostState=12; nextPhase(); break; // (Skip Champ Ans)
-            case 12: showSortCorrect(P.sortingQ.order); calcSortScores(P.sortingQ.order); playAudio('correct'); hostState=13; break;
+            case 11: hostState=12; nextPhase(); break; // (Skip)
+            case 12: // Sort Correct (Image 2 style: Vertical List)
+                showSortCorrect(P.sortingQ.order, P.sortingQ); calcSortScores(P.sortingQ.order); playAudio('correct'); hostState=13; break;
             case 13: showRank(); hostState=14; break;
             case 14: document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; nextPhase(); break;
         }
     }
     function broadcast(m){for(let k in conns)conns[k].send(m);}
+    
     function resetDisp(){
-        document.getElementById('q-text').innerText=""; document.getElementById('q-text-side').innerText=""; document.getElementById('sort-order-disp').classList.add('hidden');
+        document.getElementById('q-text').innerText=""; document.getElementById('q-text-side').innerText=""; document.getElementById('sort-result-overlay').classList.add('hidden');
         for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); p.classList.remove('dimmed','highlighted'); document.getElementById('val-'+k).innerHTML=""; document.getElementById('vote-'+k).style.opacity=0; }
         document.getElementById('timer-display').classList.add('hidden'); answers={}; stopAudio();
     }
     function displayQ(q){
-        const isImg = Object.values(q.options).some(o=>o.type==='image') || isSorting;
+        // For Sorting Q, use Text Layout (as per user request: "Same as normal non-image questions")
+        // Normally, isImg detection uses 'image' type. For sorting, we force Text Layout look.
+        const isImg = !isSorting && Object.values(q.options).some(o=>o.type==='image');
+        
         const gl=document.getElementById('game-layout'); const ql=document.getElementById('q-area-l'); const sp=document.getElementById('side-panel');
         if(isImg){ gl.className='layout-image'; ql.classList.add('hidden'); sp.classList.remove('hidden'); document.getElementById('q-text-side').innerText=q.q; }
         else { gl.className='layout-text'; ql.classList.remove('hidden'); sp.classList.add('hidden'); document.getElementById('q-text').innerText=q.q; }
+        
         for(let k=1;k<=4;k++){
-            const el=document.getElementById('val-'+k); el.className = isSorting ? 'opt-val opt-text-sort' : 'opt-val';
+            const el=document.getElementById('val-'+k); el.className = 'opt-val';
             if(q.options[k].type==='image' && !isSorting) el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`; else el.innerText=q.options[k].val;
         }
     }
@@ -410,11 +422,27 @@
         tId=setInterval(()=>{ t=sec-(Date.now()-s)/1000; if(t<=0){t=0;stopTimer();} document.getElementById('timer-text').innerText=Math.floor(t); },50);
     }
     function stopTimer(){ clearInterval(tId); document.getElementById('timer-display').classList.add('hidden'); broadcast({type:'TIMEUP'}); stopAudio(); hostState++; }
+    
     function showVotes(){ for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; }
     function showCorrect(c){ for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); if(k==c) p.classList.add('highlighted'); else p.classList.add('dimmed'); } }
-    function showSortCorrect(ord){ const od=document.getElementById('sort-order-disp'); od.innerHTML=""; ord.forEach((k,i)=>{ od.innerHTML+=`<div class="sort-order-item" style="animation-delay:${i*0.2}s">${k}</div>`; }); od.classList.remove('hidden'); }
+    
+    function showSortCorrect(ord, q){
+        // Reveal as a vertical list overlay (Image 2 style)
+        const con = document.getElementById('sort-res-container'); con.innerHTML="";
+        ord.forEach((k, i)=>{
+            const txt = q.options[k].type=='text' ? q.options[k].val : `選択肢${k}`;
+            con.innerHTML+=`
+                <div class="sort-res-item" style="animation-delay:${i*0.5}s">
+                    <div class="sort-res-rank">${i+1}</div>
+                    <div class="sort-res-text">${txt}</div>
+                </div>
+            `;
+        });
+        document.getElementById('sort-result-overlay').classList.remove('hidden');
+    }
+
     function calcScores(c){ for(let id in answers) if(answers[id].choice==c){ scores[id]++; periodScores[id]++; } broadcastScores(); }
-    function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); }
+    function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); } 
     function broadcastScores(){ for(let id in conns) conns[id].send({type:'SCORE', score:scores[id]}); }
     function showRank(){
         const l=document.getElementById('rank-list'); l.innerHTML="";
@@ -423,16 +451,34 @@
         document.getElementById('ranking-modal').classList.remove('hidden');
     }
 
-    // --- Client ---
+    // --- Client Logic ---
     function initClient(hid){
         peer=new Peer(); peer.on('open',()=>{ conn=peer.connect(hid); conn.on('data',d=>{
             if(d.type==='SCORE') document.getElementById('client-score').innerText=`現在の得点: ${d.score}点`;
-            if(d.type==='STANDBY'){ document.getElementById('wait-screen').classList.remove('hidden'); document.getElementById('wait-msg').innerText=d.msg; }
-            if(d.type==='START'){ document.getElementById('wait-screen').classList.add('hidden'); isSorting=d.sort; resetClientSort(); }
-            if(d.type==='TIMEUP'){ document.getElementById('wait-screen').classList.remove('hidden'); document.getElementById('wait-msg').innerText='正解発表をお待ちください'; if(isSorting && clientSortAns.length<4) sendSortAnswer(); }
+            if(d.type==='STANDBY'){ setClientState('standby', d.msg); }
+            if(d.type==='START'){ isSorting=d.sort; resetClientSort(); setClientState('active'); }
+            if(d.type==='TIMEUP'){ setClientState('waiting', '正解発表をお待ちください'); if(isSorting && clientSortAns.length<4) sendSortAnswer(); }
         });});
     }
     function joinGame(){ const n=document.getElementById('user-name').value; if(!n)return; conn.send({type:'LOGIN', name:n}); showScreen('client-view'); }
+    
+    function setClientState(state, msg="") {
+        const overlay = document.getElementById('client-overlay');
+        const pad = document.getElementById('client-pad');
+        const title = document.getElementById('cli-msg-title');
+        const main = document.getElementById('cli-msg-main');
+        
+        if (state === 'active') {
+            overlay.classList.add('hidden');
+            pad.classList.remove('hidden');
+        } else {
+            overlay.classList.remove('hidden');
+            pad.classList.add('hidden');
+            if(state === 'standby') { title.innerText = "STANDBY"; main.innerText = msg; }
+            if(state === 'waiting') { title.innerText = "ANSWERED"; main.innerText = msg; }
+        }
+    }
+
     function sendAnswer(c){
         if(isSorting){
             if(clientSortAns.includes(c)) return;
@@ -442,12 +488,27 @@
             if(clientSortAns.length===4) sendSortAnswer();
         } else {
             conn.send({type:'ANSWER', choice:c});
-            document.getElementById('wait-screen').classList.remove('hidden'); document.getElementById('wait-msg').innerText=`[${c}]を選択。正解発表をお待ちください`;
+            setClientState('waiting', `[${c}]を選択。正解発表をお待ちください`);
         }
     }
-    function resetClientSort(){ clientSortAns=[]; document.querySelectorAll('.ans-btn').forEach(b=>{b.classList.remove('selected'); b.removeAttribute('data-order');}); document.getElementById('sort-sel').innerText=""; document.getElementById('sort-ui').classList.toggle('hidden', !isSorting); }
-    function sendSortAnswer(){ conn.send({type:'ANSWER', choice:clientSortAns}); document.getElementById('wait-screen').classList.remove('hidden'); document.getElementById('wait-msg').innerText='解答を受信しました。正解発表をお待ちください'; }
-    function resetSort(){ resetClientSort(); }
+    function resetClientSort(){ 
+        clientSortAns=[]; document.querySelectorAll('.ans-btn').forEach(b=>{b.classList.remove('selected'); b.removeAttribute('data-order');}); 
+        document.getElementById('sort-sel').innerText=""; 
+        
+        const sortUI = document.getElementById('sort-ui');
+        if(isSorting) {
+            document.getElementById('client-overlay').appendChild(sortUI);
+            sortUI.classList.remove('hidden');
+            sortUI.classList.add('hidden'); 
+        }
+    }
+    function sendSortAnswer(){ 
+        conn.send({type:'ANSWER', choice:clientSortAns}); 
+        setClientState('waiting', '解答を送信しました');
+    }
+    function resetSort(){ 
+        clientSortAns=[]; document.querySelectorAll('.ans-btn').forEach(b=>{b.classList.remove('selected'); b.removeAttribute('data-order');});
+    }
 </script>
 </body>
 </html>
