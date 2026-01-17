@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V22</title>
+    <title>All-Star Quiz System V23</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -126,20 +126,17 @@
             position: relative; width: 100%;
         }
 
-        /* Message / Result Area (Middle) */
         #client-msg-area {
             width: 100%; text-align: center; margin-bottom: 30px; min-height: 80px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .client-status-text { color: #fff; font-size: 28px; font-weight: bold; text-shadow: 0 0 5px #0af; }
         
-        /* Static Result Text */
         .res-win { font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ffd700; text-shadow: 0 0 20px #ff0000, 2px 2px 0 #000; border: 4px solid #fff; padding: 5px 30px; border-radius: 15px; background: rgba(200,0,0,0.9); }
         .res-lose { font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ccc; text-shadow: 0 0 20px #000; border: 4px solid #888; padding: 5px 30px; border-radius: 15px; background: rgba(50,50,50,0.9); }
 
-        /* Button Area (Centered Vertically) */
         #client-pad { 
-            display: flex; flex-direction: row; justify-content: space-evenly; align-items: center; gap: 15px;
+            display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px;
             width: 100%;
         }
         .ans-btn { 
@@ -158,8 +155,19 @@
         
         .ans-btn.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
         .ans-btn.selected { border-color: #fff; box-shadow: 0 0 20px #fff; transform: scale(1.1); z-index: 10; filter: brightness(1.3); pointer-events: none; }
-        .ans-btn.sort-selected::after { content: attr(data-order); position: absolute; color: #fff; font-size: 40px; z-index: 10; font-family: 'Anton'; text-shadow: 0 0 10px #000; }
-        .ans-btn.sort-selected { filter: brightness(0.6); pointer-events: none; position: relative; border-color: #aaa; }
+        
+        /* UPDATED: No numbers for sort selection */
+        .ans-btn.sort-selected::after { content: ""; } /* Empty content */
+        .ans-btn.sort-selected { filter: brightness(0.6); pointer-events: none; position: relative; border-color: #aaa; box-shadow: inset 0 0 20px #000; }
+
+        /* Client Overlays */
+        #client-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: rgba(0,0,0,0.9); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .client-msg-main { font-size: 32px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #0af; margin-bottom: 20px;}
+        
+        /* Static Result Text */
+        #result-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg); font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 100px; white-space: nowrap; z-index: 200; pointer-events: none; text-shadow: 2px 2px 0 #000; padding: 20px; border-radius: 20px; border: 8px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .res-win { color: #ffd700; background: rgba(255, 0, 0, 0.9); border-color: #fff; text-shadow: 0 0 20px #ffff00; }
+        .res-lose { color: #ccc; background: rgba(50, 50, 50, 0.9); border-color: #888; transform: translate(-50%, -50%) rotate(5deg); }
 
     </style>
 </head>
@@ -345,18 +353,11 @@
 
     // --- Host Flow ---
     function renderPSel(){ const g=document.getElementById('period-grid'); g.innerHTML=""; periods.forEach((p,i)=>{ g.innerHTML+=`<div class="period-btn" onclick="selectP(${i})">${p.title}<br><span style="font-size:16px">${p.questions.length}問</span></div>`; }); document.getElementById('period-select-view').classList.remove('hidden'); }
-    
-    // SCORE RESET HERE
     function selectP(i){ 
         currentPIdx=i; currentQIdx=-1; 
-        periodScores={}; 
-        scores={}; // Reset Total Scores for new period
-        for(let id in participants) {
-            periodScores[id]=0;
-            scores[id]=0;
-        }
-        broadcastScores(); // Broadcast reset
-        
+        periodScores={}; scores={}; 
+        for(let id in participants) { periodScores[id]=0; scores[id]=0; }
+        broadcastScores();
         document.getElementById('period-select-view').classList.add('hidden'); 
         hostState=1; nextPhase(); 
     }
@@ -379,33 +380,33 @@
                     showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
                     broadcast({type:'RESULT', correct:Q.correct}); // Send result
                     hostState=130; break; 
-                case 130: showRank(Q.correct); hostState=140; break; // Speed Rank (Safely)
+                case 130: showRank(Q.correct); hostState=140; break; // Speed Rank
                 case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break; // Loop
                 case 7: // P-End
                     document.getElementById('period-end-view').classList.remove('hidden');
-                    // Safety check for champion
+                    // Reset name visibility for safety
+                    document.getElementById('champ-name').classList.add('hidden'); 
                     let champId = "none";
-                    if(Object.keys(periodScores).length > 0) {
-                        champId = Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
-                    }
+                    if(Object.keys(periodScores).length > 0) champId = Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
                     document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
-                    // Store champion's sort answer for later
                     champSortAns = null; // Reset
-                    hostState=71; break; // Manual Trigger
+                    hostState=71; break; // Wait for space to reveal name
                 case 71: // Reveal Champ
                     document.getElementById('champ-name').classList.remove('hidden'); playAudio('correct');
                     hostState=8; break;
-                case 8: // Sort Open & Start
+                case 8: // Sort Prep (Empty Frame)
                     document.getElementById('period-end-view').classList.add('hidden'); resetDisp(); isSorting=true;
+                    // Force empty display
+                    displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});
+                    broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'});
+                    hostState=9; break;
+                case 9: // Sort Open & Start
                     displayQ(P.sortingQ); playAudio('q_open'); playAudio('thinking',true); startTimer(30);
                     broadcast({type:'START', sort:true}); hostState=10; break;
                 case 10: stopTimer(); break; // Sort Stop
                 case 11: // Sort Reveal Prep
-                    // Find champ answer safely
                     let cid = "none";
-                    if(Object.keys(periodScores).length > 0) {
-                        cid = Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
-                    }
+                    if(Object.keys(periodScores).length > 0) cid = Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
                     champSortAns = (answers[cid] && answers[cid].choice) ? answers[cid].choice : ["?","?","?","?"];
                     renderSortResultLayout(champSortAns, P.sortingQ); hostState=12; break; 
                 case 12: case 13: case 14: case 15: // Reveal steps
@@ -416,7 +417,11 @@
                         hostState=131; 
                     } break;
                 case 131: showRank(null, true); hostState=141; break; // Overall Rank
-                case 141: document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; nextPhase(); break;
+                case 141: 
+                    document.getElementById('ranking-modal').classList.add('hidden'); 
+                    hostState=0; nextPhase(); 
+                    broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'});
+                    break;
             }
         } catch(e) {
             console.error("State Error:", e);
@@ -474,23 +479,16 @@
     
     function showRank(correctAnswer, isOverall = false){
         const l=document.getElementById('rank-list'); l.innerHTML="";
-        const tTitle = document.querySelector('.side-text');
         let w = [];
         
         try {
             if (isOverall) {
-                // Overall Rank
-                tTitle.innerText = "解答ランキング";
                 w = Object.keys(scores).map(id=>({n:participants[id]||"Unknown", v:scores[id]})).sort((a,b)=>b.v-a.v);
             } else {
-                // Speed Rank
-                tTitle.innerText = "解答ランキング";
                 for(let id in answers) {
                     if(participants[id] && answers[id].choice == correctAnswer) { 
                         let t = 99.99;
-                        if(answers[id].time !== undefined && answers[id].time !== null) {
-                             t = parseFloat(answers[id].time);
-                        }
+                        if(answers[id].time !== undefined && answers[id].time !== null) { t = parseFloat(answers[id].time); }
                         if(isNaN(t)) t = 99.99;
                         w.push({n:participants[id], v:t});
                     }
@@ -505,6 +503,7 @@
             l.innerHTML+=`<div class="rank-row" style="animation-delay:${i*0.1}s"><div class="rank-num">${i+1}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
         });
         
+        document.querySelector('.side-text').innerText = isOverall ? "総合成績" : "スピード順";
         document.getElementById('ranking-modal').classList.remove('hidden');
     }
 
@@ -543,7 +542,6 @@
             main.innerText = "解答してください";
             document.getElementById('sort-ui').classList.add('hidden'); 
             
-            // Unlock all buttons
             document.querySelectorAll('.ans-btn').forEach(b=>{
                 b.classList.remove('disabled', 'selected', 'sort-selected');
                 b.style.pointerEvents = 'auto';
@@ -572,7 +570,6 @@
             const t = (Date.now() - clientStartTime) / 1000;
             conn.send({type:'ANSWER', choice:c, time:t});
             lastChoice = c;
-            // Visual Lock
             document.querySelectorAll('.ans-btn').forEach(b=>{
                 b.style.pointerEvents = 'none';
                 if(b.id === `cbtn-${c}`) b.classList.add('selected');
@@ -593,7 +590,7 @@
     function showClientResult(correct) {
         const box = document.getElementById('client-result-box');
         const status = document.getElementById('cli-status-text');
-        status.innerText = ""; // clear status
+        status.innerText = ""; 
         let isCorrect = false;
         
         if(isSorting) {
