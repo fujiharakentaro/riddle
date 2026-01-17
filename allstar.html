@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V14</title>
+    <title>All-Star Quiz System V15</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Anton&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&family=Yusei+Magic&display=swap" rel="stylesheet">
     <style>
         :root { --col-1: #0088ff; --col-2: #ff2222; --col-3: #00cc00; --col-4: #ffcc00; }
         body { margin: 0; padding: 0; font-family: 'M PLUS Rounded 1c', sans-serif; width: 100vw; min-height: 100vh; overflow: hidden; user-select: none; background-color: #000; }
@@ -22,12 +22,35 @@
         }
         @keyframes bgMove { from { background-position: 0 0, 40px 60px, 130px 270px, 0 0; } to { background-position: 550px 550px, 390px 410px, 380px 820px, 0 0; } }
 
-        /* TITLE */
+        /* TITLE (本家風デザイン) */
         #title-view { z-index: 100; position: relative; height: 100vh; width: 100vw; }
-        .title-logo-container { position: relative; margin-top: 5vh; margin-bottom: 5vh; transform: scale(1.1); text-align: center; }
-        .title-logo-main { font-family: 'Anton'; font-size: 15vh; letter-spacing: 5px; line-height: 1; background: linear-gradient(to bottom, #ffffcc 0%, #ffd700 30%, #b8860b 70%, #8b4500 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 5px 0 #8b4500) drop-shadow(0 0 20px #ffd700); transform: perspective(500px) rotateX(10deg); }
-        .title-logo-sub { position: absolute; top: -4vh; left: 50%; transform: translateX(-50%) perspective(500px) rotateX(10deg); font-weight: 900; font-size: 5vh; background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 10px #fff); white-space: nowrap; }
-        .title-btn { width: 400px; padding: 20px; margin: 15px; font-size: 32px; font-weight: 900; color: #fff; border-radius: 50px; cursor: pointer; border: 3px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.3); text-shadow: 2px 2px 4px #000; transition: 0.2s; font-family: 'Anton'; letter-spacing: 2px; }
+        .title-container { 
+            position: relative; margin-top: 5vh; margin-bottom: 5vh; text-align: center; 
+            transform: scale(1.2); 
+        }
+        .logo-sub {
+            font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 900; font-size: 50px;
+            /* 虹色グラデーション */
+            background: linear-gradient(to right, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(2px 2px 0px #000) drop-shadow(0 0 10px rgba(255,255,255,0.8));
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%) skewX(-10deg);
+            white-space: nowrap; z-index: 2; letter-spacing: 2px;
+        }
+        .logo-main {
+            font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 900; font-size: 140px; line-height: 1;
+            /* ゴールドメタル質感 */
+            color: #ffd700;
+            background: linear-gradient(to bottom, #ffffcc 0%, #ffcc00 40%, #b8860b 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            /* 強力な立体枠線 */
+            filter: drop-shadow(0 5px 0 #5c3a00) drop-shadow(0 8px 0 #222) drop-shadow(0 0 30px #ffd700);
+            transform: perspective(600px) rotateX(15deg);
+            letter-spacing: -5px; margin-top: 10px;
+        }
+        .title-btn { 
+            width: 400px; padding: 20px; margin: 15px; font-size: 32px; font-weight: 900; color: #fff; border-radius: 50px; cursor: pointer; border: 3px solid #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.3); text-shadow: 2px 2px 4px #000; transition: 0.2s; font-family: 'Anton'; letter-spacing: 2px; 
+        }
         .btn-start-big { background: linear-gradient(to bottom, #ff2222, #990000); border-color: #ffaaaa; font-size: 40px; padding: 30px; }
         .btn-start-big:hover { transform: scale(1.05); background: linear-gradient(to bottom, #ff4444, #cc0000); }
         .btn-settings { background: linear-gradient(to bottom, #0066ff, #003399); width: 250px; font-size: 24px; }
@@ -38,7 +61,7 @@
         .setup-container { width: 950px; max-width: 95%; height: 90vh; background: #2a2a2a; border-radius: 10px; display: flex; flex-direction: column; padding: 20px; } 
         .setup-scroll { flex: 1; overflow-y: auto; padding-right: 15px; } 
         .connect-info-box { background: #000; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .qr-area { background: #fff; padding: 5px; border-radius: 5px; }
+        .qr-area { background: #fff; padding: 5px; border-radius: 5px; min-width: 150px; min-height: 150px; display: flex; align-items: center; justify-content: center; }
         .url-area { flex: 1; margin-left: 20px; }
         .url-input { width: 100%; background: #222; color: #0f0; border: 1px solid #00ff00; padding: 10px; font-family: monospace; font-size: 16px; margin-top: 5px; }
         input[type="text"], select { background: #111; color: #fff; border: 1px solid #555; padding: 5px; } 
@@ -126,6 +149,12 @@
         .ans-btn.sort-selected::after { content: attr(data-order); position: absolute; color: #fff; font-size: 40px; z-index: 10; font-family: 'Anton'; text-shadow: 0 0 10px #000; }
         .ans-btn.sort-selected { filter: brightness(0.5); pointer-events: none; position: relative; border-color: #888; }
 
+        /* Result Animation */
+        #result-popup { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 200; pointer-events: none; }
+        .res-anim-win { font-family: 'Anton'; font-size: 100px; color: #ffd700; text-shadow: 0 0 50px #ff0000; animation: zoomIn 0.5s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        .res-anim-lose { font-family: 'Anton'; font-size: 100px; color: #888; text-shadow: 0 0 20px #fff; animation: zoomIn 0.5s; }
+        @keyframes zoomIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
     </style>
 </head>
 <body>
@@ -133,9 +162,9 @@
 <div class="tv-background"></div>
 
 <div id="title-view" class="screen flex-center tv-background">
-    <div class="title-logo-container">
-        <div class="title-logo-sub">オールスター</div>
-        <div class="title-logo-main">感謝祭</div>
+    <div class="title-container">
+        <div class="logo-sub">オールスター</div>
+        <div class="logo-main">感謝祭</div>
     </div>
     <button class="title-btn btn-start-big" onclick="goPeriodSelect()">START</button>
     <button class="title-btn btn-settings" onclick="startSetup()">SETTINGS</button>
@@ -145,7 +174,7 @@
     <div class="setup-container">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><h2>設定</h2><button class="btn" onclick="goTitle()">戻る</button></div>
         <div class="connect-info-box">
-            <div class="qr-area"><div id="qrcode-setup"></div></div>
+            <div class="qr-area" id="qr-area"><div id="qrcode-setup"></div></div>
             <div class="url-area">
                 <div style="font-weight:bold; color:#0f0;">参加者用URL:</div>
                 <input type="text" class="url-input" id="host-url" readonly onclick="this.select()">
@@ -227,6 +256,8 @@
     <div id="client-overlay" class="client-overlay">
         <div class="client-msg-main" id="cli-msg-main">出題をお待ちください</div>
     </div>
+    
+    <div id="result-popup"></div>
 </div>
 
 <script>
@@ -242,13 +273,13 @@
     let peer, conn, conns={}, myId;
     let currentPIdx=0, currentQIdx=0, hostState=0; 
     let answers={}, participants={}, scores={}, periodScores={}, clientStartTime=0, bgmAudio=null;
-    let isSorting=false, clientSortAns=[], champSortAns=null;
+    let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null;
 
     // Init
     window.onload = () => {
         const u = new URLSearchParams(window.location.search);
-        if(u.get('host')) { showScreen('client-login'); initClient(u.get('host')); } 
-        else { showScreen('title-view'); initHost(); }
+        if(u.get('host')) { showScreen('client-login'); setTimeout(()=>initClient(u.get('host')), 500); } 
+        else { showScreen('title-view'); setTimeout(initHost, 500); }
         document.addEventListener('keydown', e => { 
             if(e.code==='Escape') goTitle();
             if(!document.getElementById('host-view').classList.contains('hidden') && e.code==='Space'){ e.preventDefault(); nextPhase(); }
@@ -267,10 +298,13 @@
     // Setup
     function startSetup(){ renderPList(); showScreen('setup-view'); }
     function initHost(){
-        if(peer) return; peer=new Peer();
+        if(peer) return;
+        document.getElementById("qrcode-setup").innerHTML="<div style='color:#000;font-size:12px;'>接続中...</div>";
+        peer=new Peer();
         peer.on('open', id=>{
             myId=id; const url = location.href.split('?')[0] + '?host=' + id;
             document.getElementById('host-url').value = url;
+            document.getElementById("qrcode-setup").innerHTML="";
             new QRCode(document.getElementById("qrcode-setup"), {text:url, width:150, height:150});
         });
         peer.on('connection',c=>{
@@ -312,9 +346,12 @@
             case 2: // Open & Start Immediate
                 displayQ(Q); playAudio('q_open'); playAudio('thinking',true); startTimer(10);
                 broadcast({type:'START', sort:false}); hostState=4; break;
-            case 4: stopTimer(); break; // Timeup (wait user input)
+            case 4: stopTimer(); break; // Timeup
             case 5: showVotes(); playAudio('votes'); hostState=6; break; // Votes
-            case 6: showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); hostState=130; break; // Correct -> Rank
+            case 6: // Correct
+                showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
+                broadcast({type:'RESULT', correct:Q.correct}); // Send result to client
+                hostState=130; break; 
             case 130: showRank(Q.correct); hostState=140; break; // Speed Rank
             case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break; // Loop
             case 7: // P-End
@@ -334,7 +371,11 @@
                 renderSortResultLayout(champSortAns, P.sortingQ); hostState=12; break; 
             case 12: case 13: case 14: case 15: // Reveal steps
                 revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('votes'); hostState++;
-                if(hostState>15){ calcSortScores(P.sortingQ.order); hostState=131; } break;
+                if(hostState>15){ 
+                    calcSortScores(P.sortingQ.order); 
+                    broadcast({type:'RESULT', correct:P.sortingQ.order});
+                    hostState=131; 
+                } break;
             case 131: showRank(null, true); hostState=141; break; // Overall Rank
             case 141: document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; nextPhase(); break;
         }
@@ -391,11 +432,13 @@
         let w = [];
         
         if (isOverall) {
-            // Overall Rank (Score desc)
-            w = Object.keys(scores).map(id=>({n:participants[id], v:scores[id]})).sort((a,b)=>b.v-a.v);
+            w = Object.keys(scores).map(id=>({n:participants[id]||"Unknown", v:scores[id]})).sort((a,b)=>b.v-a.v);
         } else {
-            // Speed Rank (Time asc, only correct)
-            for(let id in answers) if(answers[id].choice == correctAnswer) w.push({n:participants[id]||"Unknown", v:answers[id].time});
+            for(let id in answers) {
+                if(participants[id] && answers[id].choice == correctAnswer) { 
+                    w.push({n:participants[id], v:answers[id].time});
+                }
+            }
             w.sort((a,b)=>a.v-b.v);
         }
 
@@ -414,19 +457,22 @@
         peer=new Peer(); 
         peer.on('open',()=>{ 
             conn=peer.connect(hid); 
-            conn.on('open', ()=>{ document.getElementById('join-btn').disabled = false; document.getElementById('join-btn').innerText = "参加"; });
+            conn.on('open', ()=>{ 
+                const btn = document.getElementById('join-btn');
+                btn.disabled = false; btn.innerText = "参加";
+            });
             conn.on('data',d=>{
                 if(d.type==='SCORE') document.getElementById('client-score').innerText=`現在の得点: ${d.score}点`;
                 if(d.type==='STANDBY'){ updateClientUI('standby', d.msg); }
                 if(d.type==='START'){ isSorting=d.sort; resetClientSort(); updateClientUI('active'); }
-                // For TimeUp, keep visual state but disable interaction if not done
-                if(d.type==='TIMEUP'){ if(isSorting && clientSortAns.length<4) sendSortAnswer(); updateClientUI('locked'); }
+                if(d.type==='TIMEUP'){ updateClientUI('locked'); }
+                if(d.type==='RESULT'){ showClientResult(d.correct); }
             });
         });
     }
     function joinGame(){ 
         const n=document.getElementById('user-name').value; if(!n)return; 
-        if(!conn || !conn.open) return alert("接続中...");
+        if(!conn || !conn.open) return alert("接続中...少々お待ちください");
         conn.send({type:'LOGIN', name:n}); showScreen('client-view'); 
     }
     
@@ -434,23 +480,23 @@
         const overlay = document.getElementById('client-overlay');
         const pad = document.getElementById('client-pad');
         const main = document.getElementById('cli-msg-main');
+        const resPop = document.getElementById('result-popup');
+        resPop.innerHTML = ""; // Clear results
         
         if (state === 'active') {
             overlay.classList.add('hidden');
             pad.classList.remove('hidden');
-            // Unlock all buttons
             document.querySelectorAll('.ans-btn').forEach(b=>{
                 b.classList.remove('disabled', 'selected', 'sort-selected');
                 b.style.pointerEvents = 'auto';
             });
+            lastChoice = null;
         } else if (state === 'standby') {
             overlay.classList.remove('hidden');
             pad.classList.add('hidden');
             main.innerText = msg;
         } else if (state === 'locked') {
-            // Keep pad visible, just disable interaction
-            // overlay.classList.add('hidden'); 
-            // We want users to see their choice.
+            // Keep visible, disable
         }
     }
 
@@ -464,7 +510,7 @@
             if(clientSortAns.length===4) sendSortAnswer();
         } else {
             conn.send({type:'ANSWER', choice:c});
-            // Visual Lock
+            lastChoice = c;
             document.querySelectorAll('.ans-btn').forEach(b=>{
                 b.style.pointerEvents = 'none';
                 if(b.id === `cbtn-${c}`) b.classList.add('selected');
@@ -473,7 +519,25 @@
         }
     }
     function resetClientSort(){ clientSortAns=[]; }
-    function sendSortAnswer(){ conn.send({type:'ANSWER', choice:clientSortAns}); }
+    function sendSortAnswer(){ 
+        conn.send({type:'ANSWER', choice:clientSortAns}); 
+        lastChoice = JSON.stringify(clientSortAns); // store for sort check
+    }
+    
+    function showClientResult(correct) {
+        const pop = document.getElementById('result-popup');
+        let isCorrect = false;
+        
+        if(isSorting) {
+            // Correct is array, lastChoice is stringified array or needs comparison
+            if(JSON.stringify(clientSortAns) === JSON.stringify(correct)) isCorrect = true;
+        } else {
+            if(lastChoice === correct) isCorrect = true;
+        }
+        
+        if(isCorrect) pop.innerHTML = `<div class="res-anim-win">WIN</div>`;
+        else pop.innerHTML = `<div class="res-anim-lose">LOSE</div>`;
+    }
 </script>
 </body>
 </html>
