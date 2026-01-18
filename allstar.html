@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V29</title>
+    <title>All-Star Quiz System V30</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -99,21 +99,22 @@
         
         /* Game Layout */
         .layout-text { flex-direction: column; width: 100%; height: 100%; }
-        .q-container { width: 90%; height: 22%; margin: 20px auto 30px auto; position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); }
+        /* Q-Container height reduced to 15% */
+        .q-container { width: 90%; height: 15%; margin: 20px auto 30px auto; position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); }
         .q-icon { font-family: 'Anton'; font-size: 80px; color: #00ffff; text-shadow: 3px 3px 0 #004444, 0 0 10px #00ffff; margin: 0 20px; transform: skewX(-10deg); }
         .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
-        .q-text-content { color: #000066; font-size: 3.5vw; font-weight: 900; text-align: center; line-height: 1.2; }
+        /* Q-Text font size reduced to 3vw */
+        .q-text-content { color: #000066; font-size: 3.0vw; font-weight: 900; text-align: center; line-height: 1.2; }
         
-        /* Options Area (Text vs Image) */
         .options-area { width: 85%; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
         
-        /* Grid Layout for Images (Adjusted to fit screen) */
+        /* Grid Layout for Images (Width adjusted to 65% to fit height) */
         .layout-image .options-area {
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: auto auto;
             gap: 20px;
-            width: 70%; /* Shrink width to ensure height fits on screen */
+            width: 65%; 
             margin: 0 auto 5vh auto; 
             justify-content: center;
         }
@@ -567,8 +568,8 @@
                     currentQIdx++; isSorting=false;
                     if(currentQIdx>=P.questions.length){ hostState=7; nextPhase(); return; }
                     resetDisp(); hostState=2; broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
-                case 2: // Open & Start Immediate
-                    displayQ(Q); playAudio('q_open'); playAudio('thinking',true); startTimer(10);
+                case 2: // Open & Start Immediate (BGM loop OFF)
+                    displayQ(Q); playAudio('q_open'); playAudio('thinking',false); startTimer(10);
                     broadcast({type:'START', sort:false}); hostState=3; break; 
                 case 3: /* Thinking... handled by timer */ break;
                 case 4: stopTimer(); break; // Timeup
@@ -593,8 +594,8 @@
                     displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});
                     broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'});
                     hostState=9; break;
-                case 9: // Sort Open & Start
-                    displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',true); startTimer(20);
+                case 9: // Sort Open & Start (BGM loop OFF)
+                    displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',false); startTimer(20);
                     broadcast({type:'START', sort:true}); hostState=9; break;
                 case 10: stopTimer(); break; // Sort Stop 
                 case 11: // Sort Reveal Prep
@@ -658,9 +659,8 @@
     function stopTimer(){ 
         clearInterval(tId); 
         broadcast({type:'TIMEUP'}); 
-        // BGM NOT STOPPED HERE
+        // BGM CONTINUES (Not Stopped)
         
-        // Strict Lag Logic
         isLagTime = true;
         setTimeout(() => { isLagTime = false; }, 1000);
 
@@ -670,8 +670,8 @@
     }
     
     function showVotes(){ 
-        stopAudio(); // Stop Thinking BGM here
-        document.getElementById('timer-display').classList.add('hidden'); // Hide 0 here
+        stopAudio(); // Stop BGM here (when vote sound plays)
+        document.getElementById('timer-display').classList.add('hidden'); 
         for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; 
         for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; 
     }
