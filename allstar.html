@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V27</title>
+    <title>All-Star Quiz System V28</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -59,7 +59,6 @@
         .setup-header { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #555; padding-bottom: 10px; }
         .setup-body { flex: 1; overflow-y: auto; padding-right: 5px; position: relative; } 
         
-        /* Setup Menu Buttons */
         .setup-menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px; }
         .setup-menu-btn {
             background: linear-gradient(to bottom, #444, #222); border: 2px solid #888; border-radius: 15px;
@@ -74,13 +73,23 @@
         .qr-area { background: #fff; padding: 5px; border-radius: 5px; min-width: 150px; min-height: 150px; display: flex; align-items: center; justify-content: center; }
         .url-area { flex: 1; margin-left: 20px; }
         .url-input { width: 100%; background: #222; color: #0f0; border: 1px solid #00ff00; padding: 10px; font-family: monospace; font-size: 16px; margin-top: 5px; }
+        
         input[type="text"], select { background: #111; color: #fff; border: 1px solid #555; padding: 5px; } 
         .p-card { background: #333; padding: 20px; margin-bottom: 30px; border: 2px solid #555; border-radius: 10px; position: relative; } 
+        .p-card::before { content: "PERIOD"; position: absolute; top: -12px; left: 20px; background: #555; padding: 0 10px; font-weight: bold; font-size: 14px; border-radius: 5px; }
         .q-card { background: #222; padding: 15px; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; } 
         .sort-card { background: linear-gradient(to bottom, #332200, #221100); border: 2px solid #ffd700; padding: 15px; margin-top: 15px; border-radius: 8px; }
+        
+        /* Drag & Drop Area */
+        .drop-area { 
+            border: 2px dashed #666; background: #151515; padding: 10px; text-align: center; color: #aaa; cursor: pointer; transition: 0.2s; position: relative; height: 60px; display:flex; align-items:center; justify-content:center;
+        }
+        .drop-area:hover, .drop-area.dragover { background: #333; border-color: #fff; color: #fff; }
+        .drop-preview { height: 100%; max-width: 100%; object-fit: contain; }
+        
         .btn { padding: 8px 16px; border-radius: 5px; cursor: pointer; border: none; font-weight: bold; color: #fff; } 
         .btn-blue { background: #0066ff; } .btn-red { background: #cc0000; } .btn-green { background: #00aa00; }
-        .opt-cell { background: #111; padding: 5px; border: 1px solid #333; }
+        .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
 
         /* HOST GAME */
         #host-view { display: flex; padding: 20px; box-sizing: border-box; position: relative; height: 100vh; }
@@ -95,11 +104,16 @@
         .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
         .q-text-content { color: #000066; font-size: 3.5vw; font-weight: 900; text-align: center; line-height: 1.2; }
         .options-area { width: 85%; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
-        .option-panel { width: 100%; height: 90px; background: linear-gradient(to bottom, #222, #000); border-radius: 45px; border: 2px solid #555; display: flex; align-items: center; padding: 0 10px; position: relative; }
-        .opt-num { width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-family: 'Anton'; font-size: 36px; color: #fff; border: 3px solid #fff; margin-right: 20px; flex-shrink: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); }
-        .opt-val { color: #fff; font-size: 3vw; font-weight: 900; text-shadow: 0 0 5px #00f; flex: 1; }
-        .opt-img { height: 100%; width: auto; max-width: 100%; object-fit: contain; }
-        .vote-count { position: absolute; right: 30px; font-family: 'Anton'; font-size: 50px; color: #ffd700; text-shadow: 2px 2px 0 #000; opacity: 0; }
+        .option-panel { width: 100%; height: 90px; background: linear-gradient(to bottom, #222, #000); border-radius: 45px; border: 2px solid #555; display: flex; align-items: center; padding: 0 10px; position: relative; overflow: hidden; }
+        .opt-num { width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-family: 'Anton'; font-size: 36px; color: #fff; border: 3px solid #fff; margin-right: 20px; flex-shrink: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); z-index: 5; }
+        .opt-val { color: #fff; font-size: 3vw; font-weight: 900; text-shadow: 0 0 5px #00f; flex: 1; position: relative; height: 100%; display: flex; align-items: center; }
+        .opt-img { height: 100%; width: auto; max-width: 100%; object-fit: contain; transform-origin: left center; }
+        
+        /* Zoom Effect (Updated to 3.0x) */
+        .zoom-anim .opt-img { animation: zoomOut 10s linear forwards; }
+        @keyframes zoomOut { from { transform: scale(3.0); } to { transform: scale(1.0); } }
+
+        .vote-count { position: absolute; right: 30px; font-family: 'Anton'; font-size: 50px; color: #ffd700; text-shadow: 2px 2px 0 #000; opacity: 0; z-index: 10; }
 
         .col-1 { background: radial-gradient(circle at 30% 30%, #44aaff, var(--col-1)); border-color: #fff; } .col-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); border-color: #fff; } .col-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); border-color: #fff; } .col-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); border-color: #fff; }
         .border-1 { border-color: var(--col-1)!important; } .border-2 { border-color: var(--col-2)!important; } .border-3 { border-color: var(--col-3)!important; } .border-4 { border-color: var(--col-4)!important; }
@@ -145,15 +159,17 @@
         }
         .client-status-text { color: #fff; font-size: 28px; font-weight: bold; text-shadow: 0 0 5px #0af; }
         
-        .res-win { font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ffd700; text-shadow: 0 0 20px #ff0000, 2px 2px 0 #000; border: 4px solid #fff; padding: 5px 30px; border-radius: 15px; background: rgba(200,0,0,0.9); transform: rotate(-5deg); }
-        .res-lose { font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ccc; text-shadow: 0 0 20px #000; border: 4px solid #888; padding: 5px 30px; border-radius: 15px; background: rgba(50,50,50,0.9); transform: rotate(5deg); }
+        /* Static Result Text */
+        .res-win { display:inline-block; font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ffd700; text-shadow: 0 0 20px #ff0000, 2px 2px 0 #000; border: 4px solid #fff; padding: 5px 30px; border-radius: 15px; background: rgba(200,0,0,0.9); transform: rotate(-5deg); }
+        .res-lose { display:inline-block; font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ccc; text-shadow: 0 0 20px #000; border: 4px solid #888; padding: 5px 30px; border-radius: 15px; background: rgba(50,50,50,0.9); transform: rotate(5deg); }
 
+        /* Button Area */
         #client-pad { 
             display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px;
             width: 100%;
         }
         .ans-btn { 
-            width: 20vw; height: 20vw; max-width: 90px; max-height: 90px;
+            width: 20vw; height: 20vw; max-width: 130px; max-height: 130px;
             border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; 
             font-family: 'Anton'; font-size: 40px; color: #fff; 
             display: flex; justify-content: center; align-items: center; 
@@ -201,21 +217,15 @@
         
         <div id="setup-menu" class="setup-body">
             <div class="setup-menu-grid">
-                <button class="setup-menu-btn" onclick="showSetupProb()">
-                    <div><span class="setup-menu-icon">📝</span>問題登録</div><div>➤</div>
-                </button>
-                <button class="setup-menu-btn" onclick="showSetupLink()">
-                    <div><span class="setup-menu-icon">🔗</span>解答サイトリンク</div><div>➤</div>
-                </button>
-                <button class="setup-menu-btn" onclick="showSetupBgm()">
-                    <div><span class="setup-menu-icon">🎵</span>BGM設定</div><div>➤</div>
-                </button>
+                <button class="setup-menu-btn" onclick="showSetupProb()"><div><span class="setup-menu-icon">📝</span>問題登録</div><div>➤</div></button>
+                <button class="setup-menu-btn" onclick="showSetupLink()"><div><span class="setup-menu-icon">🔗</span>解答サイトリンク</div><div>➤</div></button>
+                <button class="setup-menu-btn" onclick="showSetupBgm()"><div><span class="setup-menu-icon">🎵</span>BGM設定</div><div>➤</div></button>
             </div>
         </div>
 
         <div id="setup-problems" class="setup-body hidden">
             <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
-            <h3 style="color:#fb0;">ピリオド構成</h3>
+            <h3 style="color:#fb0;">ピリオド構成 (自動保存)</h3>
             <div id="p-list"></div>
             <button class="btn btn-blue" onclick="addPeriod()" style="width:100%; margin-top:10px; padding:15px; font-size:18px;">＋ ピリオドを追加</button>
         </div>
@@ -317,20 +327,47 @@
 
 <script>
     // --- IndexedDB ---
-    const DB_NAME = 'AllStarQuizDB'; const DB_VER = 1;
-    function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME, DB_VER); r.onupgradeneeded=e=>{e.target.result.createObjectStore('audios');}; r.onsuccess=e=>res(e.target.result); r.onerror=e=>rej(e); }); }
-    async function saveToDB(k, file){ const db=await openDB(); const tx=db.transaction('audios','readwrite'); tx.objectStore('audios').put(file, k); }
-    async function loadFromDB(){ const db=await openDB(); const tx=db.transaction('audios','readonly'); const s=tx.objectStore('audios'); ['q_open','thinking','votes','correct','sort_reveal','sort_thinking'].forEach(k=>{ const r=s.get(k); r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); }; }); }
+    const DB_NAME = 'AllStarQuizDB'; const DB_VER = 2; // Version Bump
+    function openDB(){
+        return new Promise((res,rej)=>{
+            const r=indexedDB.open(DB_NAME, DB_VER);
+            r.onupgradeneeded=e=>{
+                const db=e.target.result;
+                if(!db.objectStoreNames.contains('audios')) db.createObjectStore('audios');
+                if(!db.objectStoreNames.contains('data')) db.createObjectStore('data');
+            };
+            r.onsuccess=e=>res(e.target.result);
+            r.onerror=e=>rej(e);
+        });
+    }
+    async function saveToDB(store, k, val){
+        const db=await openDB(); const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val, k);
+    }
+    async function loadFromDB(){
+        const db=await openDB(); 
+        const tx=db.transaction(['audios','data'],'readonly');
+        
+        // Load Audio
+        const as=tx.objectStore('audios');
+        ['q_open','thinking','votes','correct','sort_reveal','sort_thinking'].forEach(k=>{
+            const r=as.get(k);
+            r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); };
+        });
+        
+        // Load Data
+        const ds=tx.objectStore('data');
+        const r=ds.get('periods');
+        r.onsuccess=e=>{ if(r.result) { periods=r.result; } }; // Load saved periods but delay render until setup open
+    }
 
     // --- Data & State ---
-    let periods = [{ title: "第1ピリオド", questions: [{q:"日本一高い山は？",correct:"1",options:{1:{type:'text',val:'富士山'},2:{type:'text',val:'北岳'},3:{type:'text',val:'奥穂高岳'},4:{type:'text',val:'間ノ岳'}}}], sortingQ: {q:"次の出来事を古い順に並べよ", order:["2","4","1","3"], options:{1:{type:'text',val:'明治維新'},2:{type:'text',val:'関ヶ原の戦い'},3:{type:'text',val:'第二次世界大戦終結'},4:{type:'text',val:'ペリー来航'}}} }];
+    let periods = [{ title: "第1ピリオド", questions: [{qType:'text', zoom:false, q:"日本一高い山は？",correct:"1",options:{1:{type:'text',val:'富士山'},2:{type:'text',val:'北岳'},3:{type:'text',val:'奥穂高岳'},4:{type:'text',val:'間ノ岳'}}}], sortingQ: {q:"次の出来事を古い順に並べよ", order:["2","4","1","3"], options:{1:{type:'text',val:'明治維新'},2:{type:'text',val:'関ヶ原の戦い'},3:{type:'text',val:'第二次世界大戦終結'},4:{type:'text',val:'ペリー来航'}}} }];
     let audioFiles={q_open:null,thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null};
     
     let peer, conn, conns={}, myId;
     let currentPIdx=0, currentQIdx=0, hostState=0; 
     let answers={}, participants={}, scores={}, periodScores={}, clientStartTime=0, bgmAudio=null;
-    let isSorting=false, clientSortAns=[], champSortAns=null;
-    let isLagTime = false;
+    let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null;
 
     // --- Init ---
     window.onload = () => {
@@ -350,17 +387,17 @@
 
     // --- Setup Navigation ---
     function showSetupMenu() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-menu').classList.remove('hidden'); }
-    function showSetupProb() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-problems').classList.remove('hidden'); }
+    function showSetupProb() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-problems').classList.remove('hidden'); renderPList(); }
     function showSetupLink() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-link').classList.remove('hidden'); }
     function showSetupBgm() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-bgm').classList.remove('hidden'); }
 
-    // --- Audio Functions ---
-    function saveAudio(k, inp){ if(inp.files[0]){ audioFiles[k]=URL.createObjectURL(inp.files[0]); saveToDB(k, inp.files[0]); } }
+    // --- Functions ---
+    function saveAudio(k, inp){ if(inp.files[0]){ audioFiles[k]=URL.createObjectURL(inp.files[0]); saveToDB('audios', k, inp.files[0]); } }
+    function saveData(){ saveToDB('data', 'periods', periods); }
     function playAudio(k, loop=false){ if(!audioFiles[k])return; if(bgmAudio){bgmAudio.pause();bgmAudio=null;} const a=new Audio(audioFiles[k]); a.loop=loop; a.play().catch(()=>{}); if(loop)bgmAudio=a; }
     function stopAudio(){ if(bgmAudio){bgmAudio.pause();bgmAudio=null;} }
 
-    // --- Setup & Editor ---
-    function startSetup(){ renderPList(); showScreen('setup-view'); showSetupMenu(); }
+    function startSetup(){ showScreen('setup-view'); showSetupMenu(); }
     function initHost(){
         if(peer) return;
         document.getElementById("qrcode-setup").innerHTML="<div style='color:#000;font-size:12px;'>接続中...</div>";
@@ -373,33 +410,94 @@
         });
         peer.on('connection',c=>{
             c.on('open',()=>{ conns[c.peer]=c; c.on('data',d=>{
-                // IMPORTANT: Modified receive logic to account for strict lock + 1s lag
                 if(d.type==='LOGIN'){ participants[c.peer]=d.name; scores[c.peer]=0; }
-                if(d.type==='ANSWER') {
-                    // Check if we are in valid answering state:
-                    // 1. Thinking phase (State 3 or 9)
-                    // 2. OR TimeUp phase (State 4 or 10) BUT only within the lag window (isLagTime = true)
-                    const canAnswer = (hostState === 3 || hostState === 9) || 
-                                      ((hostState === 4 || hostState === 10) && isLagTime);
-                    
-                    if (canAnswer && !answers[c.peer]) {
-                        answers[c.peer] = d;
-                    }
-                }
+                if(d.type==='ANSWER' && (hostState===4||hostState===10) && !answers[c.peer]) answers[c.peer]=d;
             }); c.on('close',()=>{delete conns[c.peer];}); });
         });
     }
+
+    // --- Editor Logic ---
     function renderPList(){
         const l=document.getElementById('p-list'); l.innerHTML="";
         periods.forEach((p,pi)=>{
             const pd=document.createElement('div'); pd.className='p-card';
-            pd.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:10px;"><input type="text" value="${p.title}" onchange="periods[${pi}].title=this.value" style="font-size:20px;font-weight:bold;width:60%;"><button class="btn btn-red" onclick="delP(${pi})">ピリオド削除</button></div><div id="p-${pi}-qs"></div><button class="btn btn-green" onclick="addQ(${pi})">＋ 問題追加</button><div class="sort-card"><span class="sort-header">山分けクイズ設定</span><input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value" placeholder="問題文" style="margin-bottom:10px;"><div class="opt-grid">${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}</div><div style="margin-top:10px; color:#ffd700;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',')" style="width:150px; background:#443300; color:#fff; font-weight:bold;"></div></div>`;
+            pd.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:10px;"><input type="text" value="${p.title}" onchange="periods[${pi}].title=this.value;saveData();" style="font-size:20px;font-weight:bold;width:60%;"><button class="btn btn-red" onclick="delP(${pi})">ピリオド削除</button></div><div id="p-${pi}-qs"></div><button class="btn btn-green" onclick="addQ(${pi})">＋ 問題追加</button><div class="sort-card"><span class="sort-header">山分けクイズ設定</span><input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value;saveData();" placeholder="問題文" style="margin-bottom:10px;"><div class="opt-grid">${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}</div><div style="margin-top:10px; color:#ffd700;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',');saveData();" style="width:150px; background:#443300; color:#fff; font-weight:bold;"></div></div>`;
             l.appendChild(pd); renderQList(pi);
         });
     }
-    function renderSortOpt(pi, k, opt) { return `<div class="opt-cell"><span style="font-size:12px;color:#aaa;">選択肢${k}</span> <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='text'?'checked':''} onchange="setSortType(${pi},${k},'text')">文</label><label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='image'?'checked':''} onchange="setSortType(${pi},${k},'image')">画</label> ${opt.type=='text'?`<input type="text" value="${opt.val}" onchange="upSortOv(${pi},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upSortImg(this,${pi},${k})">${opt.val?`<img src="${opt.val}" style="height:20px;">`:''}`}</div>`; }
-    function renderQList(pi){ const ql=document.getElementById(`p-${pi}-qs`); ql.innerHTML=""; periods[pi].questions.forEach((q,qi)=>{ const qd=document.createElement('div'); qd.className='q-card'; qd.innerHTML=`<div style="display:flex;justify-content:space-between;"><b>Q${qi+1}</b><button class="btn btn-red" style="padding:5px;" onclick="delQ(${pi},${qi})">削除</button></div><input type="text" value="${q.q}" onchange="periods[${pi}].questions[${qi}].q=this.value" placeholder="問題文"><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;">${[1,2,3,4].map(k=>`<div><span style="font-size:12px;color:#aaa;">${k}</span> <label><input type="radio" name="t-${pi}-${qi}-${k}" ${q.options[k].type=='text'?'checked':''} onchange="setT(${pi},${qi},${k},'text')">文</label><label><input type="radio" name="t-${pi}-${qi}-${k}" ${q.options[k].type=='image'?'checked':''} onchange="setT(${pi},${qi},${k},'image')">画</label> ${q.options[k].type=='text'?`<input type="text" value="${q.options[k].val}" onchange="upOv(${pi},${qi},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upImg(this,${pi},${qi},${k})">${q.options[k].val?`<img src="${q.options[k].val}" style="height:20px;">`:''}`}</div>`).join('')}</div><div style="margin-top:5px;">正解: <select onchange="periods[${pi}].questions[${qi}].correct=this.value">${[1,2,3,4].map(k=>`<option value="${k}" ${q.correct==k?'selected':''}>${k}</option>`).join('')}</select></div>`; ql.appendChild(qd); }); }
-    function addPeriod(){periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}});renderPList();} function delP(pi){periods.splice(pi,1);renderPList();} function addQ(pi){periods[pi].questions.push({q:"",correct:"1",options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});renderQList(pi);} function delQ(pi,qi){periods[pi].questions.splice(qi,1);renderQList(pi);} function setT(pi,qi,k,t){periods[pi].questions[qi].options[k].type=t;periods[pi].questions[qi].options[k].val="";renderQList(pi);} function upOv(pi,qi,k,v){periods[pi].questions[qi].options[k].val=v;} function upImg(el,pi,qi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].questions[qi].options[k].val=e.target.result;renderQList(pi);};r.readAsDataURL(el.files[0]);}} function setSortType(pi,k,t){periods[pi].sortingQ.options[k].type=t;periods[pi].sortingQ.options[k].val="";renderPList();} function upSortOv(pi,k,v){periods[pi].sortingQ.options[k].val=v;} function upSortImg(el,pi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].sortingQ.options[k].val=e.target.result;renderPList();};r.readAsDataURL(el.files[0]);}}
+    
+    function renderQList(pi){
+        const ql=document.getElementById(`p-${pi}-qs`); ql.innerHTML="";
+        periods[pi].questions.forEach((q,qi)=>{
+            const isImg = q.qType === 'image';
+            const qd=document.createElement('div'); qd.className='q-card';
+            qd.innerHTML=`
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                    <b>Q${qi+1}</b>
+                    <div style="font-size:12px;">
+                        形式: <label><input type="radio" name="qt-${pi}-${qi}" ${!isImg?'checked':''} onchange="setQType(${pi},${qi},'text')">文字</label>
+                        <label><input type="radio" name="qt-${pi}-${qi}" ${isImg?'checked':''} onchange="setQType(${pi},${qi},'image')">画像</label>
+                        ${isImg ? `<label style="margin-left:10px;color:#0af;"><input type="checkbox" ${q.zoom?'checked':''} onchange="toggleZoom(${pi},${qi},this.checked)">ズームアウト演出</label>` : ''}
+                    </div>
+                    <button class="btn btn-red" style="padding:5px;" onclick="delQ(${pi},${qi})">削除</button>
+                </div>
+                <input type="text" value="${q.q}" onchange="periods[${pi}].questions[${qi}].q=this.value;saveData();" placeholder="問題文" style="margin-bottom:5px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                    ${[1,2,3,4].map(k=>renderOptionInput(pi, qi, k, q.options[k], isImg)).join('')}
+                </div>
+                <div style="margin-top:5px;">正解: <select onchange="periods[${pi}].questions[${qi}].correct=this.value;saveData();">${[1,2,3,4].map(k=>`<option value="${k}" ${q.correct==k?'selected':''}>${k}</option>`).join('')}</select></div>
+            `;
+            ql.appendChild(qd);
+        });
+    }
+
+    function renderOptionInput(pi, qi, k, opt, isImg) {
+        if (!isImg) {
+            return `<div style="background:#333;padding:5px;"><span style="font-size:10px;color:#aaa;">${k}</span> <input type="text" value="${opt.val}" onchange="upOv(${pi},${qi},${k},this.value)"></div>`;
+        } else {
+            return `
+            <div style="background:#333;padding:5px;">
+                <span style="font-size:10px;color:#aaa;">${k}</span>
+                <label class="drop-area" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,${pi},${qi},${k})">
+                    ${opt.val ? `<img src="${opt.val}" class="drop-preview">` : 'Drag & Drop / Click'}
+                    <input type="file" accept="image/*" style="display:none;" onchange="upImg(this,${pi},${qi},${k})">
+                </label>
+            </div>`;
+        }
+    }
+
+    function renderSortOpt(pi, k, opt) { 
+        // For sort, keep it simpler as per V9, but add D&D support if image
+        return `<div class="opt-cell"><span style="font-size:12px;color:#aaa;">${k}</span> <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='text'?'checked':''} onchange="setSortType(${pi},${k},'text')">文</label><label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='image'?'checked':''} onchange="setSortType(${pi},${k},'image')">画</label> ${opt.type=='text'?`<input type="text" value="${opt.val}" onchange="upSortOv(${pi},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upSortImg(this,${pi},${k})">${opt.val?`<img src="${opt.val}" style="height:20px;">`:''}`}</div>`; 
+    }
+
+    // Data Helpers
+    function addPeriod(){periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}}); saveData(); renderPList();}
+    function delP(pi){periods.splice(pi,1); saveData(); renderPList();}
+    function addQ(pi){periods[pi].questions.push({qType:'text', zoom:false, q:"",correct:"1",options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}); saveData(); renderQList(pi);}
+    function delQ(pi,qi){periods[pi].questions.splice(qi,1); saveData(); renderQList(pi);}
+    
+    function setQType(pi,qi,type){
+        periods[pi].questions[qi].qType = type;
+        // Reset values to avoid confusion
+        for(let k=1; k<=4; k++) { periods[pi].questions[qi].options[k].val = ""; periods[pi].questions[qi].options[k].type = type; }
+        saveData(); renderQList(pi);
+    }
+    function toggleZoom(pi, qi, checked) { periods[pi].questions[qi].zoom = checked; saveData(); }
+    function upOv(pi,qi,k,v){periods[pi].questions[qi].options[k].val=v; saveData();}
+    
+    function handleDrop(e, pi, qi, k) {
+        const file = e.dataTransfer.files[0];
+        if(file && file.type.startsWith('image/')) {
+            const r=new FileReader(); r.onload=ev=>{ periods[pi].questions[qi].options[k].val=ev.target.result; saveData(); renderQList(pi); }; r.readAsDataURL(file);
+        }
+    }
+    function upImg(el,pi,qi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].questions[qi].options[k].val=e.target.result;saveData();renderQList(pi);};r.readAsDataURL(el.files[0]);}}
+
+    // Sort Helpers
+    function setSortType(pi,k,t){periods[pi].sortingQ.options[k].type=t;periods[pi].sortingQ.options[k].val="";saveData();renderPList();} 
+    function upSortOv(pi,k,v){periods[pi].sortingQ.options[k].val=v;saveData();} 
+    function upSortImg(el,pi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].sortingQ.options[k].val=e.target.result;saveData();renderPList();};r.readAsDataURL(el.files[0]);}}
 
     // --- Host Flow ---
     function renderPSel(){ const g=document.getElementById('period-grid'); g.innerHTML=""; periods.forEach((p,i)=>{ g.innerHTML+=`<div class="period-btn" onclick="selectP(${i})">${p.title}<br><span style="font-size:16px">${p.questions.length}問</span></div>`; }); document.getElementById('period-select-view').classList.remove('hidden'); }
@@ -422,16 +520,15 @@
                     resetDisp(); hostState=2; broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
                 case 2: // Open & Start Immediate
                     displayQ(Q); playAudio('q_open'); playAudio('thinking',true); startTimer(10);
-                    broadcast({type:'START', sort:false}); hostState=3; break; // Use state 3 for thinking
-                case 3: /* Thinking... handled by timer */ break;
+                    broadcast({type:'START', sort:false}); hostState=4; break;
                 case 4: stopTimer(); break; // Timeup
-                case 5: showVotes(); playAudio('votes'); hostState=6; break; // Votes (Show 0 on timer, then hide)
+                case 5: showVotes(); playAudio('votes'); hostState=6; break; // Votes
                 case 6: // Correct
                     showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
                     broadcast({type:'RESULT', correct:Q.correct}); 
                     hostState=130; break; 
-                case 130: showRank(Q.correct); hostState=140; break;
-                case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break;
+                case 130: showRank(Q.correct); hostState=140; break; // Speed Rank
+                case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break; // Loop
                 case 7: // P-End
                     document.getElementById('period-end-view').classList.remove('hidden');
                     document.getElementById('champ-name').classList.add('hidden'); 
@@ -446,23 +543,23 @@
                     displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});
                     broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'});
                     hostState=9; break;
-                case 9: // Sort Open & Start
+                case 9: // Sort Open & Start (20s)
                     displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',true); startTimer(20);
-                    broadcast({type:'START', sort:true}); hostState=9; /* Use 9 as sort thinking */ break;
-                case 10: stopTimer(); break; // Sort Stop (timer calls this)
+                    broadcast({type:'START', sort:true}); hostState=10; break;
+                case 10: stopTimer(); break; // Sort Stop
                 case 11: // Sort Reveal Prep
                     let cid="none"; if(Object.keys(periodScores).length>0) cid=Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
                     champSortAns = (answers[cid] && answers[cid].choice) ? answers[cid].choice : ["?","?","?","?"];
                     renderSortResultLayout(champSortAns, P.sortingQ); hostState=12; break; 
-                case 12: case 13: case 14: case 15: // Reveal
+                case 12: case 13: case 14: case 15: // Reveal steps
                     revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('sort_reveal'); hostState++;
                     if(hostState>15){ 
                         calcSortScores(P.sortingQ.order); 
                         broadcast({type:'RESULT', correct:P.sortingQ.order});
                         hostState=131; 
                     } break;
-                case 131: showRank(null, true); hostState=141; break;
-                case 141: document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; nextPhase(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
+                case 131: showRank(null, true); hostState=141; break; // Overall Rank
+                case 141: document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; nextPhase(); break;
             }
         } catch(e) { console.error(e); alert("エラーが発生しましたが続行します"); document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; }
     }
@@ -470,14 +567,23 @@
     
     function resetDisp(){
         document.getElementById('q-text').innerText=""; document.getElementById('sort-result-view').classList.add('hidden');
-        for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); p.classList.remove('dimmed','highlighted'); document.getElementById('val-'+k).innerHTML=""; document.getElementById('vote-'+k).style.opacity=0; }
+        for(let k=1;k<=4;k++){ 
+            const p=document.getElementById('opt-'+k); 
+            p.classList.remove('dimmed','highlighted', 'zoom-anim'); // Remove zoom class
+            document.getElementById('val-'+k).innerHTML=""; 
+            document.getElementById('vote-'+k).style.opacity=0; 
+        }
         document.getElementById('timer-display').classList.add('hidden'); answers={}; stopAudio();
     }
     function displayQ(q){
         document.getElementById('q-text').innerText=q.q;
         for(let k=1;k<=4;k++){
             const el=document.getElementById('val-'+k); el.className = 'opt-val';
-            if(q.options[k].type==='image' && !isSorting) el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`; else el.innerText=q.options[k].val;
+            if(q.qType==='image' && !isSorting) {
+                el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`; 
+                if(q.zoom) document.getElementById('opt-'+k).classList.add('zoom-anim');
+            }
+            else el.innerText=q.options[k].val;
         }
     }
     let tId; function startTimer(sec){
@@ -490,25 +596,9 @@
             document.getElementById('timer-text').innerText=Math.ceil(t); 
         },50);
     }
-    function stopTimer(){ 
-        clearInterval(tId); 
-        // DO NOT hide timer here, hide it in showVotes
-        broadcast({type:'TIMEUP'}); 
-        stopAudio(); 
-        
-        // Strict Lag Logic
-        isLagTime = true;
-        setTimeout(() => { isLagTime = false; }, 1000);
-
-        if(hostState === 3) hostState = 4; // Normal Thinking -> TimeUp
-        else if(hostState === 9) hostState = 10; // Sort Thinking -> Sort TimeUp
-        else hostState++; 
-    }
+    function stopTimer(){ clearInterval(tId); document.getElementById('timer-display').classList.add('hidden'); broadcast({type:'TIMEUP'}); stopAudio(); hostState++; }
     
-    function showVotes(){ 
-        document.getElementById('timer-display').classList.add('hidden'); // Hide 0 here
-        for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; 
-    }
+    function showVotes(){ for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; }
     function showCorrect(c){ for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); if(k==c) p.classList.add('highlighted'); else p.classList.add('dimmed'); } }
     
     function renderSortResultLayout(champAns, q){
