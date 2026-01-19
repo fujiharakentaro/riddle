@@ -440,7 +440,7 @@
     
     let peer, conn, conns={}, myId;
     let currentPIdx=0, currentQIdx=0, hostState=0; 
-    let answers={}, participants={}, scores={}, periodScores={}, clientStartTime=0, bgmAudio=null;
+    let answers={}, participants={}, scores={}, periodScores={}, periodTimes={}, currentChampId=null, clientStartTime=0, bgmAudio=null;
     let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null;
     let isLagTime = false;
 
@@ -584,7 +584,8 @@
     function renderPSel(){ const g=document.getElementById('period-grid'); g.innerHTML=""; periods.forEach((p,i)=>{ g.innerHTML+=`<div class="period-btn" onclick="selectP(${i})">${p.title}<br><span style="font-size:16px">${p.questions.length}問</span></div>`; }); document.getElementById('period-select-view').classList.remove('hidden'); }
     function selectP(i){ 
         currentPIdx=i; currentQIdx=-1; 
-        periodScores={}; scores={}; for(let id in participants) { periodScores[id]=0; scores[id]=0; }
+        periodScores={}; scores={}; periodTimes={}; // 初期化
+        for(let id in participants) { periodScores[id]=0; scores[id]=0; periodTimes[id]=0; }
         broadcastScores();
         document.getElementById('period-select-view').classList.add('hidden'); 
         hostState=1; nextPhase(); 
@@ -595,39 +596,43 @@
         try {
             switch(hostState){
                 case 0: renderPSel(); break; // P-Sel
-                case 1: // Next Q
+                case 1: 
                     currentQIdx++; isSorting=false;
                     if(currentQIdx>=P.questions.length){ hostState=7; nextPhase(); return; }
                     resetDisp(); hostState=2; broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
-                case 2: // Open & Start Immediate (BGM loop OFF)
+                case 2: 
                     displayQ(Q); playAudio('q_open'); playAudio('thinking',false); startTimer(10);
                     broadcast({type:'START', sort:false}); hostState=3; break; 
-                case 3: 
-                    stopTimer(); // Manual Skip during countdown
-                    break;
-                case 4: stopTimer(); break; // Timeup
-                case 5: showVotes(); playAudio('votes'); hostState=6; break; // Votes 
-                case 6: 
+                case 3: stopTimer(); break;
+                case 4: stopTimer(); break; 
+                case 5: showVotes(); playAudio('votes'); hostState=6; break; 
+                case 6: // Correct
                     showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
                     broadcast({type:'RESULT', correct:Q.correct}); 
                     
-                    // ピリオドの最後の通常問題なら、ピリオド成績ランキング(下位から)へ
-                    if(currentQIdx === P.questions.length - 1) {
-                        hostState=135; // New State
-                    } else {
-                        hostState=130; // Normal Speed Rank
-                    }
-                    break;
-                    
-                case 130: showRank(Q.correct); hostState=140; break; // Speed Rank
-                case 135: showRank(null, 'period_reverse'); hostState=140; break;
-                case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break; // Loop
+                    // ピリオドラストの問題ならピリオド成績へ
+                    if(currentQIdx === P.questions.length - 1) hostState=135; 
+                    else hostState=130; 
+                    break; 
+                case 130: showRank(Q.correct, 'speed'); hostState=140; break; 
+                case 135: showRank(null, 'period_rank'); hostState=140; break; // ピリオド成績
+                case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break;
+                
                 case 7: // P-End
                     document.getElementById('period-end-view').classList.remove('hidden');
                     document.getElementById('champ-name').classList.add('hidden'); 
-                    let champId="none"; if(Object.keys(periodScores).length>0) champId=Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
-                    document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
+                    
+                    // チャンピオン確定ロジック (点数 > 時間)
+                    let allP = Object.keys(periodScores).map(id=>({id:id, s:periodScores[id], t:periodTimes[id]||0}));
+                    allP.sort((a,b) => {
+                        if(b.s !== a.s) return b.s - a.s;
+                        return a.t - b.t;
+                    });
+                    currentChampId = allP.length > 0 ? allP[0].id : "none";
+
+                    document.getElementById('champ-name').innerText = participants[currentChampId] || "該当なし";
                     champSortAns=null; hostState=71; break; 
+                
                 case 71: // Reveal Champ
                     document.getElementById('champ-name').classList.remove('hidden'); playAudio('correct');
                     hostState=8; break;
@@ -636,16 +641,14 @@
                     displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});
                     broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'});
                     hostState=9; break;
-                case 9: // Sort Open & Start (BGM loop OFF)
+                case 9: // Sort Open & Start
                     displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',false); startTimer(20);
                     broadcast({type:'START', sort:true}); hostState=90; break;
-                case 90:
-                    stopTimer(); // Manual Skip Sort
-                    break;
-                case 10: stopTimer(); break; // Sort Stop 
+                case 90: stopTimer(); break;
+                case 10: stopTimer(); break; 
                 case 11: // Sort Reveal Prep
-                    let cid="none"; if(Object.keys(periodScores).length>0) cid=Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
-                    champSortAns = (answers[cid] && answers[cid].choice) ? answers[cid].choice : ["?","?","?","?"];
+                    // 確定した currentChampId を使って解答を取得
+                    champSortAns = (answers[currentChampId] && answers[currentChampId].choice) ? answers[currentChampId].choice : ["?","?","?","?"];
                     renderSortResultLayout(champSortAns, P.sortingQ); hostState=12; break; 
                 case 12: case 13: case 14: case 15: // Reveal
                     revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('sort_reveal'); hostState++;
@@ -654,7 +657,7 @@
                         broadcast({type:'RESULT', correct:P.sortingQ.order});
                         hostState=131; 
                     } break;
-                case 131: showRank(null, true); hostState=141; break; // Overall Rank
+                case 131: showRank(null, true); hostState=141; break;
                 case 141: document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; nextPhase(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
             }
         } catch(e) { console.error(e); alert("エラーが発生しましたが続行します"); document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; }
@@ -744,7 +747,18 @@
         if(correctOrder[idx] !== champAns[idx]) document.getElementById('champ-ans-col').classList.add('dimmed-all');
     }
 
-    function calcScores(c){ for(let id in answers) if(answers[id].choice==c){ scores[id]++; periodScores[id]++; } broadcastScores(); }
+    function calcScores(c){ 
+        for(let id in answers) {
+            if(answers[id].choice==c){ 
+                scores[id]++; 
+                periodScores[id]++; 
+                // 累積時間を加算
+                if(!periodTimes[id]) periodTimes[id]=0;
+                periodTimes[id] += parseFloat(answers[id].time || 0);
+            }
+        } 
+        broadcastScores(); 
+    }
     function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); } 
     function broadcastScores(){ for(let id in conns) conns[id].send({type:'SCORE', score:scores[id]}); }
     
@@ -753,23 +767,22 @@
         let w = [];
         try {
             if (type === 'overall') {
-                // 総合成績 (降順)
                 w = Object.keys(scores).map(id=>({n:participants[id]||"Unknown", v:scores[id]})).sort((a,b)=>b.v-a.v);
                 document.querySelector('.side-text').innerText = "総合成績";
-            } else if (type === 'period_reverse') {
-                // 追加: ピリオド成績 (点数多い順ランキングを、下位から表示)
-                // periodScoresを使用
-                w = Object.keys(periodScores).map(id=>({n:participants[id]||"Unknown", v:periodScores[id]}));
-                // まず点数が多い順にソート
-                w.sort((a,b)=>b.v-a.v);
-                // 上位10名を取得
-                w = w.slice(0, 10);
-                // 表示用に逆順にする (10位...1位の順に並べる)
-                w.reverse();
-                
+            } else if (type === 'period_rank') {
+                // ピリオド成績: 点数降順 -> 時間昇順
+                w = Object.keys(periodScores).map(id=>({
+                    n:participants[id]||"Unknown", 
+                    v:periodScores[id],
+                    t:periodTimes[id]||0
+                }));
+                w.sort((a,b) => {
+                    if(b.v !== a.v) return b.v - a.v; // 点数が多い順
+                    return a.t - b.t; // 時間が短い順
+                });
                 document.querySelector('.side-text').innerText = "ピリオド成績";
             } else {
-                // スピード順 (昇順)
+                // スピード順
                 for(let id in answers) {
                     if(participants[id] && answers[id].choice == correctAnswer) { 
                         let t = 99.99; if(answers[id].time !== undefined) t = parseFloat(answers[id].time);
@@ -783,21 +796,21 @@
 
         if(!w.length) l.innerHTML="<div style='text-align:center;font-size:40px;color:#fff;'>該当者なし</div>";
         else {
-            // リスト生成 (period_reverseの場合は配列が既に逆順になっているのでそのまま表示すれば下位から出る)
-            w.forEach((p,i)=>{ 
+            const dispW = w.slice(0, 10);
+            dispW.forEach((p,i)=>{ 
                 let val;
                 if(type === 'speed') val = `${p.v.toFixed(2)}s`;
                 else val = `${p.v}P`;
-                
-                // ランク番号の計算: 
-                // period_reverseの場合、配列の最後が1位なので、計算が必要
-                let rankNum = i + 1;
-                if(type === 'period_reverse') {
-                    // 例: 10人中0番目(一番上)は10位、最後は1位
-                    rankNum = w.length - i; 
+
+                // アニメーション遅延: period_rankの場合は下位(リストの下)から表示
+                let delay = i * 0.1;
+                if(type === 'period_rank') {
+                    // 下（配列の後ろ）から順に delay を小さくするのではなく、
+                    // 下から順に表示させたい = 上の人の delay を大きくする
+                    delay = (dispW.length - 1 - i) * 0.5; 
                 }
 
-                l.innerHTML+=`<div class="rank-row" style="animation-delay:${i*0.2}s"><div class="rank-num">${rankNum}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
+                l.innerHTML+=`<div class="rank-row" style="animation-delay:${delay}s"><div class="rank-num">${i+1}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
             });
         }
         document.getElementById('ranking-modal').classList.remove('hidden');
@@ -844,6 +857,11 @@
             pad.classList.add('hidden'); main.innerText = msg; document.getElementById('sort-ui').classList.add('hidden');
         } else if (state === 'locked') {
             main.innerText = "正解発表をお待ちください";
+            // ボタンをグレーアウト
+            document.querySelectorAll('.ans-btn').forEach(b=>{
+                b.classList.add('disabled');
+                b.style.pointerEvents = 'none';
+            });
         }
     }
 
