@@ -633,12 +633,28 @@
                     document.getElementById('period-end-view').classList.remove('hidden');
                     document.getElementById('champ-name').classList.add('hidden'); 
                     
-                    // --- 修正箇所：チャンピオンを決定してIDを保存 ---
+                    // ▼▼▼ 修正: 点数と時間の両方を見て、厳密にチャンピオン(1位)を決定する ▼▼▼
                     let champId = "none"; 
-                    if(Object.keys(periodScores).length > 0) {
-                        champId = Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
+                    
+                    // 参加者全員のID、点数、時間をリスト化
+                    let candidates = Object.keys(participants).map(id => ({
+                        id: id,
+                        score: periodScores[id] || 0,
+                        time: periodTimes[id] || 0
+                    }));
+
+                    if (candidates.length > 0) {
+                        // ソート: 点数が多い順 > 時間が短い順
+                        candidates.sort((a, b) => {
+                            if (b.score !== a.score) return b.score - a.score; // 点数降順
+                            return a.time - b.time; // 時間昇順
+                        });
+                        // 先頭(1位)をチャンピオンとする
+                        champId = candidates[0].id;
                     }
-                    currentChampId = champId; // ここでグローバル変数に保存
+                    
+                    currentChampId = champId; // ここで正しい1位のIDを保存
+                    // ▲▲▲▲▲▲
                     
                     document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
                     champSortAns = null; hostState = 71; break; 
