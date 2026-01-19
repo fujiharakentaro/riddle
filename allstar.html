@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System</title>
+    <title>All-Star Quiz System V38</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -99,7 +99,6 @@
         
         /* Game Layout */
         .layout-text { flex-direction: column; width: 100%; height: 100%; }
-        /* Q-Container height reduced to 12% (15 * 0.8) */
         .q-container { width: 90%; height: 12%; margin: 20px auto 30px auto; position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); flex-shrink: 0; }
         .q-icon { font-family: 'Anton'; font-size: 80px; color: #00ffff; text-shadow: 3px 3px 0 #004444, 0 0 10px #00ffff; margin: 0 20px; transform: skewX(-10deg); }
         .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
@@ -138,7 +137,7 @@
             grid-template-columns: 1fr 1fr;
             grid-template-rows: auto auto;
             gap: 20px;
-            width: 53%; /* Changed to 53% */
+            width: 53%; 
             margin: 0 auto; 
             justify-content: center;
             align-content: center;
@@ -315,7 +314,7 @@
             </div>
         </div>
 
-       <div id="setup-bgm" class="setup-body hidden">
+        <div id="setup-bgm" class="setup-body hidden">
             <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
             <h3 style="color:#fb0;">音響設定 (自動保存)</h3>
             <div style="line-height:2.5;">
@@ -441,12 +440,12 @@
     let peer, conn, conns={}, myId;
     let currentPIdx=0, currentQIdx=0, hostState=0; 
     
-    // ▼▼▼ 修正箇所：ここをきれいに書き換えます ▼▼▼
+    // ▼▼▼ State Variables ▼▼▼
     let answers={}, participants={}, scores={}, periodScores={}, periodTimes={};
     let clientStartTime=0, bgmAudio=null;
     let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null;
     let isLagTime = false;
-    let currentChampId = null; // ここで1回だけ宣言する
+    let currentChampId = null; 
     // ▲▲▲▲▲▲
 
     // --- Init ---
@@ -492,14 +491,13 @@
             c.on('open',()=>{ conns[c.peer]=c; c.on('data',d=>{
                 if(d.type==='LOGIN'){ 
                     participants[c.peer]=d.name; 
-                    // ▼▼▼ 修正: 初期化漏れを防ぐ ▼▼▼
+                    // Init scores safely
                     if(scores[c.peer] === undefined) scores[c.peer]=0;
                     if(periodScores[c.peer] === undefined) periodScores[c.peer]=0;
                     if(periodTimes[c.peer] === undefined) periodTimes[c.peer]=0;
-                    // ▲▲▲▲▲▲
                 }
                 if(d.type==='ANSWER') {
-                    // 解答受信ロジック（ラグタイム考慮）
+                    // Receive answer logic
                     const canAnswer = (hostState === 3 || hostState === 9) || isLagTime;
                     if (canAnswer && !answers[c.peer]) {
                         answers[c.peer] = d;
@@ -635,8 +633,6 @@
                     
                     // ▼▼▼ 修正: 点数と時間の両方を見て、厳密にチャンピオン(1位)を決定する ▼▼▼
                     let champId = "none"; 
-                    
-                    // 参加者全員のID、点数、時間をリスト化
                     let candidates = Object.keys(participants).map(id => ({
                         id: id,
                         score: periodScores[id] || 0,
@@ -644,16 +640,13 @@
                     }));
 
                     if (candidates.length > 0) {
-                        // ソート: 点数が多い順 > 時間が短い順
                         candidates.sort((a, b) => {
-                            if (b.score !== a.score) return b.score - a.score; // 点数降順
-                            return a.time - b.time; // 時間昇順
+                            if (b.score !== a.score) return b.score - a.score;
+                            return a.time - b.time;
                         });
-                        // 先頭(1位)をチャンピオンとする
                         champId = candidates[0].id;
                     }
-                    
-                    currentChampId = champId; // ここで正しい1位のIDを保存
+                    currentChampId = champId; 
                     // ▲▲▲▲▲▲
                     
                     document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
@@ -777,7 +770,7 @@
     function calcScores(c){ 
         for(let id in answers) {
             if(answers[id].choice==c){ 
-                // ▼▼▼ 修正: 数値でない場合は0にしてから加算 ▼▼▼
+                // NaN check
                 if(isNaN(scores[id])) scores[id] = 0;
                 if(isNaN(periodScores[id])) periodScores[id] = 0;
                 if(isNaN(periodTimes[id])) periodTimes[id] = 0;
@@ -785,10 +778,9 @@
                 scores[id]++; 
                 periodScores[id]++; 
                 
-                // タイムを加算
+                // time
                 let t = parseFloat(answers[id].time || 0);
                 periodTimes[id] += t;
-                // ▲▲▲▲▲▲
             }
         } 
         broadcastScores(); 
