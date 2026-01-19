@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V38</title>
+    <title>All-Star Quiz System V38_Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -99,6 +99,7 @@
         
         /* Game Layout */
         .layout-text { flex-direction: column; width: 100%; height: 100%; }
+        /* Q-Container height reduced to 12% */
         .q-container { width: 90%; height: 12%; margin: 20px auto 30px auto; position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); flex-shrink: 0; }
         .q-icon { font-family: 'Anton'; font-size: 80px; color: #00ffff; text-shadow: 3px 3px 0 #004444, 0 0 10px #00ffff; margin: 0 20px; transform: skewX(-10deg); }
         .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
@@ -498,7 +499,8 @@
                 }
                 if(d.type==='ANSWER') {
                     // Receive answer logic
-                    const canAnswer = (hostState === 3 || hostState === 9) || isLagTime;
+                    // ▼▼▼ 修正: hostState 90 (山分け中) も解答を許可する ▼▼▼
+                    const canAnswer = (hostState === 3 || hostState === 9 || hostState === 90) || isLagTime;
                     if (canAnswer && !answers[c.peer]) {
                         answers[c.peer] = d;
                     }
