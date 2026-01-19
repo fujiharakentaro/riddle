@@ -423,7 +423,7 @@
         
         // Load Audio
         const as=tx.objectStore('audios');
-        ['q_open','thinking','votes','correct','sort_reveal','sort_thinking'].forEach(k=>{
+        ['q_open','thinking','votes','correct','sort_reveal','sort_thinking','period_end'].forEach(k=>{
             const r=as.get(k);
             r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); };
         });
@@ -436,7 +436,7 @@
 
     // --- Data & State ---
     let periods = [{ title: "第1ピリオド", questions: [{qType:'text', zoom:false, q:"日本一高い山は？",correct:"1",options:{1:{type:'text',val:'富士山'},2:{type:'text',val:'北岳'},3:{type:'text',val:'奥穂高岳'},4:{type:'text',val:'間ノ岳'}}}], sortingQ: {q:"次の出来事を古い順に並べよ", order:["2","4","1","3"], options:{1:{type:'text',val:'明治維新'},2:{type:'text',val:'関ヶ原の戦い'},3:{type:'text',val:'第二次世界大戦終結'},4:{type:'text',val:'ペリー来航'}}} }];
-    let audioFiles={q_open:null,thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null};
+    let audioFiles={q_open:null,thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null, period_end:null};
     
     let peer, conn, conns={}, myId;
     let currentPIdx=0, currentQIdx=0, hostState=0; 
@@ -488,8 +488,8 @@
                 if(d.type==='LOGIN'){ participants[c.peer]=d.name; scores[c.peer]=0; }
                 if(d.type==='ANSWER') {
                     // Receive answer logic
-                    const canAnswer = (hostState === 3 || hostState === 9) || 
-                                      ((hostState === 4 || hostState === 10) && isLagTime);
+                    const canAnswer = (hostState === 3 || hostState === 9)||isLagTime;
+                    
                     if (canAnswer && !answers[c.peer]) {
                         answers[c.peer] = d;
                     }
@@ -607,11 +607,20 @@
                     break;
                 case 4: stopTimer(); break; // Timeup
                 case 5: showVotes(); playAudio('votes'); hostState=6; break; // Votes 
-                case 6: // Correct
+                case 6: 
                     showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
                     broadcast({type:'RESULT', correct:Q.correct}); 
-                    hostState=130; break; 
+                    
+                    // ピリオドの最後の通常問題なら、ピリオド成績ランキング(下位から)へ
+                    if(currentQIdx === P.questions.length - 1) {
+                        hostState=135; // New State
+                    } else {
+                        hostState=130; // Normal Speed Rank
+                    }
+                    break;
+                    
                 case 130: showRank(Q.correct); hostState=140; break; // Speed Rank
+                case 135: showRank(null, 'period_reverse'); hostState=140; break;
                 case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break; // Loop
                 case 7: // P-End
                     document.getElementById('period-end-view').classList.remove('hidden');
@@ -698,7 +707,12 @@
         // BGM CONTINUES (Not Stopped)
         
         isLagTime = true;
-        setTimeout(() => { isLagTime = false; }, 1000);
+        setTimeout(() => { isLagTime = false; }, 5000);
+
+        const isPeriodLastQ = (currentQIdx === periods[currentPIdx].questions.length - 1);
+        if(isPeriodLastQ && (hostState === 3 || hostState === 4)) {
+            playAudio('period_end'); // 専用SE
+        }
 
         // DIRECT TRANSITION LOGIC
         if(hostState === 3 || hostState === 4) hostState = 5; // Normal: Thinking -> Pre-Vote
@@ -734,13 +748,28 @@
     function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); } 
     function broadcastScores(){ for(let id in conns) conns[id].send({type:'SCORE', score:scores[id]}); }
     
-    function showRank(correctAnswer, isOverall = false){
+    function showRank(correctAnswer, type = 'speed'){
         const l=document.getElementById('rank-list'); l.innerHTML="";
         let w = [];
         try {
-            if (isOverall) {
+            if (type === 'overall') {
+                // 総合成績 (降順)
                 w = Object.keys(scores).map(id=>({n:participants[id]||"Unknown", v:scores[id]})).sort((a,b)=>b.v-a.v);
+                document.querySelector('.side-text').innerText = "総合成績";
+            } else if (type === 'period_reverse') {
+                // 追加: ピリオド成績 (点数多い順ランキングを、下位から表示)
+                // periodScoresを使用
+                w = Object.keys(periodScores).map(id=>({n:participants[id]||"Unknown", v:periodScores[id]}));
+                // まず点数が多い順にソート
+                w.sort((a,b)=>b.v-a.v);
+                // 上位10名を取得
+                w = w.slice(0, 10);
+                // 表示用に逆順にする (10位...1位の順に並べる)
+                w.reverse();
+                
+                document.querySelector('.side-text').innerText = "ピリオド成績";
             } else {
+                // スピード順 (昇順)
                 for(let id in answers) {
                     if(participants[id] && answers[id].choice == correctAnswer) { 
                         let t = 99.99; if(answers[id].time !== undefined) t = parseFloat(answers[id].time);
@@ -748,14 +777,29 @@
                     }
                 }
                 w.sort((a,b)=>a.v-b.v);
+                document.querySelector('.side-text').innerText = "解答ランキング";
             }
         } catch(e) { console.log(e); }
+
         if(!w.length) l.innerHTML="<div style='text-align:center;font-size:40px;color:#fff;'>該当者なし</div>";
-        else w.slice(0,10).forEach((p,i)=>{ 
-            let val = isOverall ? `${p.v}P` : `${p.v.toFixed(2)}s`;
-            l.innerHTML+=`<div class="rank-row" style="animation-delay:${i*0.1}s"><div class="rank-num">${i+1}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
-        });
-        document.querySelector('.side-text').innerText = isOverall ? "総合成績" : "解答ランキング";
+        else {
+            // リスト生成 (period_reverseの場合は配列が既に逆順になっているのでそのまま表示すれば下位から出る)
+            w.forEach((p,i)=>{ 
+                let val;
+                if(type === 'speed') val = `${p.v.toFixed(2)}s`;
+                else val = `${p.v}P`;
+                
+                // ランク番号の計算: 
+                // period_reverseの場合、配列の最後が1位なので、計算が必要
+                let rankNum = i + 1;
+                if(type === 'period_reverse') {
+                    // 例: 10人中0番目(一番上)は10位、最後は1位
+                    rankNum = w.length - i; 
+                }
+
+                l.innerHTML+=`<div class="rank-row" style="animation-delay:${i*0.2}s"><div class="rank-num">${rankNum}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
+            });
+        }
         document.getElementById('ranking-modal').classList.remove('hidden');
     }
 
