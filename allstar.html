@@ -440,7 +440,7 @@
     
     let peer, conn, conns={}, myId;
     let currentPIdx=0, currentQIdx=0, hostState=0; 
-    let answers={}, participants={}, scores={}, periodScores={}, periodTimes={}, currentChampId=null, clientStartTime=0, bgmAudio=null;
+    let answers={}, participants={}, scores={}, periodScores={}, clientStartTime=0, bgmAudio=null, currentChampId=null;
     let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null, currentChampId=null;
     let isLagTime = false;
 
@@ -618,20 +618,19 @@
                 case 135: showRank(null, 'period_rank'); hostState=140; break; // ピリオド成績
                 case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break;
                 
-                case 7: // P-End
+                case 7: // P-End (ピリオド終了画面)
                     document.getElementById('period-end-view').classList.remove('hidden');
                     document.getElementById('champ-name').classList.add('hidden'); 
                     
-                    // ▼▼▼ 修正: チャンピオンIDを決定し、変数に保存する ▼▼▼
-                    let champId="none"; 
-                    if(Object.keys(periodScores).length>0) {
-                        champId=Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
+                    // --- 修正箇所：チャンピオンを決定してIDを保存 ---
+                    let champId = "none"; 
+                    if(Object.keys(periodScores).length > 0) {
+                        champId = Object.keys(periodScores).reduce((a,b)=>periodScores[a]>periodScores[b]?a:b, Object.keys(periodScores)[0]);
                     }
-                    currentChampId = champId; // ★ここで保存
-                    // ▲▲▲▲▲▲
-
+                    currentChampId = champId; // ここでグローバル変数に保存
+                    
                     document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
-                    champSortAns=null; hostState=71; break; 
+                    champSortAns = null; hostState = 71; break;
                 
                 case 71: // Reveal Champ
                     document.getElementById('champ-name').classList.remove('hidden'); playAudio('correct');
@@ -646,12 +645,11 @@
                     broadcast({type:'START', sort:true}); hostState=90; break;
                 case 90: stopTimer(); break;
                 case 10: stopTimer(); break; 
-                case 11: // Sort Reveal Prep
-                    // ▼▼▼ 修正: 保存した currentChampId を使って解答を取得する ▼▼▼
+                case 11: // Sort Reveal Prep (山分けクイズ結果表示準備)
+                    // --- 修正箇所：保存された currentChampId を参照 ---
                     champSortAns = (answers[currentChampId] && answers[currentChampId].choice) ? answers[currentChampId].choice : ["?","?","?","?"];
-                    // ▲▲▲▲▲▲
                     
-                    renderSortResultLayout(champSortAns, P.sortingQ); hostState=12; break;
+                    renderSortResultLayout(champSortAns, P.sortingQ); hostState = 12; break;
                 case 12: case 13: case 14: case 15: // Reveal
                     revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('sort_reveal'); hostState++;
                     if(hostState>15){ 
