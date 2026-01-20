@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bluff Quiz Master V10</title>
+    <title>Bluff Quiz Master V12</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -64,12 +64,15 @@
         .badge-wait { background: #7f8c8d; }
         .badge-done { background: #3498db; }
         .badge-correct { background: #f1c40f; color: #000; font-weight: bold; }
+        
+        /* Error Log */
+        #error-log { color: #e74c3c; font-size: 12px; margin-top: 10px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
 <div id="host-title" class="screen hidden">
-    <h1>Bluff Quiz Master V10</h1>
+    <h1>Bluff Quiz Master V11</h1>
     <button class="btn-gear" onclick="goToQRegistration()" title="問題登録">⚙️</button>
     <div class="title-container">
         <button class="btn-big-start" onclick="goToGameSettings()">GAME<br>START</button>
@@ -95,7 +98,7 @@
 
     <div class="judge-access-box">
         <h3 style="color:#8e44ad; margin:0;">【判定役用アクセス】</h3>
-        <p style="font-size:12px; margin:5px 0;">ホストのスマホで読み込んでください。<br>URLは固定です。一度繋げばOK！</p>
+        <p style="font-size:12px; margin:5px 0;">ホストのスマホで読み込んでください。<br>URLは固定です。</p>
         <div style="display:flex; justify-content:center; align-items:center;">
             <div id="qrcode-reg">QR生成中...</div>
             <div style="margin-left:20px; text-align:left;">
@@ -181,6 +184,8 @@
 <div id="client-connecting" class="screen hidden">
     <h2>接続中...</h2>
     <p>ホストを探しています</p>
+    <div id="error-log"></div>
+    <button onclick="location.reload()" style="margin-top:20px; background:#555;">再読み込み</button>
 </div>
 
 <div id="client-login" class="screen hidden">
@@ -259,6 +264,17 @@
     let isHost = false;
     let myRole = 'player'; 
 
+    // Google STUN Server Config
+    const peerConfig = {
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        }
+    };
+
     // --- Init ---
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -267,7 +283,28 @@
 
         if (hostId) {
             isHost = false;
-            initClient(hostId, roleParam);
+            // Show Connecting Screen first
+            showScreen('client-connecting');
+            
+            // Try to initialize Peer
+            peer = new Peer(peerConfig);
+            
+            peer.on('open', (id) => {
+                myId = id;
+                console.log("My Peer ID:", myId);
+                
+                // Now we are ready to connect
+                if(roleParam === 'judge') {
+                    initClientJudge(hostId);
+                } else {
+                    initClientPlayer(hostId);
+                }
+            });
+
+            peer.on('error', (err) => {
+                document.getElementById('error-log').innerText = "エラー: " + err.type + "\n" + "PC画面をリロードした可能性があります。新しいQRコードを読み直してください。";
+            });
+
         } else {
             isHost = true;
             initHostPeer();
@@ -277,7 +314,7 @@
     // ================= HOST SETUP & LOGIC =================
 
     function initHostPeer() {
-        peer = new Peer();
+        peer = new Peer(peerConfig);
         peer.on('open', (id) => {
             myId = id;
             console.log("Host ID:", myId);
@@ -285,6 +322,7 @@
             renderJudgeQr();
             peer.on('connection', (c) => { c.on('open', () => setupHostConnection(c)); });
         });
+        peer.on('error', (err) => alert("Host Error: " + err));
     }
 
     function setupHostConnection(c) {
@@ -565,24 +603,19 @@
 
     // ================= CLIENT LOGIC =================
 
-    function initClient(hostId, roleParam) {
-        showScreen('client-connecting');
-        peer = new Peer();
-        peer.on('open', (id) => {
-            myId = id;
-            if(roleParam === 'judge') {
-                myRole = 'judge';
-                // Wait until open before connecting
-                connectToHost(hostId, 'JUDGE', 'judge');
-            } else {
-                myRole = 'player';
-                showScreen('client-login');
-            }
-        });
+    function initClientJudge(hostId) {
+        myRole = 'judge';
+        connectToHost(hostId, 'JUDGE', 'judge');
+    }
+
+    function initClientPlayer(hostId) {
+        myRole = 'player';
+        showScreen('client-login');
     }
 
     function connectToHost(hostId, name, role) {
         hostConn = peer.connect(hostId);
+        
         hostConn.on('open', () => { 
             console.log("Connected to Host"); 
             hostConn.send({ type: 'JOIN', name: name, role: role });
@@ -590,9 +623,21 @@
                 showScreen('client-judge-panel');
             }
         });
+        
         hostConn.on('data', (data) => { handleClientData(data); });
         
-        hostConn.on('error', (err) => alert("接続エラー: " + err));
+        hostConn.on('error', (err) => {
+            alert("接続エラー: " + err);
+            showScreen('client-connecting');
+            document.getElementById('error-log').innerText = "接続切断: " + err;
+        });
+        
+        // Timeout check (if peer exists but fails to connect)
+        setTimeout(() => {
+            if(!hostConn.open) {
+                document.getElementById('error-log').innerText += "\n(タイムアウト: ホストが見つかりません。QRを再読み込みしてください)";
+            }
+        }, 5000);
     }
 
     function joinGame(role) {
