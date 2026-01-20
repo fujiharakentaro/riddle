@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bluff Quiz Master V12</title>
+    <title>Bluff Quiz Master V13</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -33,6 +33,7 @@
         .btn-start-q { background: #e67e22; font-weight: bold; width: 45%; margin: 5px; }
         .btn-judge-qr { background: #8e44ad; font-size: 14px; padding: 5px 10px; margin-left: 10px; }
         .btn-publish { background: #e67e22; width: 90%; font-weight: bold; padding: 15px; position: sticky; bottom: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .btn-next-step { background: #2980b9; width: 80%; font-weight: bold; padding: 15px; font-size: 20px; animation: pulse 2s infinite; }
 
         /* Judge Toggle */
         .judge-toggle { display: flex; width: 100%; margin-top: 5px; }
@@ -50,13 +51,17 @@
         .status { font-weight: bold; color: #2ecc71; margin: 10px 0; }
         .big-text { font-size: 32px; font-weight: bold; margin: 30px 0; line-height: 1.4; color: #f1c40f; }
         .waiting-text { font-size: 24px; color: #aaa; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        @keyframes pulse { 0% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 0.8; transform: scale(1); } }
 
         .score-box { display: flex; justify-content: space-between; border-bottom: 1px solid #555; padding: 5px; }
         .voter-tag { display: inline-block; background: #9b59b6; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
         .author-tag { display: block; font-size: 12px; color: #aaa; text-align: right; margin-top: 5px; }
-        .opt-row { text-align: left; font-size: 20px; padding: 15px; }
-        .real-answer-box { border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.1); }
+        .opt-row { text-align: left; font-size: 20px; padding: 15px; border: 2px solid transparent; transition: 0.5s; }
+        
+        /* Result Phases Styles */
+        .reveal-answer { border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.2); transform: scale(1.02); }
+        .hidden-author .author-tag { display: none; }
+        .hidden-scores { display: none; }
         
         .judge-info-box { background: #222; padding: 10px; border: 1px solid #555; border-radius: 5px; margin-bottom: 10px; text-align: left; }
         .input-status-row { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #555; }
@@ -65,14 +70,21 @@
         .badge-done { background: #3498db; }
         .badge-correct { background: #f1c40f; color: #000; font-weight: bold; }
         
-        /* Error Log */
         #error-log { color: #e74c3c; font-size: 12px; margin-top: 10px; white-space: pre-wrap; }
+
+        /* Client Confirmation Modal */
+        #vote-confirm-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-content { background: #333; padding: 20px; border-radius: 10px; width: 80%; text-align: center; border: 1px solid #777; }
     </style>
 </head>
 <body>
 
 <div id="host-title" class="screen hidden">
-    <h1>Bluff Quiz Master V11</h1>
+    <h1>Bluff Quiz Master V13</h1>
     <button class="btn-gear" onclick="goToQRegistration()" title="問題登録">⚙️</button>
     <div class="title-container">
         <button class="btn-big-start" onclick="goToGameSettings()">GAME<br>START</button>
@@ -84,21 +96,18 @@
         <h2>問題登録</h2>
         <button class="btn-back" onclick="goToTitle()">＜ タイトルへ</button>
     </div>
-    
     <div style="text-align: left; margin-bottom: 20px;">
         <input type="text" id="new-q" placeholder="問題文 (例: 英単語「Aglet」の意味は？)">
         <input type="text" id="new-a" placeholder="正解 (例: 靴紐の先端の固い部分)">
         <button onclick="addQuestion()" style="width:100%; margin:10px 0;">追加する</button>
     </div>
-    
     <div style="background:#222; padding:10px; border-radius:5px; margin-top:10px; text-align:left; max-height: 200px; overflow-y: auto;">
         <h4>登録済みリスト</h4>
         <ul id="q-list-display"></ul>
     </div>
-
     <div class="judge-access-box">
         <h3 style="color:#8e44ad; margin:0;">【判定役用アクセス】</h3>
-        <p style="font-size:12px; margin:5px 0;">ホストのスマホで読み込んでください。<br>URLは固定です。</p>
+        <p style="font-size:12px; margin:5px 0;">ホストのスマホで読み込んでください。</p>
         <div style="display:flex; justify-content:center; align-items:center;">
             <div id="qrcode-reg">QR生成中...</div>
             <div style="margin-left:20px; text-align:left;">
@@ -125,7 +134,6 @@
 <div id="host-lobby" class="screen hidden">
     <button class="btn-lobby-back" onclick="backToSettings()">＜ 設定に戻る</button>
     <h1 id="lobby-title">参加者待機中...</h1>
-    
     <div style="display:flex; justify-content:center; align-items:center; flex-direction:column;">
         <div id="qrcode-lobby"></div>
         <div>
@@ -134,11 +142,9 @@
         </div>
         <p id="qr-desc" style="font-size:12px; color:#aaa; margin-top:5px;">参加者はこのQRを読み込んでください</p>
     </div>
-
     <div class="status">現在の参加者: <span id="joined-count">0</span> / <span id="max-count">0</span></div>
     <div style="font-size:12px; color:#aaa;">※判定役は人数に含まれません</div>
     <ul id="player-list"></ul>
-    
     <div id="q-selector" style="border-top:1px solid #555; margin-top:20px; padding-top:10px;">
         <h3>▼ ゲームスタート（問題選択） ▼</h3>
         <div id="q-buttons" style="display:flex; flex-wrap:wrap; justify-content:center;"></div>
@@ -159,25 +165,23 @@
     <div class="big-text" id="vote-q-text"></div>
     <div style="font-size:20px; font-weight:bold; color:#f1c40f; margin-bottom:10px;">▼ 選択肢 ▼</div>
     <ul id="options-display"></ul>
-    
     <div id="voting-status-msg">
         <p class="waiting-text">投票を待っています...</p>
         <div class="status">投票済み: <span id="vote-done-count">0</span> 人</div>
     </div>
-    <button id="btn-show-result" class="hidden" onclick="calcResults()">結果発表へ</button>
+    <button id="btn-show-result" class="hidden" onclick="startResultFlow()">結果発表へ</button>
 </div>
 
 <div id="host-result" class="screen hidden">
-    <h1>結果発表</h1>
-    <h2 id="real-answer-display" style="color:#2ecc71;"></h2>
+    <h1 id="result-title">結果発表</h1>
     <div style="text-align: left;">
-        <h3>選択肢の詳細</h3>
         <ul id="options-detail-list"></ul>
     </div>
-    <hr>
-    <h3>現在のトータルスコア</h3>
-    <div id="total-scores" style="text-align: left;"></div>
-    <button onclick="backToLobby()">次の問題へ</button>
+    <div id="total-scores" class="hidden-scores" style="text-align: left; margin-top: 20px; border-top: 1px solid #555;"></div>
+    
+    <div style="position: sticky; bottom: 10px; margin-top: 20px;">
+        <button id="btn-next-step" class="btn-next-step" onclick="proceedResultStep()">正解を表示</button>
+    </div>
 </div>
 
 
@@ -190,7 +194,6 @@
 
 <div id="client-login" class="screen hidden">
     <h1>参加登録</h1>
-    <p>ニックネームを入力してください</p>
     <input type="text" id="my-name" placeholder="名前 (例: タナカ)">
     <button onclick="joinGame('player')">ゲームに参加</button>
 </div>
@@ -212,18 +215,13 @@
 <div id="client-judge-panel" class="screen hidden">
     <h2 style="color:#3498db; margin-bottom:5px;">[判定役] 管理画面</h2>
     <p id="judge-status" style="font-size:12px; color:#2ecc71;">接続完了</p>
-    
     <div class="judge-info-box">
         <div style="color:#aaa; font-size:12px;">問題:</div>
-        <div id="judge-q-text" style="font-weight:bold; margin-bottom:5px;">(問題選択待ち)</div>
+        <div id="judge-q-text" style="font-weight:bold; margin-bottom:5px;"></div>
         <div style="color:#aaa; font-size:12px;">正解:</div>
         <div id="judge-a-text" style="color:#2ecc71; font-weight:bold;"></div>
     </div>
-    
-    <div id="judge-answer-list" style="margin-bottom:60px;">
-        <p style="font-size:12px; color:#aaa;">回答が届くとここに表示されます</p>
-    </div>
-
+    <div id="judge-answer-list" style="margin-bottom:60px;"></div>
     <button class="btn-publish" onclick="publishAndStartVote()">確定して出題する</button>
 </div>
 
@@ -232,7 +230,17 @@
     <div id="cli-options"></div>
     <div id="cli-vote-wait" class="hidden">
         <p style="color:#2ecc71; font-weight:bold; font-size:20px;">正解！！</p>
-        <p>あなたは正解を知っていたので投票はお休みです。<br>高みの見物をお楽しみください。</p>
+        <p>あなたは正解を知っていたので投票はお休みです。</p>
+    </div>
+    <div id="vote-confirm-modal" class="hidden">
+        <div class="modal-content">
+            <p>この選択肢でよろしいですか？</p>
+            <h2 id="vote-confirm-text" style="color:#3498db; margin:20px 0;"></h2>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button onclick="closeVoteConfirm()" style="background:#7f8c8d;">戻る</button>
+                <button onclick="confirmSubmitVote()" style="background:#e74c3c;">送信</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -249,12 +257,9 @@
     let myId = null;
     let hostConn = null; 
     let connections = {}; 
-    
     let players = {}; 
     let judgeConn = null; 
-
     let judgeLocalData = {}; 
-
     let questions = [
         {q: "「たほいや」の意味は？", a: "イノシシを追い払う小屋"},
         {q: "「アグレット」の意味は？", a: "靴紐の先端の固い部分"},
@@ -263,17 +268,10 @@
     let maxPlayers = 3;
     let isHost = false;
     let myRole = 'player'; 
-
-    // Google STUN Server Config
-    const peerConfig = {
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        }
-    };
+    let selectedVoteIndex = -1; // Client vote selection
+    
+    // Result Phase Variables
+    let currentResultStep = 0; // 0:Votes, 1:Answer, 2:Authors, 3:Scores
 
     // --- Init ---
     window.onload = () => {
@@ -283,41 +281,28 @@
 
         if (hostId) {
             isHost = false;
-            // Show Connecting Screen first
             showScreen('client-connecting');
-            
-            // Try to initialize Peer
-            peer = new Peer(peerConfig);
-            
+            peer = new Peer(); // Free default config (fastest on same wifi)
             peer.on('open', (id) => {
                 myId = id;
-                console.log("My Peer ID:", myId);
-                
-                // Now we are ready to connect
-                if(roleParam === 'judge') {
-                    initClientJudge(hostId);
-                } else {
-                    initClientPlayer(hostId);
-                }
+                if(roleParam === 'judge') initClientJudge(hostId);
+                else initClientPlayer(hostId);
             });
-
             peer.on('error', (err) => {
-                document.getElementById('error-log').innerText = "エラー: " + err.type + "\n" + "PC画面をリロードした可能性があります。新しいQRコードを読み直してください。";
+                document.getElementById('error-log').innerText = "エラー: " + err.type;
             });
-
         } else {
             isHost = true;
             initHostPeer();
         }
     };
 
-    // ================= HOST SETUP & LOGIC =================
+    // ================= HOST LOGIC =================
 
     function initHostPeer() {
-        peer = new Peer(peerConfig);
+        peer = new Peer();
         peer.on('open', (id) => {
             myId = id;
-            console.log("Host ID:", myId);
             goToTitle();
             renderJudgeQr();
             peer.on('connection', (c) => { c.on('open', () => setupHostConnection(c)); });
@@ -331,7 +316,6 @@
                 connections[c.peer] = c;
                 if(data.role === 'judge') {
                     judgeConn = c;
-                    console.log("Judge Connected");
                     syncJudgeState();
                 } else {
                     players[c.peer] = { name: data.name, score: 0, fakeAnswer: '', vote: '', status: 'waiting' };
@@ -379,7 +363,6 @@
         }
     }
 
-    // ================= HOST NAVIGATION =================
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
         document.getElementById(id).classList.remove('hidden');
@@ -438,16 +421,13 @@
         document.getElementById('joined-count').innerText = Object.keys(players).length;
     }
 
-    // --- Phase 1: Start Q ---
     function startGame(qIndex) {
         currentQ = questions[qIndex];
         Object.keys(players).forEach(pid => {
             players[pid].fakeAnswer = ''; players[pid].vote = ''; players[pid].status = 'waiting';
         });
         broadcast({ type: 'START_INPUT', q: currentQ.q });
-        
         if(judgeConn) judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
-
         document.getElementById('host-wait-q-text').innerText = currentQ.q;
         updateHostWaitingStatus();
         showScreen('host-waiting-phase');
@@ -465,7 +445,6 @@
         }).join('');
     }
 
-    // --- Phase 2: From Judge Decision ---
     function processBatchDecision(decisions) {
         let correctNames = [];
         Object.keys(decisions).forEach(pid => {
@@ -538,17 +517,67 @@
         }
     }
 
-    function calcResults() {
+    // --- Host Result Logic (4 Steps) ---
+    function startResultFlow() {
+        // Prepare DOM for Step 1
+        currentResultStep = 1;
+        document.getElementById('btn-next-step').innerText = "正解を表示";
+        document.getElementById('result-title').innerText = "結果発表 - 投票";
+        document.getElementById('total-scores').classList.add('hidden-scores');
+        
+        calcResultsHTML(); // Render HTML but hidden
+        
+        // Step 1 State: Only show votes
+        document.querySelectorAll('.opt-row').forEach(el => el.classList.remove('reveal-answer'));
+        document.querySelectorAll('.author-tag').forEach(el => el.style.display = 'none'); // Hide authors
+        
+        showScreen('host-result');
+        broadcast({ type: 'SHOW_RESULT' });
+    }
+
+    function proceedResultStep() {
+        currentResultStep++;
+        const btn = document.getElementById('btn-next-step');
+        const title = document.getElementById('result-title');
+
+        if (currentResultStep === 2) {
+            // Reveal Answer
+            title.innerText = "結果発表 - 正解";
+            btn.innerText = "作者を表示";
+            // Add class to reveal correct answer
+            document.querySelectorAll('.real-answer-box').forEach(el => el.classList.add('reveal-answer'));
+        
+        } else if (currentResultStep === 3) {
+            // Reveal Authors
+            title.innerText = "結果発表 - 作者";
+            btn.innerText = "得点を表示";
+            // Show author tags
+            document.querySelectorAll('.author-tag').forEach(el => el.style.display = 'block');
+
+        } else if (currentResultStep === 4) {
+            // Show Scores
+            title.innerText = "結果発表 - 得点";
+            btn.innerText = "次の問題へ";
+            document.getElementById('total-scores').classList.remove('hidden-scores');
+
+        } else {
+            // Back to lobby
+            backToLobby();
+        }
+    }
+
+    function calcResultsHTML() {
         const options = currentQ.currentOptions;
         let detailLog = "";
+
+        // Calc scores internally
         Object.keys(players).forEach(pid => {
             if(players[pid].status === 'approved' && players[pid].vote !== '') {
                 const p = players[pid];
                 const votedIndex = parseInt(p.vote);
                 const votedOption = options[votedIndex];
-                if (votedOption.owner === 'SYSTEM') {
-                    p.score += 1;
-                } else {
+                if (votedOption.owner === 'SYSTEM') p.score += 1;
+                else {
                     if (votedOption.owner !== pid) {
                         const liarId = votedOption.owner;
                         if(players[liarId]) players[liarId].score += 1;
@@ -557,25 +586,30 @@
             }
         });
 
+        // Generate HTML
         options.forEach((opt, i) => {
             let authorName = "";
-            let liClass = "";
+            let liClass = "opt-row hidden-author"; // Default hidden author
             if (opt.owner === 'SYSTEM') {
-                authorName = "★正解"; liClass = "real-answer-box";
+                authorName = "★正解"; liClass += " real-answer-box";
             } else {
                 authorName = players[opt.owner] ? `作者: ${players[opt.owner].name}` : "Unknown";
             }
+            
             let voters = [];
             Object.keys(players).forEach(pid => {
                 if (players[pid].vote !== '' && parseInt(players[pid].vote) === i) voters.push(players[pid].name);
             });
             let votersText = voters.length > 0 ? `→ 投票: ${voters.join(', ')}` : "";
+
             detailLog += `<li class="${liClass}">
-                <div style="font-size:18px; font-weight:bold;">${opt.text}</div>
+                <div style="font-size:24px; font-weight:bold;">${opt.text}</div>
                 <div class="author-tag">${authorName} ${votersText}</div>
+                <div style="font-size:12px; color:#ccc; margin-top:5px;">投票: ${voters.join(', ')}</div>
             </li>`;
         });
 
+        // Early correct answers
         const earlyCorrects = Object.values(players).filter(p => p.status === 'correct');
         if (earlyCorrects.length > 0) {
             const names = earlyCorrects.map(p => p.name).join(', ');
@@ -585,15 +619,12 @@
             </li>`;
         }
 
-        document.getElementById('real-answer-display').innerText = `正解: ${currentQ.a}`;
         document.getElementById('options-detail-list').innerHTML = detailLog;
         updatePlayerList(); 
         const totalLog = Object.values(players).sort((a,b)=>b.score - a.score).map(p => 
             `<li class="score-box"><span>${p.name}</span> <span style="font-size:20px; font-weight:bold;">${p.score}pt</span></li>`
         ).join('');
         document.getElementById('total-scores').innerHTML = `<ul>${totalLog}</ul>`;
-        broadcast({ type: 'SHOW_RESULT' });
-        showScreen('host-result');
     }
 
     function backToLobby() {
@@ -615,7 +646,6 @@
 
     function connectToHost(hostId, name, role) {
         hostConn = peer.connect(hostId);
-        
         hostConn.on('open', () => { 
             console.log("Connected to Host"); 
             hostConn.send({ type: 'JOIN', name: name, role: role });
@@ -623,7 +653,6 @@
                 showScreen('client-judge-panel');
             }
         });
-        
         hostConn.on('data', (data) => { handleClientData(data); });
         
         hostConn.on('error', (err) => {
@@ -632,7 +661,6 @@
             document.getElementById('error-log').innerText = "接続切断: " + err;
         });
         
-        // Timeout check (if peer exists but fails to connect)
         setTimeout(() => {
             if(!hostConn.open) {
                 document.getElementById('error-log').innerText += "\n(タイムアウト: ホストが見つかりません。QRを再読み込みしてください)";
@@ -643,7 +671,6 @@
     function joinGame(role) {
         const name = document.getElementById('my-name').value;
         if (!name) return alert("名前を入力してください");
-        
         const urlParams = new URLSearchParams(window.location.search);
         const hostId = urlParams.get('host');
         connectToHost(hostId, name, 'player');
@@ -663,7 +690,6 @@
             }
         }
 
-        // --- Judge Logic ---
         if (myRole === 'judge') {
             if (data.type === 'JUDGE_CONNECTED') {
                 document.getElementById('judge-status').innerText = "● ホスト接続済み";
@@ -682,7 +708,6 @@
             return;
         }
 
-        // --- Player Logic ---
         if (data.type === 'START_INPUT') {
             document.getElementById('cli-q-text').innerText = data.q;
             document.getElementById('fake-answer').value = "";
@@ -704,11 +729,10 @@
         }
     }
 
-    // --- Judge UI Methods ---
+    // --- Judge UI ---
     function addJudgeEntry(data) {
         const list = document.getElementById('judge-answer-list');
         if(list.innerHTML.includes('待機中') || list.innerHTML.includes('待ち')) list.innerHTML = "";
-
         if(document.getElementById(`judge-row-${data.playerId}`)) return;
 
         const div = document.createElement('div');
@@ -729,24 +753,19 @@
     function setDecision(pId, decision, btn) {
         judgeLocalData[pId] = decision;
         const buttons = btn.parentNode.querySelectorAll('button');
-        buttons.forEach(b => {
-            b.classList.remove('selected-adopt', 'selected-correct');
-        });
-        
+        buttons.forEach(b => b.classList.remove('selected-adopt', 'selected-correct'));
         if (decision === 'APPROVED') btn.classList.add('selected-adopt');
         else btn.classList.add('selected-correct');
     }
 
     function publishAndStartVote() {
-        if(Object.keys(judgeLocalData).length === 0) {
-            alert("まだ回答がありません"); return;
-        }
+        if(Object.keys(judgeLocalData).length === 0) { alert("まだ回答がありません"); return; }
         if(!confirm("決定して出題しますか？")) return;
         hostConn.send({ type: 'JUDGE_BATCH_DECISION', decisions: judgeLocalData });
         alert("出題しました！");
     }
 
-    // --- Player UI Methods ---
+    // --- Player UI ---
     function submitFakeAnswer() {
         const ans = document.getElementById('fake-answer').value;
         if (!ans) return;
@@ -759,12 +778,23 @@
     function renderClientOptions(options) {
         const container = document.getElementById('cli-options');
         container.innerHTML = options.map((opt, i) => 
-            `<button class="btn-opt" onclick="submitVote(${i})">${opt}</button>`
+            `<button class="btn-opt" onclick="showVoteConfirm(${i}, '${opt.replace(/'/g, "\\'")}')">${opt}</button>`
         ).join('');
     }
 
-    function submitVote(index) {
-        hostConn.send({ type: 'VOTE', vote: index });
+    function showVoteConfirm(index, text) {
+        selectedVoteIndex = index;
+        document.getElementById('vote-confirm-text').innerText = text;
+        document.getElementById('vote-confirm-modal').classList.remove('hidden');
+    }
+
+    function closeVoteConfirm() {
+        document.getElementById('vote-confirm-modal').classList.add('hidden');
+    }
+
+    function confirmSubmitVote() {
+        closeVoteConfirm();
+        hostConn.send({ type: 'VOTE', vote: selectedVoteIndex });
         document.getElementById('client-vote').innerHTML = "<h2>投票完了！</h2><p>集計中...</p>";
     }
 
