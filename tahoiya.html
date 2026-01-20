@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bluff Quiz Master V13</title>
+    <title>Bluff Quiz Master V14</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -53,16 +53,33 @@
         .waiting-text { font-size: 24px; color: #aaa; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 0.8; transform: scale(1); } }
 
-        .score-box { display: flex; justify-content: space-between; border-bottom: 1px solid #555; padding: 5px; }
-        .voter-tag { display: inline-block; background: #9b59b6; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
-        .author-tag { display: block; font-size: 12px; color: #aaa; text-align: right; margin-top: 5px; }
-        .opt-row { text-align: left; font-size: 20px; padding: 15px; border: 2px solid transparent; transition: 0.5s; }
+        /* Result Styles */
+        .opt-row { text-align: left; font-size: 20px; padding: 15px; border: 2px solid transparent; transition: 0.5s; display: flex; flex-direction: column; }
+        .opt-main { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .opt-text { font-weight: bold; font-size: 24px; text-align: left; }
+        .vote-area { text-align: right; display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
         
-        /* Result Phases Styles */
+        .vote-badge { 
+            background: #9b59b6; color: #fff; font-size: 14px; 
+            padding: 4px 8px; border-radius: 15px; white-space: nowrap; 
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+        
+        .author-info { 
+            display: none; /* Hidden initially */
+            font-size: 16px; color: #ccc; 
+            margin-top: 8px; text-align: right; 
+            border-top: 1px solid #555; padding-top: 5px; 
+        }
+
         .reveal-answer { border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.2); transform: scale(1.02); }
-        .hidden-author .author-tag { display: none; }
-        .hidden-scores { display: none; }
+        .real-answer-box { border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.1); }
         
+        /* Ranking Style */
+        .rank-row { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #555; align-items: center; font-size: 24px; }
+        .rank-name { font-weight: bold; }
+        .rank-score { color: #f1c40f; font-weight: bold; font-size: 32px; }
+
         .judge-info-box { background: #222; padding: 10px; border: 1px solid #555; border-radius: 5px; margin-bottom: 10px; text-align: left; }
         .input-status-row { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #555; }
         .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; }
@@ -84,7 +101,7 @@
 <body>
 
 <div id="host-title" class="screen hidden">
-    <h1>Bluff Quiz Master V13</h1>
+    <h1>Bluff Quiz Master V14</h1>
     <button class="btn-gear" onclick="goToQRegistration()" title="問題登録">⚙️</button>
     <div class="title-container">
         <button class="btn-big-start" onclick="goToGameSettings()">GAME<br>START</button>
@@ -174,10 +191,11 @@
 
 <div id="host-result" class="screen hidden">
     <h1 id="result-title">結果発表</h1>
-    <div style="text-align: left;">
+    <div id="result-list-container" style="text-align: left;">
         <ul id="options-detail-list"></ul>
     </div>
-    <div id="total-scores" class="hidden-scores" style="text-align: left; margin-top: 20px; border-top: 1px solid #555;"></div>
+    
+    <div id="total-scores" class="hidden" style="text-align: left; margin-top: 20px;"></div>
     
     <div style="position: sticky; bottom: 10px; margin-top: 20px;">
         <button id="btn-next-step" class="btn-next-step" onclick="proceedResultStep()">正解を表示</button>
@@ -222,7 +240,7 @@
         <div id="judge-a-text" style="color:#2ecc71; font-weight:bold;"></div>
     </div>
     <div id="judge-answer-list" style="margin-bottom:60px;"></div>
-    <button class="btn-publish" onclick="publishAndStartVote()">確定して出題する</button>
+    <button id="btn-judge-publish" class="btn-publish" onclick="publishAndStartVote()">確定して出題する</button>
 </div>
 
 <div id="client-vote" class="screen hidden">
@@ -282,7 +300,7 @@
         if (hostId) {
             isHost = false;
             showScreen('client-connecting');
-            peer = new Peer(); // Free default config (fastest on same wifi)
+            peer = new Peer(); 
             peer.on('open', (id) => {
                 myId = id;
                 if(roleParam === 'judge') initClientJudge(hostId);
@@ -427,7 +445,11 @@
             players[pid].fakeAnswer = ''; players[pid].vote = ''; players[pid].status = 'waiting';
         });
         broadcast({ type: 'START_INPUT', q: currentQ.q });
-        if(judgeConn) judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
+        if(judgeConn) {
+            // Reset Judge Button
+            judgeConn.send({ type: 'JUDGE_RESET_BUTTON' });
+            judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
+        }
         document.getElementById('host-wait-q-text').innerText = currentQ.q;
         updateHostWaitingStatus();
         showScreen('host-waiting-phase');
@@ -519,17 +541,17 @@
 
     // --- Host Result Logic (4 Steps) ---
     function startResultFlow() {
-        // Prepare DOM for Step 1
         currentResultStep = 1;
         document.getElementById('btn-next-step').innerText = "正解を表示";
         document.getElementById('result-title').innerText = "結果発表 - 投票";
-        document.getElementById('total-scores').classList.add('hidden-scores');
+        document.getElementById('total-scores').classList.add('hidden');
+        document.getElementById('result-list-container').classList.remove('hidden');
         
-        calcResultsHTML(); // Render HTML but hidden
+        calcResultsHTML(); 
         
-        // Step 1 State: Only show votes
+        // Step 1: Hide authors, show badges
         document.querySelectorAll('.opt-row').forEach(el => el.classList.remove('reveal-answer'));
-        document.querySelectorAll('.author-tag').forEach(el => el.style.display = 'none'); // Hide authors
+        document.querySelectorAll('.author-info').forEach(el => el.style.display = 'none'); 
         
         showScreen('host-result');
         broadcast({ type: 'SHOW_RESULT' });
@@ -541,27 +563,19 @@
         const title = document.getElementById('result-title');
 
         if (currentResultStep === 2) {
-            // Reveal Answer
             title.innerText = "結果発表 - 正解";
             btn.innerText = "作者を表示";
-            // Add class to reveal correct answer
             document.querySelectorAll('.real-answer-box').forEach(el => el.classList.add('reveal-answer'));
-        
         } else if (currentResultStep === 3) {
-            // Reveal Authors
             title.innerText = "結果発表 - 作者";
             btn.innerText = "得点を表示";
-            // Show author tags
-            document.querySelectorAll('.author-tag').forEach(el => el.style.display = 'block');
-
+            document.querySelectorAll('.author-info').forEach(el => el.style.display = 'block');
         } else if (currentResultStep === 4) {
-            // Show Scores
             title.innerText = "結果発表 - 得点";
             btn.innerText = "次の問題へ";
-            document.getElementById('total-scores').classList.remove('hidden-scores');
-
+            document.getElementById('result-list-container').classList.add('hidden');
+            document.getElementById('total-scores').classList.remove('hidden');
         } else {
-            // Back to lobby
             backToLobby();
         }
     }
@@ -589,7 +603,7 @@
         // Generate HTML
         options.forEach((opt, i) => {
             let authorName = "";
-            let liClass = "opt-row hidden-author"; // Default hidden author
+            let liClass = "opt-row"; 
             if (opt.owner === 'SYSTEM') {
                 authorName = "★正解"; liClass += " real-answer-box";
             } else {
@@ -600,16 +614,18 @@
             Object.keys(players).forEach(pid => {
                 if (players[pid].vote !== '' && parseInt(players[pid].vote) === i) voters.push(players[pid].name);
             });
-            let votersText = voters.length > 0 ? `→ 投票: ${voters.join(', ')}` : "";
+            // Create Badges
+            let voteBadges = voters.map(v => `<span class="vote-badge">${v}</span>`).join(' ');
 
             detailLog += `<li class="${liClass}">
-                <div style="font-size:24px; font-weight:bold;">${opt.text}</div>
-                <div class="author-tag">${authorName} ${votersText}</div>
-                <div style="font-size:12px; color:#ccc; margin-top:5px;">投票: ${voters.join(', ')}</div>
+                <div class="opt-main">
+                    <div class="opt-text">${opt.text}</div>
+                    <div class="vote-area">${voteBadges}</div>
+                </div>
+                <div class="author-info">${authorName}</div>
             </li>`;
         });
 
-        // Early correct answers
         const earlyCorrects = Object.values(players).filter(p => p.status === 'correct');
         if (earlyCorrects.length > 0) {
             const names = earlyCorrects.map(p => p.name).join(', ');
@@ -622,7 +638,7 @@
         document.getElementById('options-detail-list').innerHTML = detailLog;
         updatePlayerList(); 
         const totalLog = Object.values(players).sort((a,b)=>b.score - a.score).map(p => 
-            `<li class="score-box"><span>${p.name}</span> <span style="font-size:20px; font-weight:bold;">${p.score}pt</span></li>`
+            `<li class="rank-row"><span class="rank-name">${p.name}</span> <span class="rank-score">${p.score}pt</span></li>`
         ).join('');
         document.getElementById('total-scores').innerHTML = `<ul>${totalLog}</ul>`;
     }
@@ -700,6 +716,16 @@
                 document.getElementById('judge-a-text').innerText = data.a;
                 document.getElementById('judge-answer-list').innerHTML = ""; 
                 judgeLocalData = {}; 
+                // Enable button again for new round
+                const btn = document.getElementById('btn-judge-publish');
+                btn.disabled = false;
+                btn.innerText = "確定して出題する";
+            }
+            if (data.type === 'JUDGE_RESET_BUTTON') {
+                // Reset button specifically
+                const btn = document.getElementById('btn-judge-publish');
+                btn.disabled = false;
+                btn.innerText = "確定して出題する";
             }
             if (data.type === 'JUDGE_NEW_ANSWER') {
                 judgeLocalData[data.playerId] = 'APPROVED';
@@ -761,8 +787,13 @@
     function publishAndStartVote() {
         if(Object.keys(judgeLocalData).length === 0) { alert("まだ回答がありません"); return; }
         if(!confirm("決定して出題しますか？")) return;
+        
+        // Disable button
+        const btn = document.getElementById('btn-judge-publish');
+        btn.disabled = true;
+        btn.innerText = "出題済み";
+
         hostConn.send({ type: 'JUDGE_BATCH_DECISION', decisions: judgeLocalData });
-        alert("出題しました！");
     }
 
     // --- Player UI ---
