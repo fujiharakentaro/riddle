@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bluff Quiz Master V18</title>
+    <title>Bluff Quiz Master V20</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -74,7 +74,7 @@
         }
 
         .reveal-answer { border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.2); transform: scale(1.02); box-shadow: 0 0 15px #2ecc71; }
-        .real-answer-box { border: 2px solid transparent; } 
+        .real-answer-box { border: 2px solid transparent; } /* Initially transparent border */
         
         /* Ranking Style */
         .rank-row { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #555; align-items: center; font-size: 24px; }
@@ -102,7 +102,7 @@
 <body>
 
 <div id="host-title" class="screen hidden">
-    <h1>Bluff Quiz Master V18</h1>
+    <h1>Bluff Quiz Master V20</h1>
     <button class="btn-gear" onclick="goToQRegistration()" title="問題登録">⚙️</button>
     <div class="title-container">
         <button class="btn-big-start" onclick="goToGameSettings()">GAME<br>START</button>
@@ -399,9 +399,7 @@
     function goToGameSettings() { showScreen('host-settings'); }
     function backToSettings() { goToGameSettings(); }
     function goToQSelect() { 
-        if (Object.keys(players).length < 2) {
-            // Check for min players if needed, but allow for testing
-        }
+        if (Object.keys(players).length < 2) { /* min player check disabled for test */ }
         renderQList(); 
         showScreen('host-q-select'); 
     }
@@ -464,9 +462,7 @@
         Object.keys(players).forEach(pid => {
             players[pid].fakeAnswer = ''; players[pid].vote = ''; players[pid].status = 'waiting';
         });
-        
         broadcast({ type: 'START_INPUT', q: currentQ.q });
-        
         if(judgeConn) {
             judgeConn.send({ type: 'JUDGE_RESET_BUTTON' }); 
             judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
@@ -555,16 +551,16 @@
     function startResultFlow() {
         currentResultStep = 0; // Step 0: Only Options
         document.getElementById('btn-next-step').innerText = "投票開示";
-        document.getElementById('result-title').innerText = "結果発表";
+        document.getElementById('result-title').innerText = "結果発表 - 選択肢";
         document.getElementById('total-scores').classList.add('hidden');
         document.getElementById('result-list-container').classList.remove('hidden');
         
         calcResultsHTML(); 
         
-        // Hide Everything Initially
+        // Step 0: Hide Everything (Votes, Authors, Green)
         document.querySelectorAll('.vote-badge').forEach(el => el.style.display = 'none'); 
         document.querySelectorAll('.author-info').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.opt-row').forEach(el => el.classList.remove('reveal-answer'));
+        document.querySelectorAll('.real-answer-box').forEach(el => el.classList.remove('reveal-answer'));
         
         showScreen('host-result');
         broadcast({ type: 'SHOW_RESULT' });
@@ -577,14 +573,17 @@
 
         if (currentResultStep === 1) {
             // Step 1: Show Votes Icons
+            title.innerText = "結果発表 - 投票";
             document.querySelectorAll('.vote-badge').forEach(el => el.style.display = 'inline-block');
             btn.innerText = "正解を発表";
         } else if (currentResultStep === 2) {
             // Step 2: Green Highlight
+            title.innerText = "結果発表 - 正解";
             document.querySelectorAll('.real-answer-box').forEach(el => el.classList.add('reveal-answer'));
             btn.innerText = "作者を表示";
         } else if (currentResultStep === 3) {
             // Step 3: Show Authors
+            title.innerText = "結果発表 - 作者";
             document.querySelectorAll('.author-info').forEach(el => el.style.display = 'block');
             btn.innerText = "得点を表示";
         } else if (currentResultStep === 4) {
@@ -750,11 +749,13 @@
         if (data.type === 'START_INPUT') {
             document.getElementById('cli-q-text').innerText = data.q;
             document.getElementById('fake-answer').value = "";
+            myFakeAnswer = ""; 
             const btn = document.getElementById('btn-submit-answer');
             btn.disabled = false;
             btn.innerText = "送信";
             showScreen('client-input');
         } else if (data.type === 'START_VOTE') {
+            closeVoteConfirm();
             renderClientOptions(data.options);
             showScreen('client-vote');
             document.getElementById('cli-options').classList.remove('hidden');
