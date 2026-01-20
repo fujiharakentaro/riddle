@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bluff Quiz Master V9</title>
+    <title>Bluff Quiz Master V10</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -69,7 +69,7 @@
 <body>
 
 <div id="host-title" class="screen hidden">
-    <h1>Bluff Quiz Master V9</h1>
+    <h1>Bluff Quiz Master V10</h1>
     <button class="btn-gear" onclick="goToQRegistration()" title="問題登録">⚙️</button>
     <div class="title-container">
         <button class="btn-big-start" onclick="goToGameSettings()">GAME<br>START</button>
@@ -178,6 +178,11 @@
 </div>
 
 
+<div id="client-connecting" class="screen hidden">
+    <h2>接続中...</h2>
+    <p>ホストを探しています</p>
+</div>
+
 <div id="client-login" class="screen hidden">
     <h1>参加登録</h1>
     <p>ニックネームを入力してください</p>
@@ -241,7 +246,7 @@
     let connections = {}; 
     
     let players = {}; 
-    let judgeConn = null; // Store Judge Connection specifically
+    let judgeConn = null; 
 
     let judgeLocalData = {}; 
 
@@ -249,7 +254,7 @@
         {q: "「たほいや」の意味は？", a: "イノシシを追い払う小屋"},
         {q: "「アグレット」の意味は？", a: "靴紐の先端の固い部分"},
     ];
-    let currentQ = null; // {q, a, currentOptions}
+    let currentQ = null; 
     let maxPlayers = 3;
     let isHost = false;
     let myRole = 'player'; 
@@ -262,29 +267,22 @@
 
         if (hostId) {
             isHost = false;
-            if(roleParam === 'judge') {
-                initClient(hostId, 'judge');
-            } else {
-                initClient(hostId, 'player');
-            }
+            initClient(hostId, roleParam);
         } else {
             isHost = true;
-            initHostPeer(); // Initialize ID immediately!
+            initHostPeer();
         }
     };
 
     // ================= HOST SETUP & LOGIC =================
 
     function initHostPeer() {
-        // Generate Peer ID ONCE at start
         peer = new Peer();
         peer.on('open', (id) => {
             myId = id;
             console.log("Host ID:", myId);
-            goToTitle(); // Show title once ready
-            renderJudgeQr(); // Pre-render Judge QR
-            
-            // Setup Connection Listener
+            goToTitle();
+            renderJudgeQr();
             peer.on('connection', (c) => { c.on('open', () => setupHostConnection(c)); });
         });
     }
@@ -296,7 +294,7 @@
                 if(data.role === 'judge') {
                     judgeConn = c;
                     console.log("Judge Connected");
-                    syncJudgeState(); // Sync data to Judge immediately on connect
+                    syncJudgeState();
                 } else {
                     players[c.peer] = { name: data.name, score: 0, fakeAnswer: '', vote: '', status: 'waiting' };
                     updatePlayerList();
@@ -306,8 +304,6 @@
                 players[c.peer].fakeAnswer = data.answer; 
                 players[c.peer].status = 'submitted';
                 updateHostWaitingStatus(); 
-                
-                // Forward to Judge
                 if(judgeConn) {
                     judgeConn.send({
                         type: 'JUDGE_NEW_ANSWER',
@@ -327,18 +323,11 @@
         });
     }
 
-    // Sync function: called when Judge connects (or reconnects)
     function syncJudgeState() {
         if(!judgeConn) return;
-        
-        // 1. Send Connected Signal
         judgeConn.send({ type: 'JUDGE_CONNECTED' });
-
-        // 2. If Question Selected, Send Q Info
         if(currentQ) {
             judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
-            
-            // 3. Send Already Submitted Answers (Recovery)
             Object.keys(players).forEach(pid => {
                 if(players[pid].fakeAnswer) {
                     judgeConn.send({
@@ -360,10 +349,7 @@
     function goToTitle() { showScreen('host-title'); }
     function goToQRegistration() { renderQList(); showScreen('host-q-reg'); }
     function goToGameSettings() { showScreen('host-settings'); }
-    function backToSettings() {
-        // Don't destroy peer, just go back
-        goToGameSettings();
-    }
+    function backToSettings() { goToGameSettings(); }
 
     function addQuestion() {
         const q = document.getElementById('new-q').value;
@@ -383,7 +369,6 @@
         btnDiv.innerHTML = questions.map((item, i) => `<button class="btn-start-q" onclick="startGame(${i})">問題 ${i+1} をスタート</button>`).join('');
     }
 
-    // Render Judge QR in Registration Screen
     function renderJudgeQr() {
         const qrEl = document.getElementById("qrcode-reg");
         qrEl.innerHTML = "";
@@ -395,14 +380,11 @@
     function goToLobby() {
         maxPlayers = parseInt(document.getElementById('player-count').value);
         document.getElementById('max-count').innerText = maxPlayers;
-        
-        // Render Player QR
         const qrEl = document.getElementById("qrcode-lobby");
         qrEl.innerHTML = "";
         const url = `${location.href.split('?')[0]}?host=${myId}`;
         new QRCode(qrEl, { text: url, width: 128, height: 128 });
         document.getElementById('room-url-input').value = url;
-
         showScreen('host-lobby');
     }
 
@@ -421,21 +403,13 @@
     // --- Phase 1: Start Q ---
     function startGame(qIndex) {
         currentQ = questions[qIndex];
-        
-        // Reset Round Data
         Object.keys(players).forEach(pid => {
             players[pid].fakeAnswer = ''; players[pid].vote = ''; players[pid].status = 'waiting';
         });
-
-        // Broadcast Q to Players
         broadcast({ type: 'START_INPUT', q: currentQ.q });
         
-        // Sync Judge (Send new Q)
-        if(judgeConn) {
-            judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
-        }
+        if(judgeConn) judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
 
-        // Host Screen
         document.getElementById('host-wait-q-text').innerText = currentQ.q;
         updateHostWaitingStatus();
         showScreen('host-waiting-phase');
@@ -444,7 +418,6 @@
     function updateHostWaitingStatus() {
         const submitted = Object.values(players).filter(p => p.status !== 'waiting').length;
         document.getElementById('input-done-count').innerText = `${submitted} / ${Object.keys(players).length}`;
-        
         const list = document.getElementById('input-status-list');
         list.innerHTML = Object.values(players).map(p => {
             let badge = `<span class="status-badge badge-wait">回答中...</span>`;
@@ -457,7 +430,6 @@
     // --- Phase 2: From Judge Decision ---
     function processBatchDecision(decisions) {
         let correctNames = [];
-
         Object.keys(decisions).forEach(pid => {
             const decision = decisions[pid];
             if(players[pid]) {
@@ -470,7 +442,6 @@
                 }
             }
         });
-        
         updateHostWaitingStatus();
         startVotingPhase(correctNames);
     }
@@ -482,14 +453,11 @@
                 options.push({ text: players[pid].fakeAnswer, owner: pid });
             }
         });
-
         options = shuffle(options);
         currentQ.currentOptions = options;
 
-        // Broadcast to players
         Object.keys(connections).forEach(cid => {
             if (connections[cid] === judgeConn) return; 
-            
             if (players[cid] && players[cid].status === 'correct') {
                 connections[cid].send({ type: 'WAIT_VOTE_CORRECT' });
             } else if (players[cid]) {
@@ -497,12 +465,10 @@
             }
         });
 
-        // Host Screen Update
         document.getElementById('vote-q-text').innerText = currentQ.q;
         document.getElementById('vote-done-count').innerText = "0";
         document.getElementById('voting-status-msg').classList.remove('hidden');
         document.getElementById('btn-show-result').classList.add('hidden');
-        
         renderHostVoteOptions();
         showScreen('host-vote-phase');
     }
@@ -526,9 +492,7 @@
     function checkAllVotesReceived() {
         const voters = Object.keys(players).filter(pid => players[pid].status === 'approved');
         const done = voters.filter(pid => players[pid].vote !== '').length;
-        
         document.getElementById('vote-done-count').innerText = `${done} / ${voters.length}`;
-
         if ((done === voters.length && voters.length > 0) || voters.length === 0) {
             document.getElementById('voting-status-msg').classList.add('hidden');
             document.getElementById('btn-show-result').classList.remove('hidden');
@@ -539,13 +503,11 @@
     function calcResults() {
         const options = currentQ.currentOptions;
         let detailLog = "";
-
         Object.keys(players).forEach(pid => {
             if(players[pid].status === 'approved' && players[pid].vote !== '') {
                 const p = players[pid];
                 const votedIndex = parseInt(p.vote);
                 const votedOption = options[votedIndex];
-                
                 if (votedOption.owner === 'SYSTEM') {
                     p.score += 1;
                 } else {
@@ -565,13 +527,11 @@
             } else {
                 authorName = players[opt.owner] ? `作者: ${players[opt.owner].name}` : "Unknown";
             }
-            
             let voters = [];
             Object.keys(players).forEach(pid => {
                 if (players[pid].vote !== '' && parseInt(players[pid].vote) === i) voters.push(players[pid].name);
             });
             let votersText = voters.length > 0 ? `→ 投票: ${voters.join(', ')}` : "";
-
             detailLog += `<li class="${liClass}">
                 <div style="font-size:18px; font-weight:bold;">${opt.text}</div>
                 <div class="author-tag">${authorName} ${votersText}</div>
@@ -589,13 +549,11 @@
 
         document.getElementById('real-answer-display').innerText = `正解: ${currentQ.a}`;
         document.getElementById('options-detail-list').innerHTML = detailLog;
-        
         updatePlayerList(); 
         const totalLog = Object.values(players).sort((a,b)=>b.score - a.score).map(p => 
             `<li class="score-box"><span>${p.name}</span> <span style="font-size:20px; font-weight:bold;">${p.score}pt</span></li>`
         ).join('');
         document.getElementById('total-scores').innerHTML = `<ul>${totalLog}</ul>`;
-
         broadcast({ type: 'SHOW_RESULT' });
         showScreen('host-result');
     }
@@ -607,23 +565,18 @@
 
     // ================= CLIENT LOGIC =================
 
-    function initClient(hostId, role) {
-        showScreen('client-login');
-        if(role === 'judge') {
-            document.getElementById('client-login').classList.add('hidden'); 
-            myRole = 'judge';
-            connectToHost(hostId, 'JUDGE', 'judge');
-        } else {
-            myRole = 'player';
-        }
-        
+    function initClient(hostId, roleParam) {
+        showScreen('client-connecting');
         peer = new Peer();
         peer.on('open', (id) => {
             myId = id;
-            if(myRole === 'judge') {
-                showScreen('client-judge-panel');
-                document.getElementById('judge-answer-list').innerHTML = "<p>ホスト接続待ち...</p>";
+            if(roleParam === 'judge') {
+                myRole = 'judge';
+                // Wait until open before connecting
                 connectToHost(hostId, 'JUDGE', 'judge');
+            } else {
+                myRole = 'player';
+                showScreen('client-login');
             }
         });
     }
@@ -633,18 +586,18 @@
         hostConn.on('open', () => { 
             console.log("Connected to Host"); 
             hostConn.send({ type: 'JOIN', name: name, role: role });
+            if(role === 'judge') {
+                showScreen('client-judge-panel');
+            }
         });
         hostConn.on('data', (data) => { handleClientData(data); });
+        
+        hostConn.on('error', (err) => alert("接続エラー: " + err));
     }
 
     function joinGame(role) {
-        const name = role === 'judge' ? 'JUDGE' : document.getElementById('my-name').value;
+        const name = document.getElementById('my-name').value;
         if (!name) return alert("名前を入力してください");
-        
-        if (role === 'judge') {
-            alert("判定役はQRコードからアクセスしてください");
-            return;
-        }
         
         const urlParams = new URLSearchParams(window.location.search);
         const hostId = urlParams.get('host');
