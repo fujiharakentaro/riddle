@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bluff Quiz Master V7</title>
+    <title>Bluff Quiz Master V8</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -18,22 +18,6 @@
         button:hover { background: #c0392b; }
         button:disabled { background: #555; cursor: not-allowed; opacity: 0.6; }
         
-        /* Button Variants */
-        .btn-title { width: 80%; padding: 20px; font-size: 24px; font-weight: bold; margin: 15px auto; display: block; }
-        .btn-reg { background: #8e44ad; }
-        .btn-game { background: #27ae60; }
-        .btn-back { background: #7f8c8d; font-size: 14px; padding: 5px 15px; }
-        .btn-opt { background: #3498db; width: 100%; margin: 10px 0; text-align: left; }
-        .btn-copy { background: #27ae60; font-size: 14px; padding: 5px 10px; }
-        .btn-start-q { background: #e67e22; font-weight: bold; width: 45%; margin: 5px; }
-        .btn-publish { background: #e67e22; width: 90%; font-weight: bold; padding: 15px; position: sticky; bottom: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-
-        /* Judge Toggle Buttons */
-        .judge-toggle { display: flex; width: 100%; margin-top: 5px; }
-        .judge-toggle button { flex: 1; margin: 2px; font-size: 14px; padding: 8px; border: 2px solid #555; background: #333; color: #aaa; }
-        .judge-toggle button.selected-adopt { background: #3498db; color: #fff; border-color: #3498db; }
-        .judge-toggle button.selected-correct { background: #f1c40f; color: #000; border-color: #f1c40f; }
-
         /* Layouts */
         .title-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 300px; }
         .btn-gear { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 30px; cursor: pointer; padding: 0; margin: 0; }
@@ -42,6 +26,23 @@
         .btn-big-start:active { box-shadow: 0 5px 0 #c0392b, 0 5px 10px rgba(0,0,0,0.5); transform: translateY(5px); }
         .btn-lobby-back { position: absolute; top: 15px; left: 15px; background: #7f8c8d; font-size: 12px; padding: 5px 10px; }
 
+        /* Specific Buttons */
+        .btn-back { background: #7f8c8d; font-size: 14px; padding: 5px 15px; }
+        .btn-opt { background: #3498db; width: 100%; margin: 10px 0; text-align: left; }
+        .btn-copy { background: #27ae60; font-size: 14px; padding: 5px 10px; }
+        .btn-start-q { background: #e67e22; font-weight: bold; width: 45%; margin: 5px; }
+        .btn-judge-qr { background: #8e44ad; font-size: 14px; padding: 5px 10px; margin-left: 10px; }
+        .btn-publish { background: #e67e22; width: 90%; font-weight: bold; padding: 15px; position: sticky; bottom: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+
+        /* Judge Toggle */
+        .judge-toggle { display: flex; width: 100%; margin-top: 5px; }
+        .judge-toggle button { flex: 1; margin: 2px; font-size: 14px; padding: 8px; border: 2px solid #555; background: #333; color: #aaa; }
+        .judge-toggle button.selected-adopt { background: #3498db; color: #fff; border-color: #3498db; }
+        .judge-toggle button.selected-correct { background: #f1c40f; color: #000; border-color: #f1c40f; }
+
+        /* QR Section */
+        #qrcode { margin: 20px auto; background: #fff; padding: 10px; width: 150px; }
+        
         /* Lists & Status */
         ul { list-style: none; padding: 0; }
         li { background: #444; margin: 5px 0; padding: 10px; border-radius: 5px; position: relative; }
@@ -57,12 +58,17 @@
         .real-answer-box { border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.1); }
         
         .judge-info-box { background: #222; padding: 10px; border: 1px solid #555; border-radius: 5px; margin-bottom: 10px; text-align: left; }
+        .input-status-row { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #555; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-wait { background: #7f8c8d; }
+        .badge-done { background: #3498db; }
+        .badge-correct { background: #f1c40f; color: #000; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="host-title" class="screen hidden">
-    <h1>Bluff Quiz Master V7</h1>
+    <h1>Bluff Quiz Master V8</h1>
     <button class="btn-gear" onclick="goToQRegistration()" title="問題登録">⚙️</button>
     <div class="title-container">
         <button class="btn-big-start" onclick="goToGameSettings()">GAME<br>START</button>
@@ -100,16 +106,23 @@
 
 <div id="host-lobby" class="screen hidden">
     <button class="btn-lobby-back" onclick="backToSettings()">＜ 設定に戻る</button>
-    <h1>参加者待機中...</h1>
+    <h1 id="lobby-title">参加者待機中...</h1>
+    
+    <div style="margin-bottom:10px;">
+        <button id="tab-player" class="btn-copy" style="background:#2980b9;" onclick="showQr('player')">参加者用QR</button>
+        <button id="tab-judge" class="btn-judge-qr" onclick="showQr('judge')">判定役用QR (ホスト)</button>
+    </div>
+
     <div style="display:flex; justify-content:center; align-items:center; flex-direction:column;">
         <div id="qrcode"></div>
         <div>
             <input type="text" id="room-url-input" readonly style="width:200px; font-size:12px;">
             <button class="btn-copy" onclick="copyUrl()">URLコピー</button>
         </div>
+        <p id="qr-desc" style="font-size:12px; color:#aaa; margin-top:5px;">参加者はこのQRを読み込んでください</p>
     </div>
+
     <div class="status">現在の参加者: <span id="joined-count">0</span> / <span id="max-count">0</span></div>
-    <div style="font-size:12px; color:#aaa;">※判定役は人数に含まれません</div>
     <ul id="player-list"></ul>
     
     <div id="q-selector" style="border-top:1px solid #555; margin-top:20px; padding-top:10px;">
@@ -123,7 +136,7 @@
     <div class="big-text" id="host-wait-q-text"></div>
     <p class="waiting-text">参加者が回答を作成しています...</p>
     <hr>
-    <div id="host-correct-answerers" style="text-align:left; padding:10px;"></div>
+    <div id="input-status-list" style="text-align:left; background:#222; padding:10px; border-radius:5px;"></div>
     <div class="status">回答済み: <span id="input-done-count">0</span> 人</div>
 </div>
 
@@ -159,8 +172,6 @@
     <p>ニックネームを入力してください</p>
     <input type="text" id="my-name" placeholder="名前 (例: タナカ)">
     <button onclick="joinGame('player')">ゲームに参加</button>
-    <br><br>
-    <a href="#" onclick="joinGame('judge'); return false;" style="color:#555; font-size:12px;">(ホスト用) 判定役として参加</a>
 </div>
 
 <div id="client-wait" class="screen hidden">
@@ -179,9 +190,11 @@
 
 <div id="client-judge-panel" class="screen hidden">
     <h2 style="color:#3498db; margin-bottom:5px;">[判定役] 管理画面</h2>
+    <p id="judge-status" style="font-size:12px; color:#2ecc71;">接続完了</p>
+    
     <div class="judge-info-box">
         <div style="color:#aaa; font-size:12px;">問題:</div>
-        <div id="judge-q-text" style="font-weight:bold; margin-bottom:5px;"></div>
+        <div id="judge-q-text" style="font-weight:bold; margin-bottom:5px;">(問題選択待ち)</div>
         <div style="color:#aaa; font-size:12px;">正解:</div>
         <div id="judge-a-text" style="color:#2ecc71; font-weight:bold;"></div>
     </div>
@@ -216,19 +229,16 @@
     let hostConn = null; 
     let connections = {}; 
     
-    // Player structure: { name, score, fakeAnswer, vote, status }
-    // status: 'waiting', 'submitted', 'approved', 'correct'
     let players = {}; 
-    let judgeId = null; 
+    let judgeConn = null; // Store Judge Connection specifically
 
-    // Judge Local State
-    let judgeLocalData = {}; // { playerId: { answer, decision: 'APPROVED'|'CORRECT' } }
+    let judgeLocalData = {}; 
 
     let questions = [
         {q: "「たほいや」の意味は？", a: "イノシシを追い払う小屋"},
         {q: "「アグレット」の意味は？", a: "靴紐の先端の固い部分"},
     ];
-    let currentQ = null;
+    let currentQ = null; // {q, a, currentOptions}
     let maxPlayers = 3;
     let isHost = false;
     let myRole = 'player'; 
@@ -237,10 +247,16 @@
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const hostId = urlParams.get('host');
+        const roleParam = urlParams.get('role');
 
         if (hostId) {
             isHost = false;
-            initClient(hostId);
+            // If role=judge in URL, auto join as judge
+            if(roleParam === 'judge') {
+                initClient(hostId, 'judge');
+            } else {
+                initClient(hostId, 'player');
+            }
         } else {
             isHost = true;
             goToTitle();
@@ -292,16 +308,37 @@
         peer.on('open', (id) => {
             myId = id;
             showScreen('host-lobby');
-            const url = `${location.href.split('?')[0]}?host=${myId}`;
-            document.getElementById("qrcode").innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
-            document.getElementById('room-url-input').value = url;
+            showQr('player'); // Default QR
             
-            connections = {}; players = {}; judgeId = null;
+            connections = {}; players = {}; judgeConn = null;
             updatePlayerList();
 
             peer.on('connection', (c) => { c.on('open', () => setupHostConnection(c)); });
         });
+    }
+
+    function showQr(type) {
+        const qrEl = document.getElementById("qrcode");
+        qrEl.innerHTML = "";
+        let url = `${location.href.split('?')[0]}?host=${myId}`;
+        let desc = "";
+
+        if (type === 'judge') {
+            url += "&role=judge";
+            desc = "【判定役専用】このQRを読み込むと管理画面が開きます";
+            document.getElementById('lobby-title').innerText = "判定役を招待中...";
+            document.getElementById('tab-player').style.background = "#555";
+            document.getElementById('tab-judge').style.background = "#8e44ad";
+        } else {
+            desc = "参加者はこのQRを読み込んでください";
+            document.getElementById('lobby-title').innerText = "参加者待機中...";
+            document.getElementById('tab-player').style.background = "#2980b9";
+            document.getElementById('tab-judge').style.background = "#555";
+        }
+
+        new QRCode(qrEl, { text: url, width: 128, height: 128 });
+        document.getElementById('room-url-input').value = url;
+        document.getElementById('qr-desc').innerText = desc;
     }
 
     function copyUrl() {
@@ -315,26 +352,30 @@
             if (data.type === 'JOIN') {
                 connections[c.peer] = c;
                 if(data.role === 'judge') {
-                    judgeId = c.peer;
-                    c.send({ type: 'JUDGE_CONNECTED' }); 
+                    judgeConn = c;
+                    console.log("Judge Connected");
+                    // Sync State Immediately
+                    syncJudgeState();
                 } else {
                     players[c.peer] = { name: data.name, score: 0, fakeAnswer: '', vote: '', status: 'waiting' };
                     updatePlayerList();
                 }
             } 
             else if (data.type === 'FAKE_ANSWER') {
+                // Update Local State
+                players[c.peer].fakeAnswer = data.answer; 
+                players[c.peer].status = 'submitted';
+                updateHostWaitingStatus(); 
+                
                 // Forward to Judge
-                if(judgeId && connections[judgeId]) {
-                    connections[judgeId].send({
+                if(judgeConn) {
+                    judgeConn.send({
                         type: 'JUDGE_NEW_ANSWER',
                         playerId: c.peer,
                         playerName: players[c.peer].name,
                         answer: data.answer
                     });
                 }
-                players[c.peer].fakeAnswer = data.answer; 
-                players[c.peer].status = 'submitted';
-                updateHostWaitingStatus(); 
             }
             else if (data.type === 'JUDGE_BATCH_DECISION') {
                 // Judge finalized everything. Start Voting!
@@ -347,16 +388,41 @@
         });
     }
 
+    function syncJudgeState() {
+        if(!judgeConn) return;
+        
+        // 1. Send Connected Signal
+        judgeConn.send({ type: 'JUDGE_CONNECTED' });
+
+        // 2. If Question Selected, Send Q Info
+        if(currentQ) {
+            judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
+            
+            // 3. Send Already Submitted Answers
+            Object.keys(players).forEach(pid => {
+                if(players[pid].fakeAnswer) {
+                    judgeConn.send({
+                        type: 'JUDGE_NEW_ANSWER',
+                        playerId: pid,
+                        playerName: players[pid].name,
+                        answer: players[pid].fakeAnswer
+                    });
+                }
+            });
+        }
+    }
+
     function updatePlayerList() {
         const list = document.getElementById('player-list');
         list.innerHTML = Object.values(players).map(p => `<li>${p.name} (Pt: ${p.score})</li>`).join('');
         document.getElementById('joined-count').innerText = Object.keys(players).length;
     }
 
-    // Step 1: Start Game (Wait for answers)
+    // --- Phase 1: Start Q ---
     function startGame(qIndex) {
         currentQ = questions[qIndex];
         
+        // Reset Round Data
         Object.keys(players).forEach(pid => {
             players[pid].fakeAnswer = ''; players[pid].vote = ''; players[pid].status = 'waiting';
         });
@@ -364,14 +430,16 @@
         // Broadcast Q to Players
         broadcast({ type: 'START_INPUT', q: currentQ.q });
         
-        // Sync Judge
-        if(judgeId && connections[judgeId]) {
-            connections[judgeId].send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
+        // Sync Judge (Send new Q)
+        if(judgeConn) {
+            judgeConn.send({ type: 'JUDGE_INIT_Q', q: currentQ.q, a: currentQ.a });
+        } else {
+            alert("注意: 判定役が接続されていません");
         }
 
         // Host Screen
         document.getElementById('host-wait-q-text').innerText = currentQ.q;
-        document.getElementById('host-correct-answerers').innerHTML = ""; // Clear logic
+        document.getElementById('host-correct-answerers').innerHTML = ""; 
         updateHostWaitingStatus();
         showScreen('host-waiting-phase');
     }
@@ -379,11 +447,19 @@
     function updateHostWaitingStatus() {
         const submitted = Object.values(players).filter(p => p.status !== 'waiting').length;
         document.getElementById('input-done-count').innerText = `${submitted} / ${Object.keys(players).length}`;
+        
+        // Update List
+        const list = document.getElementById('input-status-list');
+        list.innerHTML = Object.values(players).map(p => {
+            let badge = `<span class="status-badge badge-wait">回答中...</span>`;
+            if (p.status !== 'waiting') badge = `<span class="status-badge badge-done">提出済み</span>`;
+            if (p.status === 'correct') badge = `<span class="status-badge badge-correct">正解！ (+1pt)</span>`;
+            return `<div class="input-status-row"><span>${p.name}</span> ${badge}</div>`;
+        }).join('');
     }
 
-    // Step 2: Judge Finalizes -> Start Voting
+    // --- Phase 2: From Judge Decision ---
     function processBatchDecision(decisions) {
-        // decisions: { playerId: 'APPROVED' | 'CORRECT' }
         let correctNames = [];
 
         Object.keys(decisions).forEach(pid => {
@@ -398,9 +474,10 @@
                 }
             }
         });
+        
+        // Update Host Waiting Screen with Correct Answerers (optional visual update before transition)
+        updateHostWaitingStatus();
 
-        // Show early winners on Host Screen temporarily? Or just go to options.
-        // Let's create options now.
         startVotingPhase(correctNames);
     }
 
@@ -417,7 +494,7 @@
 
         // Broadcast to players
         Object.keys(connections).forEach(cid => {
-            if (cid === judgeId) return; 
+            if (connections[cid] === judgeConn) return; 
             
             if (players[cid] && players[cid].status === 'correct') {
                 connections[cid].send({ type: 'WAIT_VOTE_CORRECT' });
@@ -433,10 +510,6 @@
         document.getElementById('btn-show-result').classList.add('hidden');
         
         renderHostVoteOptions();
-        
-        // If there were correct answerers, maybe show them?
-        // Let's rely on final result, or show a toast.
-        
         showScreen('host-vote-phase');
     }
 
@@ -540,30 +613,53 @@
 
     // ================= CLIENT LOGIC =================
 
-    function initClient(hostId) {
+    function initClient(hostId, role) {
         showScreen('client-login');
+        if(role === 'judge') {
+            document.getElementById('client-login').classList.add('hidden'); // Skip login for judge
+            myRole = 'judge';
+            connectToHost(hostId, 'JUDGE', 'judge');
+        } else {
+            myRole = 'player';
+        }
+        
+        // Peer setup
         peer = new Peer();
         peer.on('open', (id) => {
             myId = id;
-            hostConn = peer.connect(hostId);
-            hostConn.on('open', () => { console.log("Connected"); });
-            hostConn.on('data', (data) => { handleClientData(data); });
+            if(myRole === 'judge') {
+                showScreen('client-judge-panel');
+                document.getElementById('judge-answer-list').innerHTML = "<p>ホスト接続待ち...</p>";
+                connectToHost(hostId, 'JUDGE', 'judge');
+            }
         });
     }
 
+    function connectToHost(hostId, name, role) {
+        hostConn = peer.connect(hostId);
+        hostConn.on('open', () => { 
+            console.log("Connected"); 
+            hostConn.send({ type: 'JOIN', name: name, role: role });
+        });
+        hostConn.on('data', (data) => { handleClientData(data); });
+    }
+
     function joinGame(role) {
-        myRole = role;
         const name = role === 'judge' ? 'JUDGE' : document.getElementById('my-name').value;
         if (!name) return alert("名前を入力してください");
         
-        hostConn.send({ type: 'JOIN', name: name, role: role });
-        
         if (role === 'judge') {
-            showScreen('client-judge-panel');
-            document.getElementById('judge-answer-list').innerHTML = "<p>待機中...</p>";
-        } else {
-            showScreen('client-wait');
+            // Should be handled by URL, but just in case
+            window.location.search = `?host=${peer.options.host}&role=judge`; // This won't work in PeerJS local context easily without full URL.
+            // Simplified: Just reload with param if implemented, else manual flow
+            alert("判定役はQRコードからアクセスしてください");
+            return;
         }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const hostId = urlParams.get('host');
+        connectToHost(hostId, name, 'player');
+        showScreen('client-wait');
     }
 
     function handleClientData(data) {
@@ -571,24 +667,26 @@
             if(myRole === 'player') {
                 showScreen('client-wait');
                 document.getElementById('client-wait-msg').innerText = "ホストが問題を選ぶのを待っています";
-            }
-            else {
+            } else {
+                // Judge reset
                 document.getElementById('judge-answer-list').innerHTML = "<p>待機中...</p>";
                 document.getElementById('judge-q-text').innerText = "";
                 document.getElementById('judge-a-text').innerText = "";
+                judgeLocalData = {};
             }
         }
 
         // --- Judge Logic ---
         if (myRole === 'judge') {
             if (data.type === 'JUDGE_CONNECTED') {
-                alert("ホストと接続しました！");
+                document.getElementById('judge-status').innerText = "● ホスト接続済み";
+                document.getElementById('judge-answer-list').innerHTML = "<p>問題選択待ち...</p>";
             }
             if (data.type === 'JUDGE_INIT_Q') {
                 document.getElementById('judge-q-text').innerText = data.q;
                 document.getElementById('judge-a-text').innerText = data.a;
-                document.getElementById('judge-answer-list').innerHTML = ""; // Clear list
-                judgeLocalData = {}; // Reset local
+                document.getElementById('judge-answer-list').innerHTML = ""; 
+                judgeLocalData = {}; 
             }
             if (data.type === 'JUDGE_NEW_ANSWER') {
                 // Add to list with default 'APPROVED'
@@ -623,8 +721,10 @@
     // --- Judge UI Methods ---
     function addJudgeEntry(data) {
         const list = document.getElementById('judge-answer-list');
-        // Remove placeholder
-        if(list.innerHTML.includes('待機中')) list.innerHTML = "";
+        if(list.innerHTML.includes('待機中') || list.innerHTML.includes('待ち')) list.innerHTML = "";
+
+        // Avoid duplicates
+        if(document.getElementById(`judge-row-${data.playerId}`)) return;
 
         const div = document.createElement('div');
         div.id = `judge-row-${data.playerId}`;
@@ -643,7 +743,6 @@
 
     function setDecision(pId, decision, btn) {
         judgeLocalData[pId] = decision;
-        // Visual toggle
         const buttons = btn.parentNode.querySelectorAll('button');
         buttons.forEach(b => {
             b.classList.remove('selected-adopt', 'selected-correct');
@@ -654,9 +753,12 @@
     }
 
     function publishAndStartVote() {
+        if(Object.keys(judgeLocalData).length === 0) {
+            alert("まだ回答がありません"); return;
+        }
         if(!confirm("決定して出題しますか？")) return;
         hostConn.send({ type: 'JUDGE_BATCH_DECISION', decisions: judgeLocalData });
-        alert("出題しました！");
+        alert("出題しました！PC画面を確認してください。");
     }
 
     // --- Player UI Methods ---
