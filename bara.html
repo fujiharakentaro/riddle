@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Answer Dungeon V2</title>
+    <title>Answer Dungeon V3.2</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -11,11 +11,11 @@
 
         body {
             font-family: 'DotGothic16', sans-serif;
-            background-color: #000;
+            background-color: #111;
             color: #fff;
             margin: 0;
             padding: 0;
-            overflow: hidden;
+            overflow-x: hidden;
             text-align: center;
             user-select: none;
         }
@@ -26,168 +26,186 @@
             position: absolute; top: 0; left: 0; 
             display: flex; flex-direction: column; 
             align-items: center; justify-content: center;
-            transition: background 1s;
+            background-size: cover; background-position: center;
+            transition: background 0.5s;
         }
 
-        /* --- UI Components --- */
+        /* UI Components */
         button {
             font-family: 'DotGothic16', sans-serif;
-            background: #222; color: #fff; border: 2px solid #fff;
-            padding: 10px 20px; font-size: 18px; cursor: pointer;
-            margin: 5px; box-shadow: 4px 4px 0 #000;
+            background: #333; color: #fff; border: 1px solid #fff;
+            padding: 8px 16px; cursor: pointer; margin: 5px;
             transition: 0.1s;
         }
-        button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+        button:active { transform: translateY(2px); }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        button.btn-start { background: #c0392b; font-size: 24px; padding: 15px 40px; }
-        button.btn-check { background: #f39c12; color: #000; font-size: 20px; padding: 10px 30px; animation: bounce 1s infinite; }
-        button.btn-confirm { background: #c0392b; font-size: 20px; padding: 10px 30px; }
-        
-        input {
-            padding: 10px; font-size: 18px; text-align: center;
-            background: #000; color: #fff; border: 2px solid #fff; margin: 10px;
-            font-family: 'DotGothic16', sans-serif;
+        .btn-large { padding: 15px 30px; font-size: 20px; background: #c0392b; border: 2px solid #fff; }
+        .btn-confirm { background: #e67e22; color: #000; font-weight: bold; }
+
+        input[type="text"], input[type="number"] {
+            padding: 5px; background: #000; color: #fff; border: 1px solid #777; text-align: center;
         }
 
-        /* --- Theme Backgrounds --- */
-        .theme-forest { background: linear-gradient(to bottom, #112211, #2d5a27); }
-        .theme-cave   { background: linear-gradient(to bottom, #2c3e50, #000000); }
-        .theme-volcano{ background: linear-gradient(to bottom, #4a0000, #800000); }
-        .theme-castle { background: linear-gradient(to bottom, #2c003e, #000000); }
+        /* --- Setup Screen --- */
+        #setup-container {
+            width: 90%; max-width: 800px; height: 90vh;
+            overflow-y: auto; background: #222; border: 2px solid #555;
+            padding: 20px; box-sizing: border-box; text-align: left;
+        }
+        .setup-section { margin-bottom: 20px; border-bottom: 1px dashed #555; padding-bottom: 20px; }
+        .setup-section h3 { color: #f1c40f; margin-top: 0; }
+        
+        .floor-config-row {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 5px;
+            background: #333; padding: 5px;
+        }
+        .floor-label { width: 40px; font-weight: bold; }
 
-        /* --- Host Screen --- */
+        .q-list-item {
+            background: #333; padding: 5px; margin-bottom: 2px;
+            display: flex; justify-content: space-between; font-size: 14px;
+        }
+
+        /* --- Game Screen --- */
         .dungeon-header {
             position: absolute; top: 0; left: 0; width: 100%;
             display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box;
-            z-index: 10;
+            z-index: 10; text-shadow: 2px 2px 0 #000;
         }
-        .floor-indicator { font-size: 40px; color: #f1c40f; text-shadow: 3px 3px 0 #000; }
-        .timer-box { font-size: 32px; color: #fff; border: 2px solid #fff; padding: 5px 15px; background: rgba(0,0,0,0.5); }
+        .floor-indicator { font-size: 40px; color: #f1c40f; }
+        .timer-box { font-size: 32px; border: 2px solid #fff; padding: 5px 15px; background: rgba(0,0,0,0.7); }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
 
-        /* Enemy & Question */
+        /* Enemy Area */
         .enemy-area {
             flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            width: 100%; position: relative;
+            width: 100%; position: relative; z-index: 5;
         }
         .enemy-img { 
-            font-size: 150px; 
-            filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
+            max-width: 60%; max-height: 40vh; object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.8));
             animation: float 3s ease-in-out infinite;
         }
         .question-box {
-            background: rgba(0,0,0,0.8); border: 4px double #fff; padding: 20px;
-            font-size: 28px; width: 80%; margin-top: 20px; min-height: 60px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8); border-radius: 10px;
+            background: rgba(0,0,0,0.85); border: 2px solid #fff; padding: 20px;
+            font-size: 24px; width: 80%; margin-top: 20px; min-height: 60px;
+            border-radius: 8px; text-align: center;
         }
 
-        /* Answer Cards */
+        /* Answers Grid */
         .answers-grid {
             display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;
-            width: 95%; padding-bottom: 20px; z-index: 20; min-height: 150px;
+            width: 95%; padding-bottom: 20px; z-index: 10; min-height: 120px;
         }
         .answer-card {
             background: #222; border: 2px solid #777; padding: 10px;
-            width: 140px; min-height: 90px; 
+            width: 130px; min-height: 80px; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             position: relative; transition: 0.2s; cursor: pointer;
         }
-        .p-name { font-size: 12px; color: #aaa; margin-bottom: 5px; }
-        .p-ans { font-size: 20px; font-weight: bold; word-break: break-all; line-height: 1.2; }
+        .p-name { font-size: 12px; color: #aaa; }
+        .p-ans { font-size: 18px; font-weight: bold; word-break: break-all; }
         
-        /* Card States */
-        .answer-card.hidden-ans .p-ans { filter: blur(8px); }
         .answer-card.selected-ng { 
-            background: #c0392b !important; border-color: #e74c3c !important; 
-            transform: scale(1.05); 
-        }
-        .answer-card.selected-ng::after {
-            content: "被り!"; position: absolute; top: -10px; right: -10px;
-            background: #fff; color: #c0392b; padding: 2px 5px; font-size: 12px; border: 1px solid #c0392b;
+            background: #c0392b !important; border-color: #e74c3c !important; transform: scale(1.05); 
         }
 
-        /* --- Audio Player --- */
-        #bgm-player { position: absolute; bottom: 10px; left: 10px; z-index: 999; opacity: 0.5; transform: scale(0.8); transform-origin: bottom left; }
-        #bgm-player:hover { opacity: 1; }
-
-        /* --- Animations --- */
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        /* Animations */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes blink { 50% { opacity: 0.5; } }
-        
-        .shake-screen { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; background: #500 !important; }
+        .shake-screen { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
             10%, 90% { transform: translate3d(-5px, 0, 0); }
             20%, 80% { transform: translate3d(10px, 0, 0); }
             30%, 50%, 70% { transform: translate3d(-10px, 0, 0); }
             40%, 60% { transform: translate3d(10px, 0, 0); }
         }
-
         .slash-effect {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 150vw; height: 10px; background: #fff;
             animation: slash 0.3s ease-out; z-index: 100;
         }
         @keyframes slash {
-            0% { width: 0; transform: translate(-50%, -50%) rotate(-45deg); opacity: 1; box-shadow: 0 0 20px #fff; }
+            0% { width: 0; transform: translate(-50%, -50%) rotate(-45deg); opacity: 1; }
             100% { width: 200vw; transform: translate(-50%, -50%) rotate(-45deg); opacity: 0; }
         }
 
-        /* --- Player Screen --- */
-        #screen-player { background: #111; padding: 20px; box-sizing: border-box; }
-        .player-status { font-size: 24px; margin-bottom: 20px; color: #f1c40f; }
-        .p-input-area { width: 100%; max-width: 400px; }
+        /* Player Screen */
+        #screen-player { padding: 20px; box-sizing: border-box; background: #222; }
     </style>
 </head>
 <body>
 
-<div id="bgm-player" class="hidden">
-    <label style="font-size:12px;">🎵 BGM: <input type="file" id="bgm-file" accept="audio/*" onchange="playBGM(this)"></label>
-    <audio id="audio-el" loop controls style="height: 30px; margin-top:5px;"></audio>
-</div>
+<audio id="bgm-player" loop></audio>
 
-<div id="screen-setup" class="screen">
-    <h1 style="color:#e74c3c; font-size:40px;">Answer Dungeon</h1>
-    <div style="background:#222; padding:30px; border:4px double #fff;">
-        <p>設定</p>
-        <div style="margin:10px;">
-            <label>参加人数: <input type="number" id="player-count" value="4" min="2" max="20" style="width:60px;"></label>
+<div id="screen-setup" class="screen" style="background:#111; overflow: auto; display:block; position:relative;">
+    <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
+        <div id="setup-container">
+            <h1 style="text-align:center; color:#e74c3c; margin:0 0 20px 0;">Answer Dungeon V3.2</h1>
+            
+            <div class="setup-section">
+                <h3>1. 基本設定 & BGM</h3>
+                <label>参加人数: <input type="number" id="conf-players" value="4" style="width:50px;"> 人</label>
+                <label style="margin-left:15px;">制限時間: <input type="number" id="conf-time" value="300" style="width:60px;"> 秒</label>
+                <br><br>
+                <label>BGMファイル (任意): <input type="file" id="file-bgm" accept="audio/*"></label>
+            </div>
+
+            <div class="setup-section">
+                <h3>2. 階層ビジュアル (背景・敵画像)</h3>
+                <p style="font-size:12px; color:#aaa;">※設定しない場合は黒背景・文字のみになります</p>
+                <div id="visual-config-area">
+                    </div>
+            </div>
+
+            <div class="setup-section">
+                <h3>3. お題登録</h3>
+                <p style="font-size:12px; color:#aaa;">
+                    お題と「有効回答数(目安)」を登録してください。<br>
+                    <strong>参加人数に応じて、適切なお題を区間ごとにランダム選出します。</strong><br>
+                    ※お題がたくさんあるほど、毎回違う問題が出やすくなります。
+                </p>
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <input type="text" id="q-text" placeholder="お題 (例: 都道府県)" style="flex:1; text-align:left;">
+                    <input type="number" id="q-count" placeholder="回答数" style="width:60px;">
+                    <button onclick="addQuestion()">追加</button>
+                </div>
+                <div id="question-list" style="max-height:150px; overflow-y:auto; border:1px solid #555;"></div>
+                <div style="text-align:right; font-size:12px; color:#f1c40f;" id="q-status">現在 0 問</div>
+            </div>
+
+            <div style="text-align:center;">
+                <button class="btn-large" onclick="finishSetup()">設定完了してロビーへ</button>
+            </div>
         </div>
-        <div style="margin:10px;">
-            <label>制限時間: <input type="number" id="time-limit" value="300" step="30" style="width:60px;">秒</label>
-        </div>
-        <button class="btn-start" onclick="initHost()">部屋作成</button>
     </div>
 </div>
 
 <div id="screen-lobby" class="screen hidden" style="background:#222;">
     <h2>冒険者を募集中...</h2>
-    <div style="background:#fff; padding:10px; margin:10px;">
+    <div style="background:#fff; padding:10px;">
         <div id="qrcode"></div>
     </div>
-    <p id="lobby-url" style="font-size:14px; color:#aaa; user-select:text;"></p>
-    <div id="lobby-members" style="margin: 20px; font-size: 24px; color:#2ecc71;">現在の参加者: 0人</div>
-    <button class="btn-start" id="btn-start-game" onclick="startGame()" disabled>ダンジョンへ挑む</button>
+    <p id="lobby-url" style="font-size:14px; color:#aaa; margin-top:5px;"></p>
+    <div id="lobby-members" style="margin: 20px; font-size: 24px; color:#2ecc71;">参加者: 0人</div>
+    <button class="btn-large" id="btn-start-game" onclick="startGame()" disabled>ダンジョンへ挑む</button>
 </div>
 
-<div id="screen-host" class="screen hidden theme-forest">
+<div id="screen-host" class="screen hidden">
     <div class="dungeon-header">
-        <div class="floor-indicator">B<span id="current-floor">1</span></div>
+        <div class="floor-indicator">B<span id="disp-floor">1</span></div>
         <div class="timer-box" id="game-timer">00:00</div>
     </div>
 
     <div class="enemy-area">
         <div id="slash-layer"></div>
-        <div class="enemy-img" id="enemy-display">👾</div>
+        <img src="" id="enemy-img" class="enemy-img" style="display:none;"> <div id="enemy-placeholder" style="font-size:100px;">👾</div> <div class="question-box" id="question-text">---</div>
         
-        <div class="question-box" id="question-text">読み込み中...</div>
-        
-        <div id="host-controls" style="margin-top:10px; height: 50px;">
-            <button id="btn-open-ans" onclick="openAnswers()" class="hidden btn-check">回答オープン</button>
-            <div id="judge-controls" class="hidden" style="display:flex; flex-direction:column; align-items:center;">
-                <span style="font-size:14px; color:#e74c3c; background:#000; padding:2px;">被っている回答をタップして選択</span>
-                <button class="btn-confirm" onclick="confirmJudgement()">判定確定（攻撃！）</button>
+        <div style="margin-top:10px; height: 40px;">
+            <button id="btn-open" onclick="openAnswers()" class="hidden btn-confirm">回答オープン</button>
+            <div id="judge-ui" class="hidden">
+                <span style="font-size:14px; background:#000; padding:2px; color:#e74c3c;">被り(NG)をタップして選択</span>
+                <button onclick="confirmJudgement()" class="btn-confirm">判定確定</button>
             </div>
         </div>
     </div>
@@ -196,123 +214,187 @@
 </div>
 
 <div id="screen-result" class="screen hidden" style="background:#000;">
-    <h1 id="result-title" style="font-size: 60px; color: #f1c40f;">GAME CLEAR</h1>
-    <p id="result-desc" style="font-size:24px;">伝説はここから始まる...</p>
+    <h1 id="res-title" style="font-size: 60px; color: #f1c40f;">CLEAR</h1>
     <button onclick="location.reload()">タイトルへ戻る</button>
 </div>
 
-
 <div id="screen-login" class="screen hidden" style="background:#222;">
     <h2>冒険者ギルド</h2>
-    <input type="text" id="my-name" placeholder="名前" style="width:200px;">
-    <button class="btn-start" onclick="joinGame()">登録</button>
+    <input type="text" id="p-name-input" placeholder="名前" style="width:200px;">
+    <br><br>
+    <button class="btn-large" onclick="joinGame()">登録</button>
 </div>
 
 <div id="screen-player" class="screen hidden">
-    <div class="player-status" id="p-status-text">待機中...</div>
-    <div id="p-question-wrapper" style="background:#333; padding:15px; border-radius:10px; width:90%; margin-bottom:20px;">
-        <div style="color:#aaa; font-size:14px;">今回のお題</div>
-        <div id="p-question-area" style="font-size:20px; font-weight:bold;"></div>
+    <div class="player-status" id="p-status">待機中...</div>
+    <div style="background:#333; padding:15px; border-radius:10px; width:90%; margin-bottom:20px;">
+        <div style="color:#aaa; font-size:12px;">今回のお題</div>
+        <div id="p-question" style="font-size:18px; font-weight:bold;"></div>
     </div>
-    
-    <div class="p-input-area">
-        <input type="text" id="p-answer" placeholder="回答を入力" style="width:100%; box-sizing:border-box;">
-        <br><br>
-        <button class="btn-start" id="p-btn-send" onclick="sendAnswer()" style="width:100%; background:#27ae60;">送信</button>
-    </div>
+    <input type="text" id="p-ans-input" placeholder="回答を入力" style="width:80%;">
+    <br><br>
+    <button class="btn-large" id="p-send-btn" onclick="sendAnswer()" style="width:80%;">送信</button>
 </div>
 
 
 <script>
-    // --- Config & State ---
-    let peer, conn, myId;
-    let connections = {};
-    let players = {}; 
-    let playerCountSetting = 4;
-    let timeLimitSetting = 300;
-    
-    let currentFloor = 1;
-    let timerInterval;
-    let remainingTime = 0;
-    
-    // Pre-generated questions for the session (Fixed per floor)
-    let sessionQuestions = {}; 
-
+    // --- Data Management ---
     const MAX_FLOOR = 7;
-    
-    // Visuals Data
-    const FLOOR_DATA = [
-        { theme: 'theme-forest',  enemy: '👾', name: 'スライム' }, // 1
-        { theme: 'theme-forest',  enemy: '🐺', name: 'ウルフ' },   // 2
-        { theme: 'theme-cave',    enemy: '🦇', name: 'バット' },   // 3
-        { theme: 'theme-cave',    enemy: '🗿', name: 'ゴーレム' }, // 4
-        { theme: 'theme-volcano', enemy: '🔥', name: 'イフリート' }, // 5
-        { theme: 'theme-volcano', enemy: '🐉', name: 'ドラゴン' },   // 6
-        { theme: 'theme-castle',  enemy: '👿', name: '魔王' }      // 7
+    let config = {
+        players: 4,
+        time: 300,
+        questions: [], // { text: "", count: 100 }
+        assets: {}     // { 1: { bg: url, enemy: url }, ... }
+    };
+
+    // Default questions
+    const DEFAULT_QS = [
+        {text:"都道府県(47)", count:47}, {text:"世界の国(196)", count:196}, {text:"元素記号(118)", count:118},
+        {text:"山手線の駅(30)", count:30}, {text:"アルファベット(26)", count:26}, {text:"将棋の駒(8)", count:8},
+        {text:"干支(12)", count:12}, {text:"星座(12)", count:12}, {text:"太陽系の惑星(8)", count:8}, 
+        {text:"虹の色(7)", count:7}, {text:"硬貨の種類(6)", count:6}, {text:"五大陸(5)", count:5}, 
+        {text:"季節(4)", count:4}, {text:"信号機の色(3)", count:3}, {text:"じゃんけんの手(3)", count:3}
     ];
 
-    // Questions Database
-    const QUESTIONS = {
-        low: [ // 答えが多い (序盤)
-            "都道府県（47個）", "世界の国名", "動物の名前", "「ん」で終わる言葉", "赤い食べ物", 
-            "コンビニの商品", "「あ」から始まる言葉", "水族館にいる生き物", "居酒屋のメニュー", 
-            "スポーツの種類", "楽器の名前", "職業の名前"
-        ],
-        mid: [ // 答えがそこそこ (中盤)
-            "アルファベット（A-Z）", "将棋の駒の種類", "トランプのマーク", "国民の祝日", 
-            "山手線の駅名", "県庁所在地", "寿司のネタ", "ファミレスチェーン店", 
-            "ジブリ映画のタイトル", "色の名前（基本色）", "焼肉の部位", "学校にあるもの"
-        ],
-        high: [ // 答えが少ない (終盤)
-            "12星座", "干支（十二支）", "太陽系の惑星(8個)", "1月〜12月の英語名", 
-            "G7の国", "日本の硬貨の種類(6種)", "虹の7色", "一週間の曜日", 
-            "九州の県(7個)", "東北の県(6個)", "将棋の駒(8種類)", "麻雀の役満"
-        ]
-    };
+    // Game State
+    let peer, conn, myId;
+    let players = {};
+    let currentFloor = 1;
+    let floorQuestions = {}; 
+    let timerInterval, remainingTime;
 
-    // --- Audio BGM ---
-    function playBGM(input) {
-        const file = input.files[0];
-        if (file) {
-            const audio = document.getElementById('audio-el');
-            audio.src = URL.createObjectURL(file);
-            audio.volume = 0.3;
-            audio.play();
-        }
-    }
-
-    // --- Setup ---
+    // --- SETUP UI LOGIC ---
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const hostId = urlParams.get('host');
-        if (hostId) setupPeer(false, hostId);
-        else {
-            document.getElementById('screen-setup').classList.remove('hidden');
-            document.getElementById('bgm-player').classList.remove('hidden');
+        if (urlParams.get('host')) {
+            setupPeer(false, urlParams.get('host'));
+        } else {
+            // Host Setup Init
+            initSetupUI();
         }
     };
 
-    function setupPeer(isHost, hostId = null) {
-        peer = new Peer();
-        peer.on('open', (id) => {
-            myId = id;
-            if (isHost) initLobby();
-            else showScreen('screen-login');
-        });
-        peer.on('connection', (c) => {
-            c.on('open', () => c.on('data', (data) => handleData(c, data)));
-            connections[c.peer] = c;
-        });
-        peer.on('error', (err) => alert("接続エラー: " + err));
+    function initSetupUI() {
+        // Generate Floor Config Rows
+        const container = document.getElementById('visual-config-area');
+        for(let i=1; i<=MAX_FLOOR; i++) {
+            const row = document.createElement('div');
+            row.className = 'floor-config-row';
+            row.innerHTML = `
+                <div class="floor-label">${i}F</div>
+                <label style="font-size:12px;">背景:<input type="file" id="bg-${i}" accept="image/*" style="width:180px;"></label>
+                <label style="font-size:12px;">敵:<input type="file" id="enemy-${i}" accept="image/*" style="width:180px;"></label>
+            `;
+            container.appendChild(row);
+        }
     }
 
-    // --- Host Logic ---
-    function initHost() {
-        playerCountSetting = parseInt(document.getElementById('player-count').value);
-        timeLimitSetting = parseInt(document.getElementById('time-limit').value);
+    function addQuestion() {
+        const txt = document.getElementById('q-text').value;
+        const cnt = parseInt(document.getElementById('q-count').value);
+        if(!txt || !cnt) return alert("お題と回答数を入力してください");
+
+        config.questions.push({ text: txt, count: cnt });
+        
+        // Render List
+        const list = document.getElementById('question-list');
+        const item = document.createElement('div');
+        item.className = 'q-list-item';
+        item.innerHTML = `<span>${txt}</span><span>(目安:${cnt})</span>`;
+        list.appendChild(item);
+
+        document.getElementById('q-text').value = "";
+        document.getElementById('q-count').value = "";
+        document.getElementById('q-status').innerText = `現在 ${config.questions.length} 問`;
+    }
+
+    function finishSetup() {
+        // 1. Basic Config
+        config.players = parseInt(document.getElementById('conf-players').value);
+        config.time = parseInt(document.getElementById('conf-time').value);
+
+        // Merge defaults if too few
+        if(config.questions.length < MAX_FLOOR * 2) { // Ensure enough pool
+            config.questions = [...config.questions, ...DEFAULT_QS];
+        }
+
+        // 2. BGM
+        const bgmFile = document.getElementById('file-bgm').files[0];
+        if(bgmFile) {
+            const audio = document.getElementById('bgm-player');
+            audio.src = URL.createObjectURL(bgmFile);
+            audio.volume = 0.3;
+        }
+
+        // 3. Assets
+        for(let i=1; i<=MAX_FLOOR; i++) {
+            const bgFile = document.getElementById(`bg-${i}`).files[0];
+            const enFile = document.getElementById(`enemy-${i}`).files[0];
+            config.assets[i] = {
+                bg: bgFile ? URL.createObjectURL(bgFile) : null,
+                enemy: enFile ? URL.createObjectURL(enFile) : null
+            };
+        }
+
+        // --- V3.2 Logic: Random Gradient Selection ---
+        
+        // Step A: Filter valid (count >= players)
+        let validQ = config.questions.filter(q => q.count >= config.players);
+        
+        // Fallback
+        if (validQ.length < MAX_FLOOR) {
+            alert("注意: 参加人数に対して有効なお題が不足しています。一部クリア不可能な問題が含まれる可能性があります。");
+            validQ = [...config.questions];
+        }
+
+        // Step B: Sort Descending (Easy -> Hard)
+        validQ.sort((a, b) => b.count - a.count);
+
+        // Step C: Divide into 7 buckets and pick random
+        for(let i=1; i<=MAX_FLOOR; i++) {
+            // Calculate range for this floor
+            // Example: 21 questions. Floor 1 gets from index 0-2. Floor 7 gets index 18-20.
+            const total = validQ.length;
+            const startIdx = Math.floor( (i - 1) * total / MAX_FLOOR );
+            const endIdx = Math.floor( i * total / MAX_FLOOR );
+            
+            // Slice the bucket (ensure at least 1 item)
+            let bucket = validQ.slice(startIdx, endIdx);
+            if(bucket.length === 0 && startIdx < total) {
+                // Fallback for edge case rounding
+                bucket = [validQ[startIdx]]; 
+            }
+            if(bucket.length === 0) {
+                // Last resort
+                bucket = [validQ[total - 1]];
+            }
+
+            // Random Pick from bucket
+            const pick = bucket[Math.floor(Math.random() * bucket.length)];
+            floorQuestions[i] = pick.text;
+        }
+
+        // Start Host
+        document.getElementById('screen-setup').style.display = 'none'; 
         setupPeer(true);
     }
 
+    // --- PEER JS ---
+    function setupPeer(isHost, hostId=null) {
+        peer = new Peer();
+        peer.on('open', id => {
+            myId = id;
+            if(isHost) initLobby();
+            else showScreen('screen-login');
+        });
+        peer.on('connection', c => {
+            c.on('open', () => c.on('data', d => handleData(c, d)));
+            connections[c.peer] = c;
+        });
+        peer.on('error', e => alert("Connection Error: " + e));
+    }
+
+    // --- HOST GAME LOGIC ---
     function initLobby() {
         showScreen('screen-lobby');
         const url = `${location.href.split('?')[0]}?host=${myId}`;
@@ -321,290 +403,230 @@
     }
 
     function handleData(c, data) {
-        if (data.type === 'JOIN') {
+        if(data.type === 'JOIN') {
             players[c.peer] = { name: data.name, answer: null, id: c.peer };
             updateLobby();
             c.send({ type: 'JOIN_OK' });
         } else if (data.type === 'ANSWER') {
-            if (players[c.peer]) {
+            if(players[c.peer]) {
                 players[c.peer].answer = data.answer;
-                updateAnswerGrid(); // Update host view (still hidden content)
+                updateGridHost();
             }
         }
     }
 
     function updateLobby() {
-        const count = Object.keys(players).length;
-        document.getElementById('lobby-members').innerText = `現在の参加者: ${count}人 / ${playerCountSetting}人`;
-        if (count >= 1) document.getElementById('btn-start-game').disabled = false;
+        const cnt = Object.keys(players).length;
+        document.getElementById('lobby-members').innerText = `参加者: ${cnt}人 / ${config.players}人`;
+        if(cnt >= 1) document.getElementById('btn-start-game').disabled = false;
     }
 
     function startGame() {
-        // Generate Fixed Questions for this session
-        generateSessionQuestions();
-        
-        broadcast({ type: 'GAME_START' });
+        const audio = document.getElementById('bgm-player');
+        if(audio.src) audio.play();
+
+        broadcast({ type: 'START' });
         currentFloor = 1;
-        remainingTime = timeLimitSetting;
+        remainingTime = config.time;
         showScreen('screen-host');
         startTimer();
         loadFloor();
     }
 
-    function generateSessionQuestions() {
-        // Pick unique questions for each floor
-        let lowQ = [...QUESTIONS.low].sort(() => 0.5 - Math.random());
-        let midQ = [...QUESTIONS.mid].sort(() => 0.5 - Math.random());
-        let highQ = [...QUESTIONS.high].sort(() => 0.5 - Math.random());
-
-        for (let i = 1; i <= MAX_FLOOR; i++) {
-            let q = "";
-            if (i <= 2) q = lowQ.pop();
-            else if (i <= 5) q = midQ.pop();
-            else q = highQ.pop();
-            sessionQuestions[i] = q;
-        }
-    }
-
     function loadFloor() {
-        // Reset UI State
+        // Visuals
         const screen = document.getElementById('screen-host');
-        const data = FLOOR_DATA[currentFloor - 1];
+        const asset = config.assets[currentFloor];
         
-        // Remove old themes
-        screen.classList.remove('theme-forest', 'theme-cave', 'theme-volcano', 'theme-castle', 'shake-screen');
-        screen.classList.add(data.theme);
+        if (asset && asset.bg) {
+            screen.style.backgroundImage = `url(${asset.bg})`;
+            screen.style.backgroundSize = "cover";
+        } else {
+            screen.style.background = "#222"; 
+        }
 
-        document.getElementById('current-floor').innerText = currentFloor;
-        document.getElementById('enemy-display').innerText = data.enemy;
-        document.getElementById('question-text').innerText = `【お題】${sessionQuestions[currentFloor]}`;
-        
-        // Reset buttons
-        document.getElementById('btn-open-ans').classList.add('hidden');
-        document.getElementById('judge-controls').classList.add('hidden');
+        const enemyImg = document.getElementById('enemy-img');
+        const enemyPh = document.getElementById('enemy-placeholder');
+        if (asset && asset.enemy) {
+            enemyImg.src = asset.enemy;
+            enemyImg.style.display = "block";
+            enemyPh.style.display = "none";
+        } else {
+            enemyImg.style.display = "none";
+            enemyPh.style.display = "block";
+        }
 
-        // Reset Player Answers
+        // Text
+        document.getElementById('disp-floor').innerText = currentFloor;
+        document.getElementById('question-text').innerText = floorQuestions[currentFloor];
+
+        // Reset
         Object.keys(players).forEach(id => players[id].answer = null);
-        renderAnswerCards(true); // render placeholders
-
-        // Notify Players
-        broadcast({ type: 'NEW_QUESTION', text: sessionQuestions[currentFloor] });
+        document.getElementById('btn-open').classList.add('hidden');
+        document.getElementById('judge-ui').classList.add('hidden');
+        
+        updateGridHost();
+        broadcast({ type: 'QUESTION', text: floorQuestions[currentFloor] });
     }
 
-    function renderAnswerCards(hideContent) {
+    function updateGridHost() {
         const container = document.getElementById('answers-container');
+        if(!document.getElementById('btn-open').classList.contains('hidden') || !document.getElementById('judge-ui').classList.contains('hidden')) return;
+
         container.innerHTML = "";
-        let answeredCount = 0;
+        let ansCount = 0;
         
         Object.values(players).forEach(p => {
             const card = document.createElement('div');
             card.className = "answer-card";
-            card.id = `card-${p.id}`;
-            
-            if (p.answer) {
-                answeredCount++;
-                if (hideContent) {
-                    // Waiting phase
-                    card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-ans" style="color:#f39c12">回答済</div>`;
-                } else {
-                    // Reveal phase
-                    card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-ans">${p.answer}</div>`;
-                    // Click to toggle NG (Manual Judgement)
-                    card.onclick = () => toggleNG(card);
-                }
+            if(p.answer) {
+                ansCount++;
+                card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-ans" style="color:#f39c12">回答済</div>`;
             } else {
-                card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-ans" style="color:#555; font-size:14px;">考え中...</div>`;
+                card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-ans" style="color:#555">...</div>`;
             }
             container.appendChild(card);
         });
 
-        // Show "Open Answers" button if everyone answered
-        const total = Object.keys(players).length;
-        if (hideContent && answeredCount === total && total > 0) {
-            document.getElementById('btn-open-ans').classList.remove('hidden');
+        if(ansCount === Object.keys(players).length && ansCount > 0) {
+            document.getElementById('btn-open').classList.remove('hidden');
         }
     }
 
-    // Triggered when a player answers
-    function updateAnswerGrid() {
-        // Only update status if we are in hidden mode
-        if (document.getElementById('btn-open-ans').classList.contains('hidden') 
-            && document.getElementById('judge-controls').classList.contains('hidden')) {
-             // wait until everyone answers to show button, handled in renderAnswerCards loop logic or simple check:
-             renderAnswerCards(true);
-        }
-    }
-
-    // Phase 1: Open Answers
     function openAnswers() {
-        document.getElementById('btn-open-ans').classList.add('hidden');
-        renderAnswerCards(false); // Reveal text
-        
-        // Auto-detect exact duplicates for convenience
-        autoDetectDuplicates();
+        document.getElementById('btn-open').classList.add('hidden');
+        const container = document.getElementById('answers-container');
+        container.innerHTML = "";
 
-        // Show Judge Controls
-        document.getElementById('judge-controls').classList.remove('hidden');
-        document.getElementById('judge-controls').style.display = "flex";
-    }
-
-    function autoDetectDuplicates() {
         const counts = {};
-        // Normalize and count
         Object.values(players).forEach(p => {
             if(!p.answer) return;
-            const val = p.answer.trim().toLowerCase();
-            if(!counts[val]) counts[val] = [];
-            counts[val].push(p.id);
+            const v = p.answer.trim(); 
+            counts[v] = (counts[v] || 0) + 1;
         });
 
-        // Mark duplicates
-        Object.keys(counts).forEach(val => {
-            if (counts[val].length > 1) {
-                counts[val].forEach(id => {
-                    const card = document.getElementById(`card-${id}`);
-                    if(card) card.classList.add('selected-ng');
-                });
+        Object.values(players).forEach(p => {
+            const card = document.createElement('div');
+            card.className = "answer-card";
+            card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-ans">${p.answer}</div>`;
+            
+            if(counts[p.answer.trim()] > 1) {
+                card.classList.add('selected-ng');
             }
+
+            card.onclick = () => card.classList.toggle('selected-ng');
+            container.appendChild(card);
         });
+
+        document.getElementById('judge-ui').classList.remove('hidden');
     }
 
-    // Manual Toggle
-    function toggleNG(card) {
-        card.classList.toggle('selected-ng');
-    }
-
-    // Phase 2: Confirm Judgement
     function confirmJudgement() {
-        document.getElementById('judge-controls').classList.add('hidden');
-        
-        // Check if any card has 'selected-ng'
         const ngCards = document.querySelectorAll('.answer-card.selected-ng');
-        const hasDuplicate = ngCards.length > 0;
+        const isFail = ngCards.length > 0;
 
-        if (hasDuplicate) {
-            // --- FAILURE ---
+        document.getElementById('judge-ui').classList.add('hidden');
+
+        if(isFail) {
             document.getElementById('screen-host').classList.add('shake-screen');
             setTimeout(() => {
-                if (currentFloor === 1) {
+                document.getElementById('screen-host').classList.remove('shake-screen');
+                if(currentFloor === 1) {
                     endGame(false);
                 } else {
                     currentFloor--;
-                    alert("回答が被った！前の階層へ戻される...");
+                    alert("被り発生！前の階層へ戻ります");
                     loadFloor();
                 }
             }, 1000);
         } else {
-            // --- SUCCESS ---
             const slash = document.getElementById('slash-layer');
             slash.classList.add('slash-effect');
-            document.getElementById('enemy-display').style.opacity = "0"; // Kill enemy
-
             setTimeout(() => {
                 slash.classList.remove('slash-effect');
-                document.getElementById('enemy-display').style.opacity = "1"; // Respawn for next or clear
-                
-                if (currentFloor === MAX_FLOOR) {
+                if(currentFloor === MAX_FLOOR) {
                     endGame(true);
                 } else {
                     currentFloor++;
                     loadFloor();
                 }
-            }, 1000);
+            }, 500);
         }
     }
 
     function startTimer() {
-        const timerEl = document.getElementById('game-timer');
+        const el = document.getElementById('game-timer');
         if(timerInterval) clearInterval(timerInterval);
-        
         timerInterval = setInterval(() => {
             remainingTime--;
-            const min = Math.floor(remainingTime / 60).toString().padStart(2, '0');
-            const sec = (remainingTime % 60).toString().padStart(2, '0');
-            timerEl.innerText = `${min}:${sec}`;
-
-            if (remainingTime <= 30) timerEl.classList.add('timer-warning');
-            if (remainingTime <= 0) {
+            const m = Math.floor(remainingTime/60).toString().padStart(2,'0');
+            const s = (remainingTime%60).toString().padStart(2,'0');
+            el.innerText = `${m}:${s}`;
+            if(remainingTime<=30) el.classList.add('timer-warning');
+            if(remainingTime<=0) {
                 clearInterval(timerInterval);
-                endGame(false, "時間切れ！");
+                endGame(false, "TIME UP");
             }
         }, 1000);
     }
 
-    function endGame(isClear, msg = "") {
+    function endGame(isClear, msg="") {
         clearInterval(timerInterval);
         showScreen('screen-result');
-        const title = document.getElementById('result-title');
-        const desc = document.getElementById('result-desc');
-        
-        if (isClear) {
-            title.innerText = "GAME CLEAR!!";
-            title.style.color = "#f1c40f";
-            desc.innerText = "見事ダンジョンを制覇した！";
-        } else {
-            title.innerText = "GAME OVER";
-            title.style.color = "#e74c3c";
-            desc.innerText = msg ? msg : "冒険はここで終わった...";
-        }
-        broadcast({ type: 'GAME_END', isClear: isClear });
+        const t = document.getElementById('res-title');
+        t.innerText = isClear ? "GAME CLEAR!!" : "GAME OVER";
+        t.style.color = isClear ? "#f1c40f" : "#e74c3c";
+        broadcast({ type: 'END', isClear: isClear });
     }
 
     function broadcast(data) {
         Object.values(connections).forEach(c => c.send(data));
     }
 
-    // ================= PLAYER LOGIC =================
+    // --- PLAYER LOGIC ---
     let hostConn;
-
     function joinGame() {
-        const name = document.getElementById('my-name').value;
-        if (!name) return alert("名前を入れてね");
+        const name = document.getElementById('p-name-input').value;
+        if(!name) return alert("名前を入力");
         const urlParams = new URLSearchParams(window.location.search);
         hostConn = peer.connect(urlParams.get('host'));
-        
         hostConn.on('open', () => {
-            hostConn.send({ type: 'JOIN', name: name });
-            document.getElementById('p-status-text').innerText = "ホストの開始を待っています...";
+            hostConn.send({ type:'JOIN', name:name });
             showScreen('screen-player');
-            document.getElementById('p-btn-send').disabled = true;
+            document.getElementById('p-send-btn').disabled = true;
         });
-
-        hostConn.on('data', (data) => {
-            if (data.type === 'GAME_START') {
-                document.getElementById('p-status-text').innerText = "ゲーム開始！";
-            } else if (data.type === 'NEW_QUESTION') {
-                document.getElementById('p-status-text').innerText = "回答を入力してください";
-                document.getElementById('p-question-area').innerText = data.text;
-                const input = document.getElementById('p-answer');
-                input.value = "";
-                input.disabled = false;
-                const btn = document.getElementById('p-btn-send');
-                btn.disabled = false;
-                btn.innerText = "送信";
-                btn.style.background = "#27ae60";
-            } else if (data.type === 'GAME_END') {
-                document.getElementById('p-status-text').innerText = data.isClear ? "クリア！！" : "ゲームオーバー...";
-                document.getElementById('p-answer').disabled = true;
-                document.getElementById('p-btn-send').disabled = true;
+        hostConn.on('data', d => {
+            if(d.type === 'START') {
+                document.getElementById('p-status').innerText = "ゲーム開始！";
+            } else if(d.type === 'QUESTION') {
+                document.getElementById('p-status').innerText = "回答してください";
+                document.getElementById('p-question').innerText = d.text;
+                document.getElementById('p-ans-input').value = "";
+                document.getElementById('p-ans-input').disabled = false;
+                document.getElementById('p-send-btn').disabled = false;
+                document.getElementById('p-send-btn').innerText = "送信";
+                document.getElementById('p-send-btn').style.background = "#27ae60";
+            } else if(d.type === 'END') {
+                document.getElementById('p-status').innerText = d.isClear ? "クリア！" : "終了...";
+                document.getElementById('p-ans-input').disabled = true;
+                document.getElementById('p-send-btn').disabled = true;
             }
         });
     }
 
     function sendAnswer() {
-        const ans = document.getElementById('p-answer').value;
-        if (!ans) return;
-        hostConn.send({ type: 'ANSWER', answer: ans });
-        document.getElementById('p-status-text').innerText = "他の人を待っています...";
-        document.getElementById('p-answer').disabled = true;
-        const btn = document.getElementById('p-btn-send');
-        btn.disabled = true;
-        btn.innerText = "送信済み";
-        btn.style.background = "#7f8c8d";
+        const val = document.getElementById('p-ans-input').value;
+        if(!val) return;
+        hostConn.send({ type:'ANSWER', answer:val });
+        document.getElementById('p-status').innerText = "待機中...";
+        document.getElementById('p-ans-input').disabled = true;
+        document.getElementById('p-send-btn').disabled = true;
+        document.getElementById('p-send-btn').innerText = "送信済";
+        document.getElementById('p-send-btn').style.background = "#555";
     }
 
     function showScreen(id) {
-        document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.screen').forEach(e => e.classList.add('hidden'));
         document.getElementById(id).classList.remove('hidden');
     }
 </script>
