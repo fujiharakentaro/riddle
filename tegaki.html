@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Handwriting Quiz Master V2</title>
+    <title>Handwriting Quiz Master V3</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -11,20 +11,50 @@
         .hidden { display: none !important; }
         
         /* Layouts */
-        .screen { max-width: 1000px; margin: 0 auto; }
+        .screen { max-width: 1000px; margin: 0 auto; transition: 0.3s; }
         
-        /* Canvas (Drawing Board) */
+        /* --- PC Fullscreen Styles (Free Mode) --- */
+        body.solo-mode { padding: 0; margin: 0; overflow: hidden; background: #000; }
+        body.solo-mode .header-area, 
+        body.solo-mode .qr-section, 
+        body.solo-mode #mode-indicator { display: none !important; }
+        
+        body.solo-mode #pc-grid { 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; width: 100vw; margin: 0; 
+        }
+        body.solo-mode .pc-card {
+            width: 95vw; height: 90vh; 
+            border: none; background: transparent;
+        }
+        body.solo-mode .pc-canvas-box {
+            width: 100%; height: 100%; 
+            background: #fff; 
+        }
+        body.solo-mode .player-name { display: none; } /* Hide name in fullscreen */
+        body.solo-mode .status-text { display: none; }
+
+        /* Exit Button for Solo Mode */
+        #btn-exit-solo {
+            position: fixed; top: 10px; left: 10px; z-index: 999;
+            background: rgba(255,255,255,0.3); color: #000; font-size: 12px; padding: 5px;
+            display: none;
+        }
+        body.solo-mode #btn-exit-solo { display: block; }
+
+        /* --- Canvas (Drawing Board) --- */
         .canvas-wrapper {
             position: relative;
-            width: 300px; height: 200px;
-            margin: 0 auto 20px auto;
+            width: 100%; max-width: 600px; /* Wide Canvas */
+            aspect-ratio: 16 / 9;
+            margin: 0 auto 10px auto;
             border: 4px solid #fff;
             background: #fff;
             border-radius: 10px;
             overflow: hidden;
             cursor: crosshair;
         }
-        canvas { display: block; touch-action: none; } 
+        canvas { display: block; touch-action: none; width: 100%; height: 100%; } 
 
         /* Buttons */
         button { border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 5px; transition: 0.2s; color: #fff; }
@@ -34,10 +64,10 @@
         .btn-copy { background: #27ae60; font-size: 14px; padding: 5px 10px; }
         .btn-mode { background: #3498db; font-weight: bold; border: 2px solid #fff; }
         
-        .btn-judge-ok { background: #e74c3c; flex: 1; margin: 2px; } /* Red */
-        .btn-judge-ng { background: #3498db; flex: 1; margin: 2px; } /* Blue */
+        .btn-judge-ok { background: #e74c3c; flex: 1; margin: 2px; } 
+        .btn-judge-ng { background: #3498db; flex: 1; margin: 2px; } 
         
-        /* PC Grid Display */
+        /* PC Grid Display (Normal Mode) */
         #pc-grid { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); 
@@ -48,9 +78,10 @@
             display: flex; flex-direction: column; align-items: center;
             transition: 0.3s; border: 4px solid #555;
         }
-        /* PC Canvas Container */
+        /* PC Canvas Container (Normal) */
         .pc-canvas-box {
-            width: 300px; height: 200px; background: #fff; border-radius: 5px; position: relative;
+            width: 300px; height: 169px; /* 16:9 ratio */
+            background: #fff; border-radius: 5px; position: relative;
         }
         .pc-card canvas { width: 100%; height: 100%; }
         
@@ -69,7 +100,7 @@
             background: #333; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #555;
             display: flex; flex-direction: column; align-items: center;
         }
-        .judge-item img { width: 200px; background: #fff; border-radius: 4px; margin-bottom: 10px; }
+        .judge-item img { width: 100%; max-width: 300px; background: #fff; border-radius: 4px; margin-bottom: 10px; }
         .judge-controls { display: flex; width: 100%; justify-content: space-between; }
 
         /* QR Area */
@@ -79,13 +110,21 @@
         
         /* Mode Indicator */
         #mode-indicator { font-size: 24px; font-weight: bold; color: #f1c40f; margin-bottom: 10px; }
+        
+        /* Orientation Warning */
+        #orientation-msg { 
+            display: none; background: #e67e22; color: #000; padding: 5px; 
+            margin-bottom: 10px; font-size: 12px; font-weight: bold; border-radius: 5px;
+        }
     </style>
 </head>
 <body>
 
 <div id="screen-pc" class="screen hidden">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h1 style="color:#f1c40f; margin:0;">Handwriting Quiz V2</h1>
+    <button id="btn-exit-solo" onclick="exitSoloMode()">× 戻る</button>
+
+    <div class="header-area" style="display:flex; justify-content:space-between; align-items:center;">
+        <h1 style="color:#f1c40f; margin:0;">Handwriting Quiz V3</h1>
         <div>
             <button onclick="toggleMode()" class="btn-mode" id="btn-mode-toggle">モード切替: クイズ</button>
             <button onclick="resetBoard()" style="background:#f39c12; color:#000;">全消去</button>
@@ -121,7 +160,7 @@
 <div id="screen-judge" class="screen hidden">
     <h2 style="color:#f39c12;">[判定役] 管理画面</h2>
     <p id="judge-status" style="color:#2ecc71;">PC接続済み</p>
-    <div id="judge-warning" style="color:#e74c3c; font-weight:bold; display:none;">※現在はフリーモードです。<br>判定は不要です。</div>
+    <div id="judge-warning" style="color:#e74c3c; font-weight:bold; display:none;">※現在はフリーモードです。<br>PC画面に直接反映されています。</div>
     <hr>
     <div id="judge-list">
         <p style="color:#aaa;">回答待ち...</p>
@@ -131,34 +170,38 @@
 
 <div id="screen-login" class="screen hidden">
     <h1>手書きクイズ</h1>
+    <p>スマホを横にして使ってください</p>
     <input type="text" id="my-name" placeholder="ニックネーム" style="padding:10px; width:80%; font-size:16px;">
     <br><br>
     <button onclick="joinGame()" style="background:#27ae60; width:80%;">参加する</button>
 </div>
 
 <div id="screen-draw" class="screen hidden">
-    <h2 id="disp-name"></h2>
-    <p id="mode-msg" style="font-size:14px; color:#aaa;">クイズモード: 書いて送信してください</p>
-    
-    <div class="canvas-wrapper">
-        <canvas id="drawing-board" width="300" height="200"></canvas>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 id="disp-name" style="margin:0; font-size:18px;"></h2>
+        <div id="orientation-msg">スマホを横にすると書きやすいです</div>
     </div>
     
-    <div>
+    <p id="mode-msg" style="font-size:12px; color:#aaa; margin:5px 0;">クイズモード: 書いて送信してください</p>
+    
+    <div class="canvas-wrapper">
+        <canvas id="drawing-board" width="800" height="450"></canvas>
+    </div>
+    
+    <div style="display:flex; justify-content:center;">
         <button class="btn-clear" onclick="clearCanvas()">消去</button>
         <button id="btn-send" class="btn-submit" onclick="sendImage()">送信</button>
     </div>
-    <p id="player-status" style="color:#f1c40f; margin-top:10px; font-weight:bold;"></p>
+    <p id="player-status" style="color:#f1c40f; margin-top:5px; font-weight:bold; font-size:14px;"></p>
 </div>
 
 
 <script>
     // --- Global Vars ---
     let peer, myId;
-    let connections = {}; // { id: conn }
+    let connections = {}; 
     let judgeConn = null;
-    let players = {}; // { id: {name, status, pcCtx} } 
-    // status: 'waiting', 'received', 'correct', 'wrong'
+    let players = {}; 
     
     let isFreeMode = false; // Toggle for Realtime Mode
 
@@ -178,6 +221,12 @@
         } else {
             setupPeer(true);
         }
+        
+        // Orientation Check
+        if(window.innerWidth < window.innerHeight) {
+            const msg = document.getElementById('orientation-msg');
+            if(msg) msg.style.display = 'block';
+        }
     };
 
     function setupPeer(isHostMode, hostId = null, role = null) {
@@ -193,7 +242,7 @@
         });
         peer.on('error', err => {
             console.error(err);
-            if(!isHostMode) alert("接続エラー: PC画面をリロードした可能性があります。QRを読み直してください。");
+            if(!isHostMode) alert("接続エラー: QRを読み直してください。");
         });
     }
 
@@ -201,7 +250,6 @@
     function initHost() {
         document.getElementById('screen-pc').classList.remove('hidden');
         
-        // QR Generation
         const baseUrl = location.href.split('?')[0];
         const judgeUrl = `${baseUrl}?host=${myId}&role=judge`;
         const playerUrl = `${baseUrl}?host=${myId}`;
@@ -215,11 +263,6 @@
         peer.on('connection', c => {
             c.on('open', () => {
                 c.on('data', data => handleHostData(c, data));
-                
-                // If it's a player, init their PC-side logic
-                if (!players[c.peer] && c.metadata && c.metadata.role !== 'judge') {
-                    // Wait for JOIN message for name
-                }
             });
         });
     }
@@ -230,46 +273,54 @@
         const btn = document.getElementById('btn-mode-toggle');
         
         if (isFreeMode) {
-            ind.innerText = "現在のモード: フリー (リアルタイム反映)";
+            ind.innerText = "現在のモード: フリー (リアルタイム・全画面)";
             ind.style.color = "#3498db";
             btn.innerText = "モード切替: フリー";
             broadcast({ type: 'MODE_CHANGE', mode: 'free' });
             
-            // In free mode, reveal all cards immediately
             document.querySelectorAll('.pc-card').forEach(el => el.classList.remove('hidden-answer', 'revealed'));
+            
+            // If players exist, trigger solo mode immediately
+            if (Object.keys(players).length > 0) {
+                document.body.classList.add('solo-mode');
+            }
+
         } else {
             ind.innerText = "現在のモード: クイズ (判定あり)";
             ind.style.color = "#f1c40f";
             btn.innerText = "モード切替: クイズ";
             broadcast({ type: 'MODE_CHANGE', mode: 'quiz' });
             
-            // In quiz mode, hide contents until judged (or reset)
             document.querySelectorAll('.pc-card').forEach(el => el.classList.add('hidden-answer'));
+            exitSoloMode();
         }
     }
 
+    function exitSoloMode() {
+        document.body.classList.remove('solo-mode');
+    }
+
     function handleHostData(c, data) {
-        // --- Judge Join ---
         if (data.type === 'JUDGE_JOIN') {
             judgeConn = c;
-            // Sync mode info
             judgeConn.send({ type: 'MODE_CHANGE', mode: isFreeMode ? 'free' : 'quiz' });
         }
         
-        // --- Player Join ---
         else if (data.type === 'PLAYER_JOIN') {
             connections[c.peer] = c;
             players[c.peer] = { name: data.name, status: 'waiting' };
             createPlayerCard(c.peer, data.name);
-            // Sync mode
             c.send({ type: 'MODE_CHANGE', mode: isFreeMode ? 'free' : 'quiz' });
+            
+            if(isFreeMode) {
+                document.body.classList.add('solo-mode');
+            }
         }
         
-        // --- Realtime Drawing (Free Mode) ---
         else if (data.type === 'RT_DRAW') {
             if (players[c.peer] && players[c.peer].pcCtx) {
                 const ctx = players[c.peer].pcCtx;
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 5; // Thicker for large screen
                 ctx.lineCap = 'round';
                 ctx.strokeStyle = '#000';
                 
@@ -277,39 +328,33 @@
                     ctx.beginPath();
                     ctx.moveTo(data.x, data.y);
                 } else if(data.action === 'move') {
-                    // For smoother lines, we assume path is continuous or receive segments
-                    // Simple segment drawing:
                     ctx.beginPath();
                     ctx.moveTo(data.lastX, data.lastY);
                     ctx.lineTo(data.x, data.y);
                     ctx.stroke();
                 } else if(data.action === 'clear') {
-                    ctx.clearRect(0,0,300,200);
+                    ctx.clearRect(0,0,800,450);
                 }
             }
         }
 
-        // --- Quiz Mode Submit ---
         else if (data.type === 'SUBMIT_IMAGE') {
-            if (isFreeMode) return; // Ignore submits in free mode (already drawn)
+            if (isFreeMode) return; 
             
             const p = players[c.peer];
             p.status = 'received';
             
-            // Update PC Status Text
             const card = document.getElementById(`card-${c.peer}`);
             if(card) {
                 card.querySelector('.status-text').innerText = "回答 受信済み";
-                // Draw image to canvas but keep hidden via CSS
                 const img = new Image();
                 img.onload = () => {
-                    p.pcCtx.clearRect(0,0,300,200);
+                    p.pcCtx.clearRect(0,0,800,450);
                     p.pcCtx.drawImage(img, 0, 0);
                 };
                 img.src = data.image;
             }
 
-            // Send to Judge
             if (judgeConn) {
                 judgeConn.send({
                     type: 'NEW_ANSWER',
@@ -320,7 +365,6 @@
             }
         }
 
-        // --- Judge Decision ---
         else if (data.type === 'JUDGE_DECISION') {
             const pId = data.targetId;
             const p = players[pId];
@@ -328,7 +372,6 @@
                 p.status = data.result;
                 const card = document.getElementById(`card-${pId}`);
                 if(card) {
-                    // Remove old classes
                     card.classList.remove('bg-correct', 'bg-wrong', 'hidden-answer');
                     card.classList.add('revealed');
                     
@@ -350,7 +393,6 @@
         const grid = document.getElementById('pc-grid');
         const div = document.createElement('div');
         div.id = `card-${id}`;
-        // Default class depends on mode
         let baseClass = "pc-card";
         if (!isFreeMode) baseClass += " hidden-answer";
         
@@ -358,13 +400,12 @@
         div.innerHTML = `
             <div class="player-name">${name}</div>
             <div class="pc-canvas-box">
-                <canvas id="canvas-${id}" width="300" height="200"></canvas>
+                <canvas id="canvas-${id}" width="800" height="450"></canvas>
             </div>
             <div class="status-text">回答待ち...</div>
         `;
         grid.appendChild(div);
 
-        // Save context for drawing
         const cvs = document.getElementById(`canvas-${id}`);
         players[id].pcCtx = cvs.getContext('2d');
     }
@@ -375,11 +416,8 @@
         Object.keys(players).forEach(id => {
             const p = players[id];
             p.status = 'waiting';
+            if(p.pcCtx) p.pcCtx.clearRect(0,0,800,450);
             
-            // Clear PC canvas
-            if(p.pcCtx) p.pcCtx.clearRect(0,0,300,200);
-            
-            // Reset Card UI
             const card = document.getElementById(`card-${id}`);
             if(card) {
                 card.className = "pc-card"; 
@@ -436,7 +474,6 @@
         if(list.innerHTML.includes('回答待ち')) list.innerHTML = "";
         
         if(document.getElementById(`judge-${data.id}`)) {
-            // Update existing if re-sent
             document.getElementById(`judge-${data.id}`).remove();
         }
 
@@ -491,7 +528,7 @@
                 const btn = document.getElementById('btn-send');
                 if (isFreeMode) {
                     msg.innerText = "フリーモード: リアルタイムで反映されます";
-                    btn.style.display = "none"; // Hide submit in free mode
+                    btn.style.display = "none"; 
                 } else {
                     msg.innerText = "クイズモード: 書いて送信してください";
                     btn.style.display = "inline-block";
@@ -509,20 +546,23 @@
         document.getElementById('screen-draw').classList.remove('hidden');
         document.getElementById('disp-name').innerText = name;
         
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.strokeStyle = '#000';
     }
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
         let x, y;
         if (e.touches) {
-            x = e.touches[0].clientX - rect.left;
-            y = e.touches[0].clientY - rect.top;
+            x = (e.touches[0].clientX - rect.left) * scaleX;
+            y = (e.touches[0].clientY - rect.top) * scaleY;
         } else {
-            x = e.clientX - rect.left;
-            y = e.clientY - rect.top;
+            x = (e.clientX - rect.left) * scaleX;
+            y = (e.clientY - rect.top) * scaleY;
         }
         return {x, y};
     }
