@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V4.8</title>
+    <title>被らないダンジョン V4.9</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,8 +98,12 @@
         #lobby-url-container:hover { background: #333; border-color: #fff; }
         #lobby-url-container:active { background: #444; }
 
-        /* Game Screen Layout (V4.8 Fix) */
-        .dungeon-header { position: absolute; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 20; text-shadow: 2px 2px 0 #000; }
+        /* Game Screen Layout (V4.9 Balanced) */
+        .dungeon-header { 
+            position: absolute; top: 0; left: 0; width: 100%; 
+            display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box; 
+            z-index: 20; text-shadow: 2px 2px 0 #000; 
+        }
         .floor-indicator { font-size: 40px; color: #f1c40f; font-family: 'Noto Serif JP', serif; font-weight: 900; }
         .timer-box { font-size: 32px; border: 2px solid #fff; padding: 5px 15px; background: rgba(0,0,0,0.7); }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
@@ -107,44 +111,52 @@
         .enemy-area { 
             flex: 1; width: 100%; position: relative; 
             display: flex; flex-direction: column; align-items: center; 
-            /* 変更: 敵を上、お題を下にするため space-between または flex-end を調整 */
             justify-content: flex-end; 
             padding-bottom: 20px;
         }
 
         .enemy-img { 
             position: absolute; 
-            /* 変更: 上に固定して下に伸ばす */
-            top: 120px; /* ヘッダーの下 */
+            top: 80px; /* 少し上げる */
             left: 50%; transform: translateX(-50%);
-            /* サイズと変形基準 */
             transform-origin: top center;
             object-fit: contain; 
             filter: drop-shadow(0 0 20px rgba(0,0,0,0.8)); 
             animation: float 3s ease-in-out infinite; 
-            z-index: 5; 
+            z-index: 5; /* 1番奥 */
             opacity: 0; 
             transition: opacity 0.3s ease-in;
         }
         
+        /* V4.9: Tighter Question Box */
         .question-box { 
-            position: relative; z-index: 10;
-            background: rgba(0,0,0,0.9); border: 4px double #fff; padding: 15px; 
-            font-size: 50px; font-weight: 900;
+            position: relative; z-index: 10; /* 敵より手前 */
+            background: rgba(0,0,0,0.9); 
+            border: 4px double #fff; 
+            padding: 5px 15px; /* 上下のパディングを極小に */
+            font-size: 55px; /* さらに巨大化 */
+            font-weight: 900;
             width: 90%; max-width: 800px;
-            /* 変更: 下に配置 */
             margin-top: auto; 
-            margin-bottom: 60px; /* ボタンエリアのスペース確保 */
+            margin-bottom: 20px; 
             border-radius: 12px; text-align: center; box-shadow: 0 0 25px rgba(0,0,0,0.9);
-            line-height: 1.2; 
+            line-height: 1.1; 
+            min-height: auto; /* 高さは文字に合わせる */
             display: flex; align-items: center; justify-content: center;
-            min-height: 140px;
         }
         
         .answers-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 95%; padding-bottom: 20px; z-index: 30; min-height: 120px; }
-        .answer-card { background: #222; border: 2px solid #777; padding: 10px; width: 130px; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: 0.2s; cursor: pointer; }
+        
+        .answer-card { 
+            background: #222; border: 2px solid #777; padding: 10px; 
+            width: 140px; min-height: 90px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            position: relative; transition: 0.2s; cursor: pointer; 
+        }
         .p-name { font-size: 12px; color: #aaa; }
-        .p-ans { font-size: 20px; font-weight: bold; word-break: break-all; }
+        /* V4.9: Bigger Answer Text */
+        .p-ans { font-size: 28px; font-weight: bold; word-break: break-all; line-height: 1.1; }
+        
         .answer-card.selected-ng { background: #c0392b !important; border-color: #e74c3c !important; transform: scale(1.05); }
         .answer-card.selected-ng::after { content: "被り!"; position: absolute; top: -5px; right: -5px; font-weight:bold; background: #fff; color: #c0392b; padding: 2px 6px; font-size: 14px; border: 2px solid #c0392b; }
 
@@ -337,11 +349,9 @@
         {text:"虹の色(7)", count:7}, {text:"硬貨の種類(6)", count:6}, {text:"五大陸(5)", count:5}, 
         {text:"季節(4)", count:4}, {text:"信号機の色(3)", count:3}, {text:"じゃんけんの手(3)", count:3}
     ];
-    // FIX: Added 'connections' to global variables
     let peer, conn, myId, players = {}, connections = {}, currentFloor = 1, floorQuestions = {}, timerInterval, remainingTime;
     let isDebugMode = false;
 
-    // --- IndexedDB Helper ---
     function openDB() {
         return new Promise((resolve, reject) => {
             const req = indexedDB.open(DB_NAME, 1);
@@ -363,7 +373,6 @@
         return new Promise(resolve => req.onsuccess = () => resolve(req.result));
     }
 
-    // --- Init ---
     window.onload = async () => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('host')) setupPeer(false, urlParams.get('host'));
@@ -401,9 +410,7 @@
                     }
                 }
             }
-        } catch(e) {
-            console.error("DB Load Error:", e);
-        }
+        } catch(e) { console.error("DB Load Error:", e); }
     }
 
     async function saveOpacity() {
@@ -417,7 +424,6 @@
     async function autoSaveAsset(type, input, floorIndex) {
         const file = input.files[0];
         if(!file) return;
-
         const cur = await loadDB('userConfig') || {};
         
         if(type === 'bgm') {
@@ -480,7 +486,6 @@
             const enStat = config.assets[i]?.enemy ? "active" : "";
             const bgTxt = bgStat ? "✅保存済" : "未設定";
             const enTxt = enStat ? "✅保存済" : "未設定";
-
             row.innerHTML = `
                 <div class="floor-label">${i}F</div>
                 <label style="font-size:12px;">背景 <span id="status-bg-${i}" class="file-status ${bgStat}">${bgTxt}</span><br>
@@ -508,19 +513,14 @@
     function addQuestion() {
         const txt = document.getElementById('q-text').value, cnt = parseInt(document.getElementById('q-count').value);
         if(!txt || !cnt) return alert("お題と回答数を入力");
-        
         config.questions = config.questions.filter(q => q.text !== txt);
         config.questions.push({ text: txt, count: cnt });
-        
         renderQuestionList();
         autoSaveQuestions(); 
         document.getElementById('q-text').value = ""; document.getElementById('q-count').value = "";
     }
 
-    function saveSettingsAndBack() {
-        showScreen('screen-title');
-    }
-
+    function saveSettingsAndBack() { showScreen('screen-title'); }
     async function copyUrl() {
         const text = document.getElementById('lobby-url').innerText;
         try { await navigator.clipboard.writeText(text); alert("URLをコピーしました！"); } 
@@ -533,45 +533,26 @@
         config.players = parseInt(document.getElementById('opt-players').value);
         config.time = parseInt(document.getElementById('opt-time').value);
         config.floors = parseInt(document.getElementById('opt-floors').value);
-        
         if(config.questions.length === 0) config.questions = [...DEFAULT_QS];
-        
         try {
             generateFloorQuestions();
             showScreen('screen-lobby');
             if(!peer) setupPeer(true);
-        } catch(e) {
-            alert("初期化エラー: " + e);
-        }
+        } catch(e) { alert("初期化エラー: " + e); }
     }
 
     function generateFloorQuestions() {
-        if(!config.questions || config.questions.length === 0) {
-            console.warn("No questions found, using defaults.");
-            config.questions = [...DEFAULT_QS];
-        }
-
+        if(!config.questions || config.questions.length === 0) config.questions = [...DEFAULT_QS];
         let validQ = config.questions.filter(q => q.count >= config.players);
         validQ = validQ.filter((v,i,a)=>a.findIndex(t=>(t.text===v.text))===i);
-
-        if (validQ.length === 0) {
-            console.warn("No valid questions for player count, using all.");
-            validQ = [...config.questions];
-        }
-
+        if (validQ.length === 0) validQ = [...config.questions];
         validQ.sort((a, b) => b.count - a.count);
-
         for(let i=1; i<=config.floors; i++) {
             const total = validQ.length;
             const startIdx = Math.floor( (i - 1) * total / config.floors );
             const endIdx = Math.floor( i * total / config.floors );
             let bucket = validQ.slice(startIdx, endIdx);
-            
-            if(bucket.length === 0) {
-                const safeIndex = Math.min(startIdx, total - 1);
-                bucket = [validQ[safeIndex]];
-            }
-            
+            if(bucket.length === 0) { const safeIndex = Math.min(startIdx, total - 1); bucket = [validQ[safeIndex]]; }
             floorQuestions[i] = bucket[Math.floor(Math.random() * bucket.length)].text;
         }
     }
@@ -591,7 +572,7 @@
                 c.on('data', d => handleData(c, d));
                 c.on('close', () => removePlayer(c.peer));
             });
-            connections[c.peer] = c; // Fixed
+            connections[c.peer] = c; 
         });
         peer.on('error', e => alert("Connection Error: " + e));
     }
@@ -606,11 +587,7 @@
     }
 
     function removePlayer(peerId) {
-        if(players[peerId]) {
-            delete players[peerId];
-            updateLobby();
-            updateGridHost();
-        }
+        if(players[peerId]) { delete players[peerId]; updateLobby(); updateGridHost(); }
     }
 
     function updateLobby() {
@@ -622,32 +599,15 @@
 
     function startGame() {
         const cnt = Object.keys(players).length;
-        if(cnt === 0) return alert("参加者が0人です。誰も接続していません。");
-        
-        if(Object.keys(floorQuestions).length === 0) {
-            try {
-                generateFloorQuestions();
-            } catch(e) {
-                alert("お題生成エラー: " + e);
-                return;
-            }
-        }
-
+        if(cnt === 0) return alert("参加者が0人です。");
+        if(Object.keys(floorQuestions).length === 0) generateFloorQuestions();
         isDebugMode = false;
-        try {
-            launchGame();
-        } catch(e) {
-            alert("ゲーム開始エラー: " + e);
-        }
+        launchGame();
     }
 
     function startDebugGame() {
-        config.players = 1; 
-        config.floors = 7;
-        config.time = 999;
-        
+        config.players = 1; config.floors = 7; config.time = 999;
         if(!config.questions || config.questions.length === 0) config.questions = [...DEFAULT_QS];
-        
         generateFloorQuestions();
         isDebugMode = true;
         launchGame();
@@ -663,42 +623,37 @@
 
     function loadFloor() {
         document.getElementById('screen-host').classList.remove('shake-screen');
-        
         const assetIndex = (MAX_ASSETS - config.floors) + currentFloor;
         const asset = config.assets[assetIndex] || { bg: null, enemy: null };
         updateBackground(asset.bg);
 
         const enemyImg = document.getElementById('enemy-img');
         const enemyPh = document.getElementById('enemy-placeholder');
-        
         enemyImg.style.opacity = "0"; 
         
+        // V4.9: Massive Scaling (1.5x)
         let scale = 1.0;
-        if (currentFloor <= 2) scale = 0.6;
-        else if (currentFloor === 3) scale = 0.9;
-        else if (currentFloor === 4) scale = 1.0;
-        else if (currentFloor === 5) scale = 1.1;
-        else scale = 1.2;
+        if (currentFloor <= 2) scale = 0.9;
+        else if (currentFloor === 3) scale = 1.35;
+        else if (currentFloor === 4) scale = 1.5;
+        else if (currentFloor === 5) scale = 1.65;
+        else scale = 1.8; // Boss is Huge
 
         if (asset.enemy) { 
             enemyImg.src = asset.enemy; 
             enemyImg.style.display = "block"; 
-            enemyImg.style.height = `${40 * scale}vh`; 
+            enemyImg.style.height = `${55 * scale}vh`; // 40->55 base
             enemyImg.style.transform = `translateX(-50%) scale(${scale})`; 
             enemyImg.onload = () => { enemyImg.style.opacity = "1"; }; 
             enemyPh.style.display = "none"; 
         } else { 
-            enemyImg.style.display = "none"; 
-            enemyPh.style.display = "block";
-            enemyPh.style.opacity = "1"; 
+            enemyImg.style.display = "none"; enemyPh.style.display = "block"; enemyPh.style.opacity = "1"; 
         }
         
         document.getElementById('disp-floor').innerText = currentFloor;
         document.getElementById('max-floor-disp').innerText = config.floors;
-        
         const qText = floorQuestions[currentFloor] || "お題読み込みエラー";
         document.getElementById('question-text').innerText = qText;
-        
         Object.keys(players).forEach(id => players[id].answer = null);
         
         if(isDebugMode) {
@@ -717,22 +672,17 @@
     function debugTrigger(isSuccess) {
         if(isSuccess) {
             const slash = document.getElementById('slash-layer');
-            slash.style.display = 'block';
-            slash.classList.add('slash-effect');
+            slash.style.display = 'block'; slash.classList.add('slash-effect');
             document.getElementById('enemy-img').style.opacity = 0; document.getElementById('enemy-placeholder').style.opacity = 0;
-            
             setTimeout(() => {
-                slash.classList.remove('slash-effect');
-                slash.style.display = 'none';
-                if(currentFloor === config.floors) endGame(true);
-                else { currentFloor++; loadFloor(); }
+                slash.classList.remove('slash-effect'); slash.style.display = 'none';
+                if(currentFloor === config.floors) endGame(true); else { currentFloor++; loadFloor(); }
             }, 500);
         } else {
             document.getElementById('screen-host').classList.add('shake-screen');
             setTimeout(() => {
                 document.getElementById('screen-host').classList.remove('shake-screen');
-                if(currentFloor === 1) endGame(false);
-                else { currentFloor--; loadFloor(); }
+                if(currentFloor === 1) endGame(false); else { currentFloor--; loadFloor(); }
             }, 1000);
         }
     }
@@ -774,19 +724,15 @@
             document.getElementById('screen-host').classList.add('shake-screen');
             setTimeout(() => {
                 document.getElementById('screen-host').classList.remove('shake-screen');
-                if(currentFloor === 1) endGame(false);
-                else { currentFloor--; loadFloor(); }
+                if(currentFloor === 1) endGame(false); else { currentFloor--; loadFloor(); }
             }, 1000);
         } else {
             const slash = document.getElementById('slash-layer');
-            slash.style.display = 'block';
-            slash.classList.add('slash-effect');
+            slash.style.display = 'block'; slash.classList.add('slash-effect');
             document.getElementById('enemy-img').style.opacity = 0; document.getElementById('enemy-placeholder').style.opacity = 0;
             setTimeout(() => {
-                slash.classList.remove('slash-effect');
-                slash.style.display = 'none';
-                if(currentFloor === config.floors) endGame(true);
-                else { currentFloor++; loadFloor(); }
+                slash.classList.remove('slash-effect'); slash.style.display = 'none';
+                if(currentFloor === config.floors) endGame(true); else { currentFloor++; loadFloor(); }
             }, 500);
         }
     }
@@ -819,40 +765,9 @@
     function joinGame() {
         const name = document.getElementById('p-name-input').value;
         if(!name) return alert("名前を入力");
-        
-        const btn = document.getElementById('btn-player-join');
-        btn.disabled = true;
-        btn.innerText = "接続中...";
-
         const urlParams = new URLSearchParams(window.location.search);
-        const hId = urlParams.get('host');
-        if(!hId) {
-            alert("ホストIDが見つかりません");
-            btn.disabled = false; btn.innerText = "登録";
-            return;
-        }
-
-        hostConn = peer.connect(hId);
-        
-        const tm = setTimeout(() => {
-            if(!hostConn.open) {
-                alert("ホストに接続できませんでした。");
-                btn.disabled = false; btn.innerText = "登録";
-            }
-        }, 5000);
-
-        hostConn.on('open', () => {
-            clearTimeout(tm);
-            hostConn.send({ type:'JOIN', name:name });
-            showScreen('screen-player');
-        });
-        
-        hostConn.on('error', e => {
-            clearTimeout(tm);
-            alert("接続エラー: " + e);
-            btn.disabled = false; btn.innerText = "登録";
-        });
-
+        hostConn = peer.connect(urlParams.get('host'));
+        hostConn.on('open', () => { hostConn.send({ type:'JOIN', name:name }); showScreen('screen-player'); document.getElementById('p-send-btn').disabled = true; });
         hostConn.on('data', d => {
             if(d.type === 'START') document.getElementById('p-status').innerText = "ゲーム開始！";
             else if(d.type === 'QUESTION') {
