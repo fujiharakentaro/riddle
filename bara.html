@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V4.7</title>
+    <title>被らないダンジョン V4.8</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,24 +98,27 @@
         #lobby-url-container:hover { background: #333; border-color: #fff; }
         #lobby-url-container:active { background: #444; }
 
-        /* Game Screen Layout */
-        .dungeon-header { 
-            position: absolute; top: 0; left: 0; width: 100%; 
-            display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box; 
-            z-index: 20; text-shadow: 2px 2px 0 #000; 
-        }
+        /* Game Screen Layout (V4.8 Fix) */
+        .dungeon-header { position: absolute; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 20; text-shadow: 2px 2px 0 #000; }
         .floor-indicator { font-size: 40px; color: #f1c40f; font-family: 'Noto Serif JP', serif; font-weight: 900; }
         .timer-box { font-size: 32px; border: 2px solid #fff; padding: 5px 15px; background: rgba(0,0,0,0.7); }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
         
         .enemy-area { 
             flex: 1; width: 100%; position: relative; 
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
+            display: flex; flex-direction: column; align-items: center; 
+            /* 変更: 敵を上、お題を下にするため space-between または flex-end を調整 */
+            justify-content: flex-end; 
             padding-bottom: 20px;
         }
 
         .enemy-img { 
-            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            position: absolute; 
+            /* 変更: 上に固定して下に伸ばす */
+            top: 120px; /* ヘッダーの下 */
+            left: 50%; transform: translateX(-50%);
+            /* サイズと変形基準 */
+            transform-origin: top center;
             object-fit: contain; 
             filter: drop-shadow(0 0 20px rgba(0,0,0,0.8)); 
             animation: float 3s ease-in-out infinite; 
@@ -126,14 +129,16 @@
         
         .question-box { 
             position: relative; z-index: 10;
-            background: rgba(0,0,0,0.85); border: 4px double #fff; padding: 15px; 
+            background: rgba(0,0,0,0.9); border: 4px double #fff; padding: 15px; 
             font-size: 50px; font-weight: 900;
-            width: 80%; max-width: 600px;
-            margin-bottom: 40px; 
+            width: 90%; max-width: 800px;
+            /* 変更: 下に配置 */
+            margin-top: auto; 
+            margin-bottom: 60px; /* ボタンエリアのスペース確保 */
             border-radius: 12px; text-align: center; box-shadow: 0 0 25px rgba(0,0,0,0.9);
-            line-height: 1.1; 
+            line-height: 1.2; 
             display: flex; align-items: center; justify-content: center;
-            min-height: 120px;
+            min-height: 140px;
         }
         
         .answers-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 95%; padding-bottom: 20px; z-index: 30; min-height: 120px; }
@@ -332,7 +337,8 @@
         {text:"虹の色(7)", count:7}, {text:"硬貨の種類(6)", count:6}, {text:"五大陸(5)", count:5}, 
         {text:"季節(4)", count:4}, {text:"信号機の色(3)", count:3}, {text:"じゃんけんの手(3)", count:3}
     ];
-    let peer, conn, myId, players = {}, currentFloor = 1, floorQuestions = {}, timerInterval, remainingTime;
+    // FIX: Added 'connections' to global variables
+    let peer, conn, myId, players = {}, connections = {}, currentFloor = 1, floorQuestions = {}, timerInterval, remainingTime;
     let isDebugMode = false;
 
     // --- IndexedDB Helper ---
@@ -503,7 +509,6 @@
         const txt = document.getElementById('q-text').value, cnt = parseInt(document.getElementById('q-count').value);
         if(!txt || !cnt) return alert("お題と回答数を入力");
         
-        // Remove duplicate text
         config.questions = config.questions.filter(q => q.text !== txt);
         config.questions.push({ text: txt, count: cnt });
         
@@ -541,23 +546,19 @@
     }
 
     function generateFloorQuestions() {
-        // V4.7: Force fallback if empty or insufficient
         if(!config.questions || config.questions.length === 0) {
             console.warn("No questions found, using defaults.");
             config.questions = [...DEFAULT_QS];
         }
 
         let validQ = config.questions.filter(q => q.count >= config.players);
-        // Remove duplicates by text
         validQ = validQ.filter((v,i,a)=>a.findIndex(t=>(t.text===v.text))===i);
 
-        // Fallback: If no valid questions for this player count, use ALL questions
         if (validQ.length === 0) {
             console.warn("No valid questions for player count, using all.");
             validQ = [...config.questions];
         }
 
-        // Sort: Easy -> Hard
         validQ.sort((a, b) => b.count - a.count);
 
         for(let i=1; i<=config.floors; i++) {
@@ -566,9 +567,7 @@
             const endIdx = Math.floor( i * total / config.floors );
             let bucket = validQ.slice(startIdx, endIdx);
             
-            // Safety bucket logic
             if(bucket.length === 0) {
-                // If bucket is empty, pick from nearby index
                 const safeIndex = Math.min(startIdx, total - 1);
                 bucket = [validQ[safeIndex]];
             }
@@ -592,7 +591,7 @@
                 c.on('data', d => handleData(c, d));
                 c.on('close', () => removePlayer(c.peer));
             });
-            connections[c.peer] = c; 
+            connections[c.peer] = c; // Fixed
         });
         peer.on('error', e => alert("Connection Error: " + e));
     }
@@ -625,7 +624,6 @@
         const cnt = Object.keys(players).length;
         if(cnt === 0) return alert("参加者が0人です。誰も接続していません。");
         
-        // Final Safety Check
         if(Object.keys(floorQuestions).length === 0) {
             try {
                 generateFloorQuestions();
@@ -648,7 +646,6 @@
         config.floors = 7;
         config.time = 999;
         
-        // Force Defaults if empty
         if(!config.questions || config.questions.length === 0) config.questions = [...DEFAULT_QS];
         
         generateFloorQuestions();
@@ -699,7 +696,6 @@
         document.getElementById('disp-floor').innerText = currentFloor;
         document.getElementById('max-floor-disp').innerText = config.floors;
         
-        // Safer access to question text
         const qText = floorQuestions[currentFloor] || "お題読み込みエラー";
         document.getElementById('question-text').innerText = qText;
         
