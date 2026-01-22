@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V5.2</title>
+    <title>被らないダンジョン V5.3</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -145,7 +145,7 @@
         .control-layer {
             margin-top: 10px; height: 50px; width: 100%; 
             display: flex; justify-content: center; align-items: center;
-            position: relative; z-index: 100; /* V5.2 Fix: Bring to Front */
+            position: relative; z-index: 100;
         }
 
         .answers-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 95%; padding-bottom: 20px; z-index: 30; min-height: 120px; }
@@ -162,10 +162,10 @@
         .answer-card.selected-ng { background: #c0392b !important; border-color: #e74c3c !important; transform: scale(1.05); }
         .answer-card.selected-ng::after { content: "被り!"; position: absolute; top: -5px; right: -5px; font-weight:bold; background: #fff; color: #c0392b; padding: 2px 6px; font-size: 14px; border: 2px solid #c0392b; }
 
-        /* Debug UI (V5.2 Fix: Moved below timer) */
+        /* Debug UI */
         #debug-panel {
             position: absolute; 
-            top: 90px; right: 20px; /* Header is ~80px, timer is right aligned */
+            top: 90px; right: 20px;
             display: flex; flex-direction: column; gap: 10px; 
             z-index: 200;
         }
@@ -176,6 +176,7 @@
         }
         .debug-btn.win { background: #27ae60; }
         .debug-btn.lose { background: #c0392b; }
+        .debug-btn.back { background: #7f8c8d; }
 
         /* Debug Controller */
         #screen-debug-controller { 
@@ -339,6 +340,7 @@
     <div id="debug-panel" class="hidden">
         <button class="debug-btn win" onclick="debugTrigger(true)">成功</button>
         <button class="debug-btn lose" onclick="debugTrigger(false)">失敗</button>
+        <button class="debug-btn back" onclick="quitDebug()">設定に戻る</button>
     </div>
 
     <div class="answers-grid" id="answers-container"></div>
@@ -571,6 +573,11 @@
         showScreen('screen-host'); startTimer(); loadFloor();
     }
 
+    function quitDebug() {
+        clearInterval(timerInterval);
+        showScreen('screen-setup');
+    }
+
     function loadFloor() {
         document.getElementById('screen-host').classList.remove('shake-screen');
         const assetIndex = (MAX_ASSETS - config.floors) + currentFloor;
@@ -581,21 +588,21 @@
         const enemyPh = document.getElementById('enemy-placeholder');
         enemyImg.style.opacity = "0"; 
         
-        // V5.2: Tweaked Scaling Logic
         let scale = 1.0;
         let topPos = "80px";
 
-        if (currentFloor === 1) scale = 0.6; // Small start
-        else if (currentFloor === 2) scale = 0.7; 
+        // V5.3: Scaling adjustments (1,2 are 70% of 3)
+        if (currentFloor === 1) scale = 0.63; // 0.9 * 0.7
+        else if (currentFloor === 2) scale = 0.63;
         else if (currentFloor === 3) scale = 0.9;
         else if (currentFloor === 4) scale = 1.0;
-        else if (currentFloor === 5) scale = 1.1; // Back to normal pos
+        else if (currentFloor === 5) scale = 1.1;
         else if (currentFloor === 6) scale = 1.2;
-        else scale = 1.3; // Huge Boss
+        else scale = 1.3;
 
         if (asset.enemy) { 
             enemyImg.src = asset.enemy; enemyImg.style.display = "block"; 
-            enemyImg.style.height = "85vh"; // Base Size
+            enemyImg.style.height = "85vh"; 
             enemyImg.style.top = topPos;
             enemyImg.style.transform = `translateX(-50%) scale(${scale})`; 
             enemyImg.onload = () => { enemyImg.style.opacity = "1"; }; enemyPh.style.display = "none"; 
