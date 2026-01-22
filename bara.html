@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V4.4</title>
+    <title>被らないダンジョン V4.5</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -103,9 +103,21 @@
         .floor-indicator { font-size: 40px; color: #f1c40f; font-family: 'Noto Serif JP', serif; font-weight: 900; }
         .timer-box { font-size: 32px; border: 2px solid #fff; padding: 5px 15px; background: rgba(0,0,0,0.7); }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
+        
         .enemy-area { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; position: relative; z-index: 5; }
-        .enemy-img { max-width: 60%; max-height: 40vh; object-fit: contain; filter: drop-shadow(0 0 20px rgba(0,0,0,0.8)); animation: float 3s ease-in-out infinite; }
-        .question-box { background: rgba(0,0,0,0.85); border: 4px double #fff; padding: 20px; font-size: 26px; width: 85%; margin-top: 20px; min-height: 60px; border-radius: 8px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        /* V4.5: Enemy Bigger */
+        .enemy-img { 
+            max-width: 90%; max-height: 55vh; object-fit: contain; 
+            filter: drop-shadow(0 0 20px rgba(0,0,0,0.8)); animation: float 3s ease-in-out infinite; 
+        }
+        /* V4.5: Question Box Bigger & Bolder */
+        .question-box { 
+            background: rgba(0,0,0,0.9); border: 4px double #fff; padding: 25px; 
+            font-size: 40px; font-weight: bold; width: 95%; margin-top: 10px; min-height: 80px; 
+            border-radius: 10px; text-align: center; box-shadow: 0 0 25px rgba(0,0,0,0.8);
+            line-height: 1.2;
+        }
+        
         .answers-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 95%; padding-bottom: 20px; z-index: 10; min-height: 120px; }
         .answer-card { background: #222; border: 2px solid #777; padding: 10px; width: 130px; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: 0.2s; cursor: pointer; }
         .p-name { font-size: 12px; color: #aaa; }
@@ -129,8 +141,23 @@
         @keyframes blink { 50% { opacity: 0.5; } }
         .shake-screen { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; background: #300 !important; }
         @keyframes shake { 10%, 90% { transform: translate3d(-5px, 0, 0); } 20%, 80% { transform: translate3d(10px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-10px, 0, 0); } 40%, 60% { transform: translate3d(10px, 0, 0); } }
-        .slash-effect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 150vw; height: 20px; background: #fff; box-shadow: 0 0 20px #fff; animation: slash 0.4s ease-out; z-index: 100; }
-        @keyframes slash { 0% { width: 0; transform: translate(-50%, -50%) rotate(-45deg); opacity: 1; } 100% { width: 250vw; transform: translate(-50%, -50%) rotate(-45deg); opacity: 0; } }
+        
+        /* V4.5: Slash Effect Fixed (Diagonal from start, no horizontal flicker) */
+        .slash-effect { 
+            position: absolute; top: 50%; left: 50%; 
+            width: 150vw; height: 15px; 
+            background: #fff; box-shadow: 0 0 25px #fff; 
+            /* Initialize rotation here so it's never horizontal */
+            transform: translate(-50%, -50%) rotate(-45deg); 
+            animation: slash 0.2s ease-out forwards; /* Faster, simple cut */
+            z-index: 100;
+            opacity: 0;
+        }
+        @keyframes slash { 
+            0% { width: 0; opacity: 1; } 
+            50% { width: 200vw; opacity: 1; } 
+            100% { width: 250vw; opacity: 0; } 
+        }
 
         /* Player Screen */
         #screen-player { padding: 20px; box-sizing: border-box; background: #222; }
@@ -279,7 +306,8 @@
 
 <script>
     const MAX_ASSETS = 7;
-    const DB_NAME = 'DungeonDB_V4';
+    // Fixed DB Name to allow persistence across file updates
+    const DB_NAME = 'AnswerDungeon_Permanent_Data'; 
     let config = { players: 4, time: 300, floors: 7, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5, bgm: null };
     const DEFAULT_QS = [
         {text:"都道府県(47)", count:47}, {text:"世界の国(196)", count:196}, {text:"元素記号(118)", count:118},
@@ -624,9 +652,12 @@
             // Success Anim
             const slash = document.getElementById('slash-layer');
             slash.classList.add('slash-effect');
+            slash.style.display = 'block';
             document.getElementById('enemy-img').style.opacity = 0; document.getElementById('enemy-placeholder').style.opacity = 0;
+            
             setTimeout(() => {
                 slash.classList.remove('slash-effect');
+                slash.style.display = 'none';
                 if(currentFloor === config.floors) endGame(true);
                 else { currentFloor++; loadFloor(); }
             }, 500);
@@ -684,9 +715,12 @@
         } else {
             const slash = document.getElementById('slash-layer');
             slash.classList.add('slash-effect');
+            slash.style.display = 'block';
             document.getElementById('enemy-img').style.opacity = 0; document.getElementById('enemy-placeholder').style.opacity = 0;
+            
             setTimeout(() => {
                 slash.classList.remove('slash-effect');
+                slash.style.display = 'none';
                 if(currentFloor === config.floors) endGame(true);
                 else { currentFloor++; loadFloor(); }
             }, 500);
