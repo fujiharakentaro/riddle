@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V3.8</title>
+    <title>被らないダンジョン V3.9</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +13,7 @@
     <style>
         body {
             font-family: 'DotGothic16', sans-serif;
-            background-color: #111;
+            background-color: #000; /* ベースは黒 */
             color: #fff;
             margin: 0;
             padding: 0;
@@ -23,23 +23,32 @@
         }
 
         .hidden { display: none !important; }
+
+        /* --- Global Background Layer (V3.9 New) --- */
+        #global-bg-layer {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            background-color: #000;
+        }
+        #global-bg-img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.5; /* 初期値 */
+            transition: opacity 0.5s, filter 0.5s;
+        }
+
+        /* Screen Container (Transparent) */
         .screen { 
             width: 100vw; height: 100vh; 
             position: absolute; top: 0; left: 0; 
             display: flex; flex-direction: column; 
             align-items: center; justify-content: center;
-            background-size: cover; background-position: center;
-            transition: background 0.5s;
+            /* background removed in favor of global layer */
         }
 
-        /* --- Title Logo Design (V3.8 Updated: Outer Stroke Fix) --- */
-        #screen-title { 
-            background: #000; 
-            background-image: radial-gradient(circle, #333 1px, transparent 1px); 
-            background-size: 20px 20px; 
-        }
-        
-        /* ベースレイヤー：金色の極太枠線のみを担当 */
+        /* --- Title Logo Design --- */
         .title-logo {
             font-family: 'Noto Serif JP', serif;
             font-weight: 900;
@@ -48,42 +57,23 @@
             margin-bottom: 60px;
             position: relative;
             z-index: 1;
-
-            /* 文字色を透明にし、金色(#f1c40f)の線を引く */
             color: transparent; 
-            /* 内側が隠れる分、見た目(4px)の倍の太さ(8px)を指定する */
             -webkit-text-stroke: 8px #f1c40f;
-            
-            /* 全体の外側への影（光彩） */
             filter: drop-shadow(0 0 8px rgba(0,0,0,0.9));
         }
-
-        /* トップレイヤー：赤グラデーションの塗りだけを担当 */
-        /* data-text属性の内容を、ベースの上にぴったり重ねる */
         .title-logo::before {
-            content: attr(data-text); /* HTMLのdata-text属性値を取得 */
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2; /* ベースより上に表示 */
-
-            /* 赤グラデーションの塗り設定をここに移動 */
+            content: attr(data-text);
+            position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 2;
             background: linear-gradient(to bottom, #ff3333 10%, #cc0000 60%, #800000 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            
-            /* 上のレイヤーには線を引かない（下の線の内側を隠すため） */
             -webkit-text-stroke: 0;
         }
-
-        /* スマホ対応 */
         @media (max-width: 800px) { 
             .title-logo { font-size: 70px; -webkit-text-stroke: 6px #f1c40f; }
         }
 
-        /* ボタン類のデザイン */
+        /* Buttons */
         .btn-title-start {
             padding: 20px 60px; font-size: 32px; 
             background: linear-gradient(to bottom, #c0392b, #8e2a1f);
@@ -92,17 +82,16 @@
             box-shadow: 0 10px 0 #5a1a15, 0 15px 10px rgba(0,0,0,0.5);
             transition: all 0.1s; cursor: pointer; 
             font-family: 'Noto Serif JP', serif; font-weight: 900;
-            margin-bottom: 20px;
-            position: relative; z-index: 10; /* ロゴのレイヤーより上へ */
+            margin-bottom: 20px; position: relative; z-index: 10;
         }
         .btn-title-start:active { transform: translateY(6px); box-shadow: 0 4px 0 #5a1a15; }
 
         .btn-title-settings {
-            padding: 10px 30px; font-size: 16px; background: transparent; border: 1px solid #777;
-            cursor: pointer; color: #777; font-family: 'DotGothic16', sans-serif; margin-top: 20px;
+            padding: 10px 30px; font-size: 16px; background: rgba(0,0,0,0.5); border: 1px solid #777;
+            cursor: pointer; color: #ccc; font-family: 'DotGothic16', sans-serif; margin-top: 20px;
             position: relative; z-index: 10;
         }
-        .btn-title-settings:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
+        .btn-title-settings:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.2); }
 
         /* --- Start Options Modal --- */
         .start-options-box {
@@ -121,7 +110,7 @@
         input[type="text"], input[type="number"] { padding: 5px; background: #000; color: #fff; border: 1px solid #777; text-align: center; font-family: 'DotGothic16', sans-serif; }
 
         /* --- Setup Screen --- */
-        #setup-container { width: 95%; max-width: 800px; height: 90vh; overflow-y: auto; background: #222; border: 4px double #777; padding: 20px; box-sizing: border-box; text-align: left; }
+        #setup-container { width: 95%; max-width: 800px; height: 90vh; overflow-y: auto; background: rgba(34, 34, 34, 0.95); border: 4px double #777; padding: 20px; box-sizing: border-box; text-align: left; }
         .setup-section { margin-bottom: 20px; border-bottom: 1px dashed #555; padding-bottom: 20px; }
         .setup-section h3 { color: #f1c40f; margin-top: 0; }
         .floor-config-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; background: #333; padding: 5px; }
@@ -146,7 +135,7 @@
         /* Animations */
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         @keyframes blink { 50% { opacity: 0.5; } }
-        .shake-screen { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; background: #300 !important; }
+        .shake-screen { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; background: rgba(50,0,0,0.5) !important; }
         @keyframes shake { 10%, 90% { transform: translate3d(-5px, 0, 0); } 20%, 80% { transform: translate3d(10px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-10px, 0, 0); } 40%, 60% { transform: translate3d(10px, 0, 0); } }
         .slash-effect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 150vw; height: 20px; background: #fff; box-shadow: 0 0 20px #fff; animation: slash 0.4s ease-out; z-index: 100; }
         @keyframes slash { 0% { width: 0; transform: translate(-50%, -50%) rotate(-45deg); opacity: 1; } 100% { width: 250vw; transform: translate(-50%, -50%) rotate(-45deg); opacity: 0; } }
@@ -158,6 +147,10 @@
 <body>
 
 <audio id="bgm-player" loop></audio>
+
+<div id="global-bg-layer">
+    <img id="global-bg-img" src="" style="display:none;">
+</div>
 
 <div id="screen-title" class="screen">
     <div class="title-logo" data-text="被らないダンジョン">被らないダンジョン</div>
@@ -185,21 +178,37 @@
     </div>
 </div>
 
-<div id="screen-setup" class="screen hidden" style="background:#111; overflow: auto; display:block; position:relative;">
+<div id="screen-setup" class="screen hidden" style="background:none;">
     <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
         <div id="setup-container">
             <h2 style="text-align:center; color:#e74c3c; margin:0 0 20px 0;">詳細設定</h2>
+            
             <div class="setup-section">
-                <h3>1. BGM設定</h3>
+                <h3>1. BGM・SE</h3>
                 <label>BGMファイル: <input type="file" id="file-bgm" accept="audio/*"></label>
             </div>
+
             <div class="setup-section">
-                <h3>2. 階層ビジュアル (背景・敵画像)</h3>
-                <p style="font-size:12px; color:#aaa;">※設定しない場合はデフォルト表示</p>
+                <h3>2. タイトル画面・全体背景設定</h3>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:14px;">タイトル背景画像:<br><input type="file" id="bg-title" accept="image/*" style="width:250px;"></label>
+                </div>
+                <div>
+                    <label style="font-size:14px;">背景の明るさ (文字を見やすく調整): <span id="disp-opacity">50%</span><br>
+                        <input type="range" id="bg-opacity" min="0.1" max="1.0" step="0.1" value="0.5" oninput="updateOpacityDisp()">
+                    </label>
+                    <p style="font-size:10px; color:#aaa;">※数値が低いほど暗くなります（黒背景推奨）</p>
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h3>3. 階層ビジュアル (背景・敵画像)</h3>
+                <p style="font-size:12px; color:#aaa;">※設定しない場合はデフォルト(黒)になります</p>
                 <div id="visual-config-area"></div>
             </div>
+
             <div class="setup-section">
-                <h3>3. お題登録</h3>
+                <h3>4. お題登録</h3>
                 <p style="font-size:12px; color:#aaa;">お題と「有効回答数(目安)」を登録してください。</p>
                 <div style="display:flex; gap:5px; margin-bottom:10px;">
                     <input type="text" id="q-text" placeholder="お題 (例: 都道府県)" style="flex:1; text-align:left;">
@@ -209,6 +218,7 @@
                 <div id="question-list" style="max-height:150px; overflow-y:auto; border:1px solid #555;"></div>
                 <div style="text-align:right; font-size:12px; color:#f1c40f;" id="q-status">現在 0 問</div>
             </div>
+
             <div style="text-align:center; margin-top: 20px;">
                 <button class="btn-large" onclick="saveSettingsAndBack()">保存してタイトルへ</button>
                 <br>
@@ -218,7 +228,7 @@
     </div>
 </div>
 
-<div id="screen-lobby" class="screen hidden" style="background:#222;">
+<div id="screen-lobby" class="screen hidden" style="background:rgba(34,34,34,0.8);">
     <h2 style="font-family: 'Noto Serif JP', serif; font-weight:900; color:#f1c40f;">冒険者を募集中...</h2>
     <div style="background:#fff; padding:10px; border: 4px double #333;">
         <div id="qrcode"></div>
@@ -276,7 +286,7 @@
 
 <script>
     const MAX_FLOOR = 7;
-    let config = { players: 4, time: 300, questions: [], assets: {} };
+    let config = { players: 4, time: 300, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5 };
     const DEFAULT_QS = [
         {text:"都道府県(47)", count:47}, {text:"世界の国(196)", count:196}, {text:"元素記号(118)", count:118},
         {text:"山手線の駅(30)", count:30}, {text:"アルファベット(26)", count:26}, {text:"将棋の駒(8)", count:8},
@@ -289,8 +299,31 @@
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('host')) setupPeer(false, urlParams.get('host'));
-        else { showScreen('screen-title'); initSetupUI(); }
+        else { 
+            // HOST INIT
+            initSetupUI(); 
+            showScreen('screen-title');
+        }
     };
+
+    function updateOpacityDisp() {
+        const val = document.getElementById('bg-opacity').value;
+        document.getElementById('disp-opacity').innerText = Math.round(val * 100) + "%";
+        // Immediate preview
+        document.getElementById('global-bg-img').style.opacity = val;
+    }
+
+    // Update global background (source and opacity)
+    function updateBackground(src) {
+        const img = document.getElementById('global-bg-img');
+        if(src) {
+            img.src = src;
+            img.style.display = "block";
+        } else {
+            img.style.display = "none";
+        }
+        img.style.opacity = config.bgOpacity; // Apply configured opacity
+    }
 
     function initSetupUI() {
         for(let i=1; i<=MAX_FLOOR; i++) config.assets[i] = { bg: null, enemy: null };
@@ -318,16 +351,28 @@
 
     function saveSettingsAndBack() {
         if(config.questions.length < MAX_FLOOR * 2) config.questions = [...config.questions, ...DEFAULT_QS];
+        
+        // 1. Opacity
+        config.bgOpacity = document.getElementById('bg-opacity').value;
+
+        // 2. Title BG
+        const titleBgFile = document.getElementById('bg-title').files[0];
+        if(titleBgFile) config.titleBg = URL.createObjectURL(titleBgFile);
+
+        // 3. BGM
         const bgmFile = document.getElementById('file-bgm').files[0];
         if(bgmFile) { document.getElementById('bgm-player').src = URL.createObjectURL(bgmFile); document.getElementById('bgm-player').volume = 0.3; }
+        
+        // 4. Floor Assets
         for(let i=1; i<=MAX_FLOOR; i++) {
             const bg = document.getElementById(`bg-${i}`).files[0];
             const en = document.getElementById(`enemy-${i}`).files[0];
             if(bg) config.assets[i].bg = URL.createObjectURL(bg);
             if(en) config.assets[i].enemy = URL.createObjectURL(en);
         }
+        
         alert("設定を保存しました");
-        showScreen('screen-title');
+        showScreen('screen-title'); // This triggers background update
     }
 
     function showStartOptions() { showScreen('screen-start-options'); }
@@ -395,14 +440,17 @@
     function loadFloor() {
         const screen = document.getElementById('screen-host');
         screen.classList.remove('shake-screen');
+        
+        // Update Global BG for this floor
         const asset = config.assets[currentFloor];
-        if (asset && asset.bg) { screen.style.backgroundImage = `url(${asset.bg})`; screen.style.backgroundSize = "cover"; }
-        else { screen.style.backgroundImage = "none"; screen.style.background = "#222"; }
+        updateBackground(asset.bg); // if null, it hides (black)
+
         const enemyImg = document.getElementById('enemy-img');
         const enemyPh = document.getElementById('enemy-placeholder');
         enemyImg.style.opacity = "1"; enemyPh.style.opacity = "1";
         if (asset && asset.enemy) { enemyImg.src = asset.enemy; enemyImg.style.display = "block"; enemyPh.style.display = "none"; }
         else { enemyImg.style.display = "none"; enemyPh.style.display = "block"; }
+        
         document.getElementById('disp-floor').innerText = currentFloor;
         document.getElementById('question-text').innerText = floorQuestions[currentFloor];
         Object.keys(players).forEach(id => players[id].answer = null);
@@ -527,6 +575,12 @@
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(e => e.classList.add('hidden'));
         document.getElementById(id).classList.remove('hidden');
+        
+        // --- V3.9: Update background based on screen ---
+        if(id === 'screen-title' || id === 'screen-setup' || id === 'screen-lobby') {
+            updateBackground(config.titleBg); // Title BG
+        }
+        // Game screen handles its own background update in loadFloor()
     }
 </script>
 </body>
