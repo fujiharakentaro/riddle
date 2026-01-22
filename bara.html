@@ -109,6 +109,14 @@
         .adjust-item { display: flex; align-items: center; font-size: 12px; }
         .adjust-input { width: 50px !important; padding: 2px !important; text-align: right; margin-left: 5px; }
 
+        /* V6.1: Layout Config Preview */
+        #q-box-preview {
+            background: rgba(0,0,0,0.8); border: 4px double #fff; margin-top: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 900;
+            transition: 0.2s;
+        }
+
         .q-list-item { background: #333; padding: 5px; margin-bottom: 2px; display: flex; justify-content: space-between; font-size: 14px; }
         input[type="text"], input[type="number"] { padding: 5px; background: #000; color: #fff; border: 1px solid #777; text-align: center; font-family: 'DotGothic16'; }
         
@@ -122,7 +130,8 @@
             z-index: 20; text-shadow: 2px 2px 0 #000; 
         }
         .floor-indicator { font-size: 40px; color: #f1c40f; font-family: 'Noto Serif JP', serif; font-weight: 900; }
-        .timer-box { font-size: 60px; border: 3px solid #fff; padding: 5px 25px; background: rgba(0,0,0,0.7); font-weight: bold; }
+        /* V6.1: Bigger Timer (80px) */
+        .timer-box { font-size: 80px; border: 3px solid #fff; padding: 5px 30px; background: rgba(0,0,0,0.7); font-weight: bold; line-height: 1; }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
         
         .enemy-area { 
@@ -150,16 +159,19 @@
             animation: float 3s ease-in-out infinite; 
         }
         
+        /* V6.1: Dynamic Question Box Class */
         .question-box { 
             position: relative; z-index: 10;
-            background: rgba(0,0,0,0.9); border: 4px double #fff; padding: 5px 15px; 
-            font-size: 55px; font-weight: 900;
-            width: 90%; max-width: 800px;
+            background: rgba(0,0,0,0.9); border: 4px double #fff; padding: 10px; 
+            /* Values below will be overridden by JS */
+            width: 70%; 
             margin-top: auto; 
-            margin-bottom: 20px; 
+            margin-bottom: 40px; 
+            min-height: 160px;
+            font-size: 55px; 
+            font-weight: 900;
             border-radius: 12px; text-align: center; box-shadow: 0 0 25px rgba(0,0,0,0.9);
             line-height: 1.1; 
-            min-height: auto;
             display: flex; align-items: center; justify-content: center;
         }
         
@@ -230,6 +242,7 @@
     <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
         <div id="setup-container">
             <h2 style="text-align:center; color:#e74c3c; margin:0 0 20px 0;">素材・詳細設定</h2>
+            
             <div class="setup-section">
                 <h3>1. BGM・背景</h3>
                 <label>BGM: <input type="file" id="file-bgm" accept="audio/*" onchange="autoSaveAsset('bgm', this)"></label>
@@ -240,11 +253,13 @@
                 <br>
                 <label>背景の明るさ: <span id="disp-opacity">50%</span> <input type="range" id="bg-opacity" min="0.1" max="1.0" step="0.1" value="0.5" onchange="saveOpacity()"></label>
             </div>
+            
             <div class="setup-section">
                 <h3>2. 階層ビジュアル・調整</h3>
                 <p style="font-size:12px; color:#aaa;">サイズ: %指定 (100が基準) | X: 横ズレ(+右) | Y: 縦ズレ(+下)</p>
                 <div id="visual-config-area"></div>
             </div>
+            
             <div class="setup-section">
                 <h3>3. お題登録</h3>
                 <div style="display:flex; gap:5px; margin-bottom:10px;">
@@ -255,6 +270,34 @@
                 <div id="question-list" style="max-height:150px; overflow-y:auto; border:1px solid #555;"></div>
                 <div style="text-align:right; font-size:12px; color:#f1c40f;" id="q-status">0 問</div>
             </div>
+
+            <div class="setup-section">
+                <h3>4. お題枠の調整</h3>
+                <div class="option-row" style="font-size:16px; margin:5px 0;">
+                    <label>横幅 (%)</label>
+                    <input type="range" id="q-width" min="30" max="100" value="70" oninput="updateQBoxPreview()">
+                    <span id="disp-q-width">70%</span>
+                </div>
+                <div class="option-row" style="font-size:16px; margin:5px 0;">
+                    <label>高さ (px)</label>
+                    <input type="range" id="q-height" min="50" max="300" value="160" oninput="updateQBoxPreview()">
+                    <span id="disp-q-height">160px</span>
+                </div>
+                <div class="option-row" style="font-size:16px; margin:5px 0;">
+                    <label>位置 (下からの距離 px)</label>
+                    <input type="range" id="q-bottom" min="0" max="300" value="40" oninput="updateQBoxPreview()">
+                    <span id="disp-q-bottom">40px</span>
+                </div>
+                <div class="option-row" style="font-size:16px; margin:5px 0;">
+                    <label>文字サイズ (px)</label>
+                    <input type="range" id="q-font" min="20" max="100" value="55" oninput="updateQBoxPreview()">
+                    <span id="disp-q-font">55px</span>
+                </div>
+                <div style="text-align:center;">
+                    <div id="q-box-preview">プレビュー</div>
+                </div>
+            </div>
+            
             <div style="text-align:center; margin-bottom: 20px;">
                 <button class="btn-large" onclick="saveSettingsAndBack()">タイトルへ戻る</button>
             </div>
@@ -292,7 +335,10 @@
 <script>
     const MAX_ASSETS = 7;
     const DB_NAME = 'AnswerDungeon_Permanent_Data'; 
-    let config = { players: 4, time: 300, floors: 7, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5, bgm: null };
+    let config = { 
+        players: 4, time: 300, floors: 7, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5, bgm: null,
+        qBox: { w: 70, h: 160, b: 40, f: 55 } // Default Layout Config
+    };
     const DEFAULT_QS = [
         {text:"都道府県(47)", count:47}, {text:"世界の国(196)", count:196}, {text:"元素記号(118)", count:118},
         {text:"山手線の駅(30)", count:30}, {text:"アルファベット(26)", count:26}, {text:"将棋の駒(8)", count:8},
@@ -300,7 +346,6 @@
         {text:"虹の色(7)", count:7}, {text:"硬貨の種類(6)", count:6}, {text:"五大陸(5)", count:5}, 
         {text:"季節(4)", count:4}, {text:"信号機の色(3)", count:3}, {text:"じゃんけんの手(3)", count:3}
     ];
-    // Default scalings
     const DEFAULT_POS = {
         1: {s: 63, x: 0, y: 0}, 2: {s: 63, x: 0, y: 0}, 3: {s: 90, x: 0, y: 0},
         4: {s: 100, x: 0, y: 0}, 5: {s: 110, x: 0, y: 0}, 6: {s: 120, x: 0, y: 0}, 7: {s: 130, x: 0, y: 0}
@@ -315,6 +360,7 @@
     window.onload = async () => {
         await loadSavedConfig();
         initSetupUI(); 
+        updateQBoxPreview(); // Init preview
         showScreen('screen-title');
     };
 
@@ -324,6 +370,15 @@
             if(saved) {
                 config.questions = saved.questions || [];
                 config.bgOpacity = saved.bgOpacity || 0.5;
+                
+                // V6.1: Load QBox Config
+                if(saved.qBox) config.qBox = saved.qBox;
+                // Apply to inputs
+                document.getElementById('q-width').value = config.qBox.w;
+                document.getElementById('q-height').value = config.qBox.h;
+                document.getElementById('q-bottom').value = config.qBox.b;
+                document.getElementById('q-font').value = config.qBox.f;
+
                 document.getElementById('bg-opacity').value = config.bgOpacity;
                 updateOpacityDisp();
                 if(saved.titleBg) { config.titleBg = URL.createObjectURL(saved.titleBg); setFileStatus('status-bg-title', true); }
@@ -351,6 +406,28 @@
         } catch(e) { console.error(e); }
     }
 
+    // --- V6.1: Q-Box UI Logic ---
+    function updateQBoxPreview() {
+        const w = document.getElementById('q-width').value;
+        const h = document.getElementById('q-height').value;
+        const b = document.getElementById('q-bottom').value;
+        const f = document.getElementById('q-font').value;
+
+        document.getElementById('disp-q-width').innerText = w + "%";
+        document.getElementById('disp-q-height').innerText = h + "px";
+        document.getElementById('disp-q-bottom').innerText = b + "px";
+        document.getElementById('disp-q-font').innerText = f + "px";
+
+        // Update Preview
+        const p = document.getElementById('q-box-preview');
+        p.style.width = w + "%";
+        p.style.minHeight = h + "px";
+        p.style.fontSize = f + "px";
+        
+        // Save to config
+        config.qBox = { w: parseInt(w), h: parseInt(h), b: parseInt(b), f: parseInt(f) };
+    }
+
     async function saveOpacity() { config.bgOpacity = document.getElementById('bg-opacity').value; updateOpacityDisp(); await saveDB('userConfig', {...await loadDB('userConfig'), bgOpacity:config.bgOpacity}); }
     
     async function autoSavePos(index) {
@@ -360,15 +437,8 @@
         const cur = await loadDB('userConfig') || {};
         if(!cur.assets) cur.assets = {};
         if(!cur.assets[index]) cur.assets[index] = {};
-        
-        cur.assets[index].scale = parseInt(s);
-        cur.assets[index].x = parseInt(x);
-        cur.assets[index].y = parseInt(y);
-        
-        config.assets[index].scale = parseInt(s);
-        config.assets[index].x = parseInt(x);
-        config.assets[index].y = parseInt(y);
-        
+        cur.assets[index].scale = parseInt(s); cur.assets[index].x = parseInt(x); cur.assets[index].y = parseInt(y);
+        config.assets[index].scale = parseInt(s); config.assets[index].x = parseInt(x); config.assets[index].y = parseInt(y);
         await saveDB('userConfig', cur);
     }
 
@@ -432,7 +502,15 @@
         config.questions = config.questions.filter(q=>q.text!==t); config.questions.push({text:t,count:c});
         renderQuestionList(); autoSaveQuestions(); document.getElementById('q-text').value=""; document.getElementById('q-count').value="";
     }
-    function saveSettingsAndBack() { showScreen('screen-title'); }
+    
+    // V6.1: Save UI Config
+    async function saveSettingsAndBack() { 
+        // Save QBox config to DB
+        const cur = await loadDB('userConfig') || {};
+        cur.qBox = config.qBox;
+        await saveDB('userConfig', cur);
+        showScreen('screen-title'); 
+    }
     
     function showStartOptions() { showScreen('screen-start-options'); }
     
@@ -450,7 +528,6 @@
     }
 
     function startGame() {
-        // Get Start Options
         config.players = parseInt(document.getElementById('opt-players').value);
         config.time = parseInt(document.getElementById('opt-time').value);
         config.floors = parseInt(document.getElementById('opt-floors').value);
@@ -484,8 +561,7 @@
         wrapper.style.top = `calc(80px + ${posY}%)`;
 
         if (asset.enemy) { 
-            enemyImg.src = asset.enemy; 
-            enemyImg.style.display = "block"; 
+            enemyImg.src = asset.enemy; enemyImg.style.display = "block"; 
             enemyImg.onload = () => { wrapper.style.opacity = "1"; }; 
             enemyPh.style.display = "none"; 
         } else { 
@@ -495,7 +571,14 @@
         document.getElementById('disp-floor').innerText = currentFloor;
         document.getElementById('max-floor-disp').innerText = config.floors;
         const qText = floorQuestions[currentFloor] || "エラー";
-        document.getElementById('question-text').innerText = qText;
+        
+        // V6.1: Apply QBox Config
+        const qBox = document.getElementById('question-text');
+        qBox.innerText = qText;
+        qBox.style.width = config.qBox.w + "%";
+        qBox.style.minHeight = config.qBox.h + "px";
+        qBox.style.marginBottom = config.qBox.b + "px";
+        qBox.style.fontSize = config.qBox.f + "px";
     }
 
     function triggerNext() {
