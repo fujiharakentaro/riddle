@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V4.0</title>
+    <title>被らないダンジョン V4.1</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,6 +88,9 @@
         .floor-label { width: 40px; font-weight: bold; }
         .q-list-item { background: #333; padding: 5px; margin-bottom: 2px; display: flex; justify-content: space-between; font-size: 14px; }
         input[type="text"], input[type="number"] { padding: 5px; background: #000; color: #fff; border: 1px solid #777; text-align: center; font-family: 'DotGothic16'; }
+        
+        .file-status { font-size: 12px; color: #2ecc71; margin-left: 5px; display: none; }
+        .file-status.active { display: inline; }
 
         /* Game Screen */
         .dungeon-header { position: absolute; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 10; text-shadow: 2px 2px 0 #000; }
@@ -154,17 +157,24 @@
     <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
         <div id="setup-container">
             <h2 style="text-align:center; color:#e74c3c; margin:0 0 20px 0;">素材・詳細設定</h2>
+            
             <div class="setup-section">
                 <h3>1. BGM・背景</h3>
-                <label>BGM: <input type="file" id="file-bgm" accept="audio/*"></label><br><br>
-                <label>タイトル背景: <input type="file" id="bg-title" accept="image/*"></label><br>
+                <label>BGM: <input type="file" id="file-bgm" accept="audio/*"></label>
+                <span id="status-bgm" class="file-status">保存済み</span>
+                <br><br>
+                <label>タイトル背景: <input type="file" id="bg-title" accept="image/*"></label>
+                <span id="status-bg-title" class="file-status">保存済み</span>
+                <br>
                 <label>背景の明るさ: <span id="disp-opacity">50%</span> <input type="range" id="bg-opacity" min="0.1" max="1.0" step="0.1" value="0.5" oninput="updateOpacityDisp()"></label>
             </div>
+            
             <div class="setup-section">
                 <h3>2. 階層ビジュアル (最大7階層分)</h3>
                 <p style="font-size:12px; color:#aaa;">※遊ぶ階層数が少ない場合、後ろの階層（ボス側）の画像が優先的に使われます。</p>
                 <div id="visual-config-area"></div>
             </div>
+            
             <div class="setup-section">
                 <h3>3. お題登録</h3>
                 <div style="display:flex; gap:5px; margin-bottom:10px;">
@@ -175,6 +185,7 @@
                 <div id="question-list" style="max-height:150px; overflow-y:auto; border:1px solid #555;"></div>
                 <div style="text-align:right; font-size:12px; color:#f1c40f;" id="q-status">0 問</div>
             </div>
+            
             <div style="text-align:center;">
                 <button class="btn-large" onclick="saveSettingsAndBack()">保存してタイトルへ</button>
                 <button class="btn-title-settings" onclick="showScreen('screen-title')">キャンセル</button>
@@ -234,8 +245,9 @@
 </div>
 
 <script>
-    const MAX_ASSETS = 7; // Configurable limit in setup
-    let config = { players: 4, time: 300, floors: 7, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5 };
+    const MAX_ASSETS = 7;
+    const DB_NAME = 'DungeonDB';
+    let config = { players: 4, time: 300, floors: 7, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5, bgm: null };
     const DEFAULT_QS = [
         {text:"都道府県(47)", count:47}, {text:"世界の国(196)", count:196}, {text:"元素記号(118)", count:118},
         {text:"山手線の駅(30)", count:30}, {text:"アルファベット(26)", count:26}, {text:"将棋の駒(8)", count:8},
@@ -245,11 +257,71 @@
     ];
     let peer, conn, myId, players = {}, currentFloor = 1, floorQuestions = {}, timerInterval, remainingTime;
 
-    window.onload = () => {
+    // --- IndexedDB Helper ---
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, 1);
+            req.onupgradeneeded = (e) => { e.target.result.createObjectStore('config'); };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+    async function saveDB(key, val) {
+        const db = await openDB();
+        const tx = db.transaction('config', 'readwrite');
+        tx.objectStore('config').put(val, key);
+        return new Promise(resolve => tx.oncomplete = resolve);
+    }
+    async function loadDB(key) {
+        const db = await openDB();
+        const tx = db.transaction('config', 'readonly');
+        const req = tx.objectStore('config').get(key);
+        return new Promise(resolve => {
+            req.onsuccess = () => resolve(req.result);
+        });
+    }
+
+    // --- Init ---
+    window.onload = async () => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('host')) setupPeer(false, urlParams.get('host'));
-        else { initSetupUI(); showScreen('screen-title'); }
+        else {
+            await loadSavedConfig();
+            initSetupUI(); 
+            showScreen('screen-title');
+        }
     };
+
+    async function loadSavedConfig() {
+        const saved = await loadDB('userConfig');
+        if(saved) {
+            // Restore basic props
+            config.questions = saved.questions || [];
+            config.bgOpacity = saved.bgOpacity || 0.5;
+            document.getElementById('bg-opacity').value = config.bgOpacity;
+            updateOpacityDisp();
+
+            // Restore Blobs
+            if(saved.titleBg) {
+                config.titleBg = URL.createObjectURL(saved.titleBg);
+                document.getElementById('status-bg-title').classList.add('active');
+            }
+            if(saved.bgm) {
+                config.bgm = saved.bgm; // Blob
+                const audio = document.getElementById('bgm-player');
+                audio.src = URL.createObjectURL(saved.bgm);
+                audio.volume = 0.3;
+                document.getElementById('status-bgm').classList.add('active');
+            }
+            if(saved.assets) {
+                for(let i=1; i<=MAX_ASSETS; i++) {
+                    config.assets[i] = { bg: null, enemy: null };
+                    if(saved.assets[i]?.bg) config.assets[i].bg = URL.createObjectURL(saved.assets[i].bg);
+                    if(saved.assets[i]?.enemy) config.assets[i].enemy = URL.createObjectURL(saved.assets[i].enemy);
+                }
+            }
+        }
+    }
 
     function updateOpacityDisp() {
         const val = document.getElementById('bg-opacity').value;
@@ -263,42 +335,94 @@
     }
 
     function initSetupUI() {
-        for(let i=1; i<=MAX_ASSETS; i++) config.assets[i] = { bg: null, enemy: null };
+        if(!config.assets[1]) for(let i=1; i<=MAX_ASSETS; i++) config.assets[i] = { bg: null, enemy: null };
+        
         const container = document.getElementById('visual-config-area');
+        container.innerHTML = "";
         for(let i=1; i<=MAX_ASSETS; i++) {
             const row = document.createElement('div');
             row.className = 'floor-config-row';
-            row.innerHTML = `<div class="floor-label">${i}F</div><label style="font-size:12px;">背景:<input type="file" id="bg-${i}" accept="image/*" style="width:150px;"></label><label style="font-size:12px;">敵:<input type="file" id="enemy-${i}" accept="image/*" style="width:150px;"></label>`;
+            const hasBg = config.assets[i]?.bg ? " (保存済)" : "";
+            const hasEn = config.assets[i]?.enemy ? " (保存済)" : "";
+            
+            row.innerHTML = `<div class="floor-label">${i}F</div>
+                <label style="font-size:12px;">背景<span class="file-status ${hasBg?'active':''}">${hasBg}</span>:<input type="file" id="bg-${i}" accept="image/*" style="width:130px;"></label>
+                <label style="font-size:12px;">敵<span class="file-status ${hasEn?'active':''}">${hasEn}</span>:<input type="file" id="enemy-${i}" accept="image/*" style="width:130px;"></label>`;
             container.appendChild(row);
         }
+        
+        // Load questions list
+        const qList = document.getElementById('question-list');
+        qList.innerHTML = "";
+        config.questions.forEach(q => {
+            const item = document.createElement('div');
+            item.className = 'q-list-item';
+            item.innerHTML = `<span>${q.text}</span><span>(目安:${q.count})</span>`;
+            qList.appendChild(item);
+        });
+        document.getElementById('q-status').innerText = `${config.questions.length} 問`;
     }
 
     function addQuestion() {
         const txt = document.getElementById('q-text').value, cnt = parseInt(document.getElementById('q-count').value);
-        if(!txt || !cnt) return alert("入力してください");
+        if(!txt || !cnt) return alert("お題と回答数を入力");
         config.questions.push({ text: txt, count: cnt });
-        const list = document.getElementById('question-list');
-        const item = document.createElement('div');
-        item.className = 'q-list-item';
-        item.innerHTML = `<span>${txt}</span><span>(目安:${cnt})</span>`;
-        list.appendChild(item);
+        initSetupUI(); // Re-render list
         document.getElementById('q-text').value = ""; document.getElementById('q-count').value = "";
-        document.getElementById('q-status').innerText = `${config.questions.length} 問`;
     }
 
-    function saveSettingsAndBack() {
-        if(config.questions.length === 0) config.questions = [...DEFAULT_QS];
+    async function saveSettingsAndBack() {
+        if(config.questions.length < MAX_ASSETS * 2) config.questions = [...config.questions, ...DEFAULT_QS];
+        
         config.bgOpacity = document.getElementById('bg-opacity').value;
-        const titleBg = document.getElementById('bg-title').files[0];
-        if(titleBg) config.titleBg = URL.createObjectURL(titleBg);
-        const bgm = document.getElementById('file-bgm').files[0];
-        if(bgm) { document.getElementById('bgm-player').src = URL.createObjectURL(bgm); document.getElementById('bgm-player').volume = 0.3; }
-        for(let i=1; i<=MAX_ASSETS; i++) {
-            const bg = document.getElementById(`bg-${i}`).files[0];
-            const en = document.getElementById(`enemy-${i}`).files[0];
-            if(bg) config.assets[i].bg = URL.createObjectURL(bg);
-            if(en) config.assets[i].enemy = URL.createObjectURL(en);
+
+        // Prepare data object for DB (store Blobs, not URLs)
+        let dbData = {
+            questions: config.questions,
+            bgOpacity: config.bgOpacity,
+            titleBg: undefined,
+            bgm: undefined,
+            assets: {}
+        };
+
+        // Handle Files: If input has file, use it. If not, keep existing config blob if we had one? 
+        // Note: URL.createObjectURL(blob) creates a string. We can't get blob back from it easily without fetch.
+        // So we rely on inputs. If input is empty, we assume user didn't change it.
+        // But to save to DB, we need the Blob.
+        // Simplified: We only update DB if file input is used. But we need to persist old blobs.
+        // Since we loaded blobs into config vars (as URLs), we can't easily save them back unless we stored Blobs in RAM.
+        // Let's modify loadDB to store Blobs in a separate variable or just use the DB as source of truth.
+        // Better: We only write to DB what is NEW, or merge.
+        
+        // Actually, to keep it simple: Read existing DB, update with new files, write back.
+        const currentDB = await loadDB('userConfig') || {};
+        dbData = { ...currentDB, questions: config.questions, bgOpacity: config.bgOpacity };
+
+        const tBgInput = document.getElementById('bg-title').files[0];
+        if(tBgInput) { 
+            dbData.titleBg = tBgInput; 
+            config.titleBg = URL.createObjectURL(tBgInput); 
         }
+
+        const bgmInput = document.getElementById('file-bgm').files[0];
+        if(bgmInput) { 
+            dbData.bgm = bgmInput; 
+            config.bgm = bgmInput;
+            const audio = document.getElementById('bgm-player');
+            audio.src = URL.createObjectURL(bgmInput);
+            audio.volume = 0.3;
+        }
+
+        if(!dbData.assets) dbData.assets = {};
+        for(let i=1; i<=MAX_ASSETS; i++) {
+            if(!dbData.assets[i]) dbData.assets[i] = {};
+            const b = document.getElementById(`bg-${i}`).files[0];
+            const e = document.getElementById(`enemy-${i}`).files[0];
+            if(b) { dbData.assets[i].bg = b; config.assets[i].bg = URL.createObjectURL(b); }
+            if(e) { dbData.assets[i].enemy = e; config.assets[i].enemy = URL.createObjectURL(e); }
+        }
+
+        await saveDB('userConfig', dbData);
         alert("保存しました");
         showScreen('screen-title');
     }
@@ -307,7 +431,7 @@
     function goToLobby() {
         config.players = parseInt(document.getElementById('opt-players').value);
         config.time = parseInt(document.getElementById('opt-time').value);
-        config.floors = parseInt(document.getElementById('opt-floors').value); // V4.0
+        config.floors = parseInt(document.getElementById('opt-floors').value);
         
         if(config.questions.length === 0) config.questions = [...DEFAULT_QS];
         generateFloorQuestions();
@@ -315,13 +439,10 @@
         if(!peer) setupPeer(true);
     }
 
-    // --- V4.0: Question Distribution Logic ---
     function generateFloorQuestions() {
         let validQ = config.questions.filter(q => q.count >= config.players);
         if (validQ.length < config.floors) validQ = [...config.questions];
-        validQ.sort((a, b) => b.count - a.count); // Easy -> Hard
-
-        // Divide into N buckets (N = config.floors)
+        validQ.sort((a, b) => b.count - a.count);
         for(let i=1; i<=config.floors; i++) {
             const total = validQ.length;
             const startIdx = Math.floor( (i - 1) * total / config.floors );
@@ -362,23 +483,19 @@
 
     function startGame() {
         const audio = document.getElementById('bgm-player');
-        if(audio.src) audio.play();
+        // Audio auto-play handling
+        if(audio.src) {
+            audio.play().catch(e => console.log("Audio play failed (policy):", e));
+        }
         broadcast({ type: 'START' });
         currentFloor = 1; remainingTime = config.time;
         showScreen('screen-host'); startTimer(); loadFloor();
     }
 
-    // --- V4.0: Asset "Cut from Bottom" Logic ---
     function loadFloor() {
         document.getElementById('screen-host').classList.remove('shake-screen');
-        
-        // Logic: If playing 3 floors out of 7 assets:
-        // Floor 1 -> Asset (7-3+1) = 5
-        // Floor 2 -> Asset (7-3+2) = 6
-        // Floor 3 -> Asset (7-3+3) = 7 (Boss)
         const assetIndex = (MAX_ASSETS - config.floors) + currentFloor;
         const asset = config.assets[assetIndex] || { bg: null, enemy: null };
-        
         updateBackground(asset.bg);
 
         const enemyImg = document.getElementById('enemy-img');
