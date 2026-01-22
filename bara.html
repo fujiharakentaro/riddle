@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V3.7</title>
+    <title>被らないダンジョン V3.8</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,40 +32,58 @@
             transition: background 0.5s;
         }
 
-        /* --- Title Logo Design (V3.7 Updated) --- */
+        /* --- Title Logo Design (V3.8 Updated: Outer Stroke Fix) --- */
         #screen-title { 
             background: #000; 
             background-image: radial-gradient(circle, #333 1px, transparent 1px); 
             background-size: 20px 20px; 
         }
         
+        /* ベースレイヤー：金色の極太枠線のみを担当 */
         .title-logo {
-            /* フォントを明朝体の極太に変更 */
             font-family: 'Noto Serif JP', serif;
-            font-weight: 900; /* 中を太く */
-            
-            font-size: 120px; /* サイズも少し大きくして迫力を出す */
+            font-weight: 900;
+            font-size: 120px;
             line-height: 1.1;
             margin-bottom: 60px;
             position: relative;
             z-index: 1;
+
+            /* 文字色を透明にし、金色(#f1c40f)の線を引く */
+            color: transparent; 
+            /* 内側が隠れる分、見た目(4px)の倍の太さ(8px)を指定する */
+            -webkit-text-stroke: 8px #f1c40f;
             
-            /* 文字の中身（より鮮明な赤グラデーションに変更し視認性向上） */
+            /* 全体の外側への影（光彩） */
+            filter: drop-shadow(0 0 8px rgba(0,0,0,0.9));
+        }
+
+        /* トップレイヤー：赤グラデーションの塗りだけを担当 */
+        /* data-text属性の内容を、ベースの上にぴったり重ねる */
+        .title-logo::before {
+            content: attr(data-text); /* HTMLのdata-text属性値を取得 */
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2; /* ベースより上に表示 */
+
+            /* 赤グラデーションの塗り設定をここに移動 */
             background: linear-gradient(to bottom, #ff3333 10%, #cc0000 60%, #800000 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             
-            /* 金色の縁取り（太さはそのまま4px）と、境界を際立たせる影 */
-            -webkit-text-stroke: 4px #f1c40f;
-            filter: drop-shadow(0 0 8px rgba(0,0,0,0.9));
+            /* 上のレイヤーには線を引かない（下の線の内側を隠すため） */
+            -webkit-text-stroke: 0;
         }
 
         /* スマホ対応 */
         @media (max-width: 800px) { 
-            .title-logo { font-size: 70px; -webkit-text-stroke: 3px #f1c40f; }
+            .title-logo { font-size: 70px; -webkit-text-stroke: 6px #f1c40f; }
         }
 
-        /* ボタン類のデザイン（タイトルの雰囲気に合わせて調整） */
+        /* ボタン類のデザイン */
         .btn-title-start {
             padding: 20px 60px; font-size: 32px; 
             background: linear-gradient(to bottom, #c0392b, #8e2a1f);
@@ -73,14 +91,16 @@
             color: #fff; text-shadow: 2px 2px 0 #000; 
             box-shadow: 0 10px 0 #5a1a15, 0 15px 10px rgba(0,0,0,0.5);
             transition: all 0.1s; cursor: pointer; 
-            font-family: 'Noto Serif JP', serif; font-weight: 900; /* ボタンも明朝体に合わせる */
+            font-family: 'Noto Serif JP', serif; font-weight: 900;
             margin-bottom: 20px;
+            position: relative; z-index: 10; /* ロゴのレイヤーより上へ */
         }
         .btn-title-start:active { transform: translateY(6px); box-shadow: 0 4px 0 #5a1a15; }
 
         .btn-title-settings {
             padding: 10px 30px; font-size: 16px; background: transparent; border: 1px solid #777;
             cursor: pointer; color: #777; font-family: 'DotGothic16', sans-serif; margin-top: 20px;
+            position: relative; z-index: 10;
         }
         .btn-title-settings:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
 
@@ -140,7 +160,7 @@
 <audio id="bgm-player" loop></audio>
 
 <div id="screen-title" class="screen">
-    <div class="title-logo">被らないダンジョン</div>
+    <div class="title-logo" data-text="被らないダンジョン">被らないダンジョン</div>
     <button class="btn-title-start" onclick="showStartOptions()">ゲームスタート</button>
     <br>
     <button class="btn-title-settings" onclick="showScreen('screen-setup')">設定（素材・BGM・お題）</button>
