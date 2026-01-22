@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V6.1</title>
+    <title>被らないダンジョン V6.2</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Reggae+One&family=Noto+Serif+JP:wght@900&display=swap" rel="stylesheet">
@@ -109,7 +109,6 @@
         .adjust-item { display: flex; align-items: center; font-size: 12px; }
         .adjust-input { width: 50px !important; padding: 2px !important; text-align: right; margin-left: 5px; }
 
-        /* V6.1: Layout Config Preview */
         #q-box-preview {
             background: rgba(0,0,0,0.8); border: 4px double #fff; margin-top: 10px;
             display: flex; align-items: center; justify-content: center;
@@ -130,7 +129,7 @@
             z-index: 20; text-shadow: 2px 2px 0 #000; 
         }
         .floor-indicator { font-size: 40px; color: #f1c40f; font-family: 'Noto Serif JP', serif; font-weight: 900; }
-        /* V6.1: Bigger Timer (80px) */
+        
         .timer-box { font-size: 80px; border: 3px solid #fff; padding: 5px 30px; background: rgba(0,0,0,0.7); font-weight: bold; line-height: 1; }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
         
@@ -159,11 +158,9 @@
             animation: float 3s ease-in-out infinite; 
         }
         
-        /* V6.1: Dynamic Question Box Class */
         .question-box { 
             position: relative; z-index: 10;
             background: rgba(0,0,0,0.9); border: 4px double #fff; padding: 10px; 
-            /* Values below will be overridden by JS */
             width: 70%; 
             margin-top: auto; 
             margin-bottom: 40px; 
@@ -337,7 +334,7 @@
     const DB_NAME = 'AnswerDungeon_Permanent_Data'; 
     let config = { 
         players: 4, time: 300, floors: 7, questions: [], assets: {}, titleBg: null, bgOpacity: 0.5, bgm: null,
-        qBox: { w: 70, h: 160, b: 40, f: 55 } // Default Layout Config
+        qBox: { w: 70, h: 160, b: 40, f: 55 }
     };
     const DEFAULT_QS = [
         {text:"都道府県(47)", count:47}, {text:"世界の国(196)", count:196}, {text:"元素記号(118)", count:118},
@@ -357,10 +354,21 @@
     async function saveDB(k,v) { const d=await openDB(),t=d.transaction('config','readwrite');t.objectStore('config').put(v,k);return new Promise(r=>t.oncomplete=r); }
     async function loadDB(k) { const d=await openDB(),t=d.transaction('config','readonly'),r=t.objectStore('config').get(k);return new Promise(s=>r.onsuccess=()=>s(r.result)); }
 
+    // V6.2: ESC Key Listener
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            if (timerInterval) clearInterval(timerInterval);
+            const audio = document.getElementById('bgm-player');
+            audio.pause();
+            audio.currentTime = 0;
+            showScreen('screen-title');
+        }
+    });
+
     window.onload = async () => {
         await loadSavedConfig();
         initSetupUI(); 
-        updateQBoxPreview(); // Init preview
+        updateQBoxPreview(); 
         showScreen('screen-title');
     };
 
@@ -370,10 +378,8 @@
             if(saved) {
                 config.questions = saved.questions || [];
                 config.bgOpacity = saved.bgOpacity || 0.5;
-                
-                // V6.1: Load QBox Config
                 if(saved.qBox) config.qBox = saved.qBox;
-                // Apply to inputs
+                
                 document.getElementById('q-width').value = config.qBox.w;
                 document.getElementById('q-height').value = config.qBox.h;
                 document.getElementById('q-bottom').value = config.qBox.b;
@@ -406,7 +412,6 @@
         } catch(e) { console.error(e); }
     }
 
-    // --- V6.1: Q-Box UI Logic ---
     function updateQBoxPreview() {
         const w = document.getElementById('q-width').value;
         const h = document.getElementById('q-height').value;
@@ -418,13 +423,11 @@
         document.getElementById('disp-q-bottom').innerText = b + "px";
         document.getElementById('disp-q-font').innerText = f + "px";
 
-        // Update Preview
         const p = document.getElementById('q-box-preview');
         p.style.width = w + "%";
         p.style.minHeight = h + "px";
         p.style.fontSize = f + "px";
         
-        // Save to config
         config.qBox = { w: parseInt(w), h: parseInt(h), b: parseInt(b), f: parseInt(f) };
     }
 
@@ -503,9 +506,7 @@
         renderQuestionList(); autoSaveQuestions(); document.getElementById('q-text').value=""; document.getElementById('q-count').value="";
     }
     
-    // V6.1: Save UI Config
     async function saveSettingsAndBack() { 
-        // Save QBox config to DB
         const cur = await loadDB('userConfig') || {};
         cur.qBox = config.qBox;
         await saveDB('userConfig', cur);
@@ -572,7 +573,6 @@
         document.getElementById('max-floor-disp').innerText = config.floors;
         const qText = floorQuestions[currentFloor] || "エラー";
         
-        // V6.1: Apply QBox Config
         const qBox = document.getElementById('question-text');
         qBox.innerText = qText;
         qBox.style.width = config.qBox.w + "%";
