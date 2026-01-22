@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V6.0</title>
+    <title>被らないダンジョン V6.1</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Reggae+One&family=Noto+Serif+JP:wght@900&display=swap" rel="stylesheet">
@@ -122,7 +122,6 @@
             z-index: 20; text-shadow: 2px 2px 0 #000; 
         }
         .floor-indicator { font-size: 40px; color: #f1c40f; font-family: 'Noto Serif JP', serif; font-weight: 900; }
-        /* V6.0: Bigger Timer */
         .timer-box { font-size: 60px; border: 3px solid #fff; padding: 5px 25px; background: rgba(0,0,0,0.7); font-weight: bold; }
         .timer-warning { color: #e74c3c; animation: blink 0.5s infinite; }
         
@@ -301,7 +300,7 @@
         {text:"虹の色(7)", count:7}, {text:"硬貨の種類(6)", count:6}, {text:"五大陸(5)", count:5}, 
         {text:"季節(4)", count:4}, {text:"信号機の色(3)", count:3}, {text:"じゃんけんの手(3)", count:3}
     ];
-    // Default scalings based on V5.4 adjustments
+    // Default scalings
     const DEFAULT_POS = {
         1: {s: 63, x: 0, y: 0}, 2: {s: 63, x: 0, y: 0}, 3: {s: 90, x: 0, y: 0},
         4: {s: 100, x: 0, y: 0}, 5: {s: 110, x: 0, y: 0}, 6: {s: 120, x: 0, y: 0}, 7: {s: 130, x: 0, y: 0}
@@ -444,8 +443,8 @@
         if (validQ.length === 0) validQ = [...config.questions];
         validQ.sort((a,b)=>b.count-a.count);
         for(let i=1; i<=config.floors; i++) {
-            const t = v.length, s = Math.floor((i-1)*t/config.floors), e = Math.floor(i*t/config.floors);
-            let b = v.slice(s,e); if(b.length===0) b=[v[Math.min(s,t-1)]];
+            const t = validQ.length, s = Math.floor((i-1)*t/config.floors), e = Math.floor(i*t/config.floors);
+            let b = validQ.slice(s,e); if(b.length===0) b=[validQ[Math.min(s,t-1)]];
             floorQuestions[i] = b[Math.floor(Math.random()*b.length)].text;
         }
     }
@@ -485,7 +484,8 @@
         wrapper.style.top = `calc(80px + ${posY}%)`;
 
         if (asset.enemy) { 
-            enemyImg.src = asset.enemy; enemyImg.style.display = "block"; 
+            enemyImg.src = asset.enemy; 
+            enemyImg.style.display = "block"; 
             enemyImg.onload = () => { wrapper.style.opacity = "1"; }; 
             enemyPh.style.display = "none"; 
         } else { 
