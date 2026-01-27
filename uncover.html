@@ -377,17 +377,39 @@ const Net = {
         Net.peer.on('error', (err) => { console.error(err); alert("通信エラー: " + err.type); });
     },
     // ★【修正点】ブロードキャスト時に接続状態を厳密にチェックする
-    broadcast: (data) => { 
-        if(Net.isHost) {
-            Net.conns.forEach(c => { 
-                // openプロパティがtrue（通信可能）な相手にのみ送信を試みる
-                if(c.open) {
-                    try { c.send(data); } catch(e) { console.error(e); }
+    broadcast: (data) => {
+
+    if (Net.isHost) {
+
+        Net.conns.forEach(c => {
+
+            // 接続が開いている場合のみ送信を試みる
+
+            if (c.open) {
+
+                try {
+
+                    c.send(data);
+
+                } catch (e) {
+
+                    // 送信エラーがあっても、リストから即座に削除はしない
+
+                    console.error("Broadcast error for peer:", c.peer, e);
+
                 }
-            }); 
-            // ※ここでリストからの削除は行わない（closeイベントに任せる）
-        }
-    },
+
+            }
+
+        });
+
+        // ここで行っていた Net.conns = activeConns; による上書き削除を廃止
+
+        // ※ 実際の切断処理は c.on('close') が担当するため
+
+    }
+
+},
     send: (data) => { if(Net.conn) Net.conn.send(data); }
 };
 
