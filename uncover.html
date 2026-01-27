@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V6.3 (Final Fix)</title>
+    <title>QUIZ ROYALE V7.0 (Pop-up UI)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -120,6 +120,7 @@
         .failed-mark { color: #aa2222; font-weight: bold; margin-left: 10px; }
 
         /* PLAYER SPECIFIC UI */
+        /* ★修正: デフォルトでは .hidden を使うため、ui-disabledは補助的に残す */
         .ui-disabled {
             opacity: 0.3;
             pointer-events: none;
@@ -146,7 +147,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V6.3 Online (Final Fix)</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V7.0 Online (Pop-up UI)</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
         </div>
@@ -304,7 +305,7 @@
                     </div>
                     <span style="font-weight: bold;"><span id="p-score">0</span> pts</span>
                 </div>
-                <div id="p-game-area" class="ui-disabled">
+                <div id="p-game-area" class="hidden">
                     <div style="text-align: left; margin-bottom: 5px; color: #aaa;">問題を選択:</div>
                     <div class="p-pt-select">
                         <button class="btn-pt color-1" onclick="Player.selectPt(1)" id="p-btn-1">1</button>
@@ -348,15 +349,11 @@ const Net = {
             new QRCode(document.getElementById("qrcode"), { text: url, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff" });
         });
         Net.peer.on('connection', (c) => {
-            // ★修正: 接続時は即座に追加（削除はcloseに任せる）
+            // V6.3の安定接続ロジックを維持
             Net.conns.push(c);
-            
-            c.on('open', () => {
-                c.send({ type: 'SYNC', db: DB });
-            });
+            c.on('open', () => { c.send({ type: 'SYNC', db: DB }); });
             c.on('data', (d) => Host.handleData(d, c.peer));
             c.on('close', () => { 
-                // 切断イベントでのみ削除
                 Net.conns = Net.conns.filter(conn => conn !== c);
                 if(DB.players[c.peer]) delete DB.players[c.peer]; 
                 Host.updateCount();
@@ -376,18 +373,12 @@ const Net = {
         });
         Net.peer.on('error', (err) => { console.error(err); alert("通信エラー: " + err.type); });
     },
-    // ★修正: 送信エラー時に削除しないように変更（他のGeminiの提案通り）
+    // V6.3のブロードキャストロジック（エラーでも切断しない）
     broadcast: (data) => { 
         if(Net.isHost) {
             Net.conns.forEach(c => {
-                // 接続が開いている場合のみ送信
                 if (c.open) {
-                    try {
-                        c.send(data);
-                    } catch (e) {
-                        // エラーがあっても削除はしない
-                        console.error("Broadcast error:", e);
-                    }
+                    try { c.send(data); } catch (e) { console.error("Broadcast error:", e); }
                 }
             });
         }
@@ -590,27 +581,29 @@ const Player = {
             const gameArea = document.getElementById('p-game-area');
             const statusText = document.getElementById('p-status-text');
 
-            // 画面制御：常にGameAreaを表示するが、無効化を切り替える
+            // ★修正点: ACTIVEのときだけ解答エリアを表示（隠し解除）する
             if (phase === 'ACTIVE') {
-                statusText.innerText = "解答を受け付けています";
-                
                 // すでに回答済みかチェック
                 const myAns = db.answers.find(a => a.playerId === Net.peer.id);
                 if(myAns) {
-                    gameArea.classList.add('ui-disabled');
+                    // 回答済みの場合はエリアを隠してメッセージ表示
+                    gameArea.classList.add('hidden');
                     statusText.innerText = "回答を送信しました。結果をお待ちください。";
                 } else {
+                    // 未回答の場合はエリアを表示！
+                    statusText.innerText = "解答を受け付けています！";
+                    gameArea.classList.remove('hidden');
                     gameArea.classList.remove('ui-disabled');
                 }
             } else {
-                // 非アクティブ：入力不可
-                gameArea.classList.add('ui-disabled');
+                // ACTIVE以外（待機中や集計中）はエリアを完全に隠す
+                gameArea.classList.add('hidden');
                 
                 if (phase === 'TIMEUP') statusText.innerText = "TIME UP!";
                 else if (phase === 'JUDGING') statusText.innerText = "集計中...";
                 else if (phase === 'LOBBY' || phase === 'SELECT' || phase === 'COUNTDOWN') {
                     statusText.innerText = "問題出題までお待ちください";
-                    // リセット
+                    // リセット処理
                     Player.selectedPt = null;
                     document.getElementById('p-answer-input').value = "";
                     Player.updatePtBtns();
