@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V7.0 (Variable Count)</title>
+    <title>QUIZ ROYALE V8.0 (Gradient & Permanent)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -46,14 +46,14 @@
         .question-list { 
             display: flex; flex-direction: column; gap: 10px; 
             width: 90%; max-width: 1600px; margin: 20px auto; 
-            height: 80vh; justify-content: center; /* Flex container */
+            height: 80vh; justify-content: center; 
         }
         .q-bar { 
             display: flex; align-items: center; background: #222; border-radius: 8px; overflow: hidden; 
             flex: 1; /* Stretch to fill */
             border: 1px solid #444; transition: 0.3s; 
         }
-        .q-bar-pt { width: 80px; height: 100%; display: flex; align-items: center; justify-content: center; font-family: 'Black Ops One'; font-size: 32px; flex-shrink: 0; color:#000; }
+        .q-bar-pt { width: 80px; height: 100%; display: flex; align-items: center; justify-content: center; font-family: 'Black Ops One'; font-size: 32px; flex-shrink: 0; color:#fff; text-shadow:1px 1px 2px #000; }
         .q-bar-text { flex: 1; padding: 0 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .q-bar.solved { opacity: 0.3; filter: grayscale(100%); text-decoration: line-through; }
 
@@ -66,7 +66,7 @@
         .rank-name { width: 250px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .rank-detail { flex: 1; display: flex; align-items: center; gap: 15px; opacity: 0; transform: translateX(-10px); transition: 0.3s; }
         .rank-detail.visible { opacity: 1; transform: translateX(0); }
-        .rank-pt-badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-family: 'Black Ops One'; font-size: 20px; color:#000;}
+        .rank-pt-badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-family: 'Black Ops One'; font-size: 20px; color:#fff; text-shadow:1px 1px 2px #000;}
         .rank-ans { font-weight: bold; font-size: 28px; color: #ffeb3b; }
         
         .judge-ui-top { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; background: rgba(0,0,0,0.9); border-bottom: 2px solid #fff; text-align: center; font-size: 32px; font-weight: bold; z-index: 10; transform: translateY(-100%); transition: 0.3s; }
@@ -88,8 +88,8 @@
         .debug-name-row { display: flex; justify-content: space-between; font-weight: bold; color: #aaa; font-size: 14px; }
         .debug-status-text { font-size: 10px; color: #666; }
         .debug-pt-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
-        .d-pt-btn { aspect-ratio: 1; background: #333; border: 1px solid #555; color: #000; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
-        .d-pt-btn.selected { border: 2px solid #fff; box-shadow: 0 0 5px #fff; }
+        .d-pt-btn { aspect-ratio: 1; background: #333; border: 1px solid #555; color: #fff; text-shadow:1px 1px 1px #000; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .d-pt-btn.selected { border: 2px solid #fff; box-shadow: 0 0 5px #fff; transform:scale(1.1); z-index:2; }
         .d-input { width: 100%; background: #000; border: 1px solid #555; color: #fff; padding: 5px; box-sizing: border-box; text-align: center; }
         .d-send { width: 100%; background: #555; color: #fff; padding: 5px; cursor: pointer; border-radius: 4px; text-align:center; }
         .d-send.active { background: var(--c1); }
@@ -108,7 +108,7 @@
         .btn-pt { 
             aspect-ratio: 1.2; border-radius: 8px; border: none; 
             font-size: 18px; font-weight: bold; font-family: 'Black Ops One'; 
-            opacity: 0.6; transition: 0.2s; color: #000;
+            opacity: 0.6; transition: 0.2s; color: #fff; text-shadow:1px 1px 2px #000;
         }
         .btn-pt.selected { opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(255,255,255,0.5); border: 2px solid #fff; }
 
@@ -129,7 +129,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V7.0</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V8.0</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
         </div>
@@ -168,12 +168,12 @@
                         </div>
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; font-size:12px;">
                             <div>
-                                <label>BGMファイル</label>
+                                <label>BGMファイル (毎回選択)</label>
                                 <input type="file" id="bgm-file" accept="audio/*" style="width:100%; margin-bottom:5px;">
                                 <div style="display:flex; align-items:center; gap:5px;"><span>BGM音量</span><input type="range" id="vol-bgm" min="0" max="100" value="50" style="flex:1;"></div>
                             </div>
                             <div>
-                                <label>終了時SE (TimeUp)</label>
+                                <label>終了時SE (毎回選択)</label>
                                 <input type="file" id="se-timeup-file" accept="audio/*" style="width:100%; margin-bottom:5px;">
                                 <div style="display:flex; align-items:center; gap:5px;"><span>SE音量</span><input type="range" id="vol-se" min="0" max="100" value="50" style="flex:1;"></div>
                             </div>
@@ -290,10 +290,9 @@
     <audio id="se-timeup-player"></audio>
 
 <script>
-/* STORAGE & DB */
-const DATA_KEY = 'quiz_royale_sets_v7'; 
-const CONF_KEY = 'quiz_royale_conf_v5'; 
-const CHANNEL = 'quiz_royale_v7';
+/* STORAGE & DB - V8.0 Unified Persistence */
+const MASTER_KEY = 'QUIZ_ROYALE_MASTER_DATA'; // Permanent Key
+const CHANNEL = 'quiz_royale_v8'; // Communication Channel
 
 const DB = {
     state: { phase: 'LOBBY', currentSet: null },
@@ -315,7 +314,13 @@ const ROLE = params.get('role') === 'player' ? 'player' : 'host';
 /* SOUND & UTILS */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let volBgm = 0.5, volSe = 0.5;
-function getRainbowColor(i, total) { return `hsl(${(i * (360/total)) % 360}, 75%, 65%)`; } // Dynamic Color
+
+// Gradient Color (Blue(240) -> Red(0))
+function getGradientColor(i, total) {
+    if(total <= 1) return `hsl(240, 75%, 65%)`;
+    const hue = 240 - (i / (total - 1)) * 240; 
+    return `hsl(${hue}, 80%, 60%)`; 
+}
 
 function playSe(type) {
     if(type === 'timeup') { const a = document.getElementById('se-timeup-player'); if(a.src) { a.volume=volSe; a.play().catch(e=>{}); return; } }
@@ -339,7 +344,6 @@ const Debugger = {
         const grid = document.getElementById('debug-grid'); grid.innerHTML = "";
         DB.load();
         
-        // Check current set count
         let qCount = 5;
         if(DB.state.currentSet && DB.state.currentSet.qs) qCount = DB.state.currentSet.qs.length;
         else if(Host.sets.length > 0) qCount = Host.sets[0].qs.length;
@@ -351,7 +355,7 @@ const Debugger = {
             
             let btns = "";
             for(let q=1; q<=qCount; q++) {
-                btns += `<button class="d-pt-btn" style="background:${getRainbowColor(q-1, qCount)}" onclick="Debugger.sel(${i}, ${q}, ${qCount})" id="d-btn-${i}-${q}">${q}</button>`;
+                btns += `<button class="d-pt-btn" style="background:${getGradientColor(q-1, qCount)}" onclick="Debugger.sel(${i}, ${q}, ${qCount})" id="d-btn-${i}-${q}">${q}</button>`;
             }
 
             const card = document.createElement('div'); card.className = 'debug-card'; card.id = `d-card-${i}`;
@@ -420,16 +424,27 @@ const Host = {
         document.getElementById('vol-se').addEventListener('input', (e)=>{ Host.config.volSe=parseInt(e.target.value); volSe=Host.config.volSe/100; });
         document.getElementById('set-count').addEventListener('input', (e) => { Host.updateEditorInputs(parseInt(e.target.value)); });
 
-        let savedSets = localStorage.getItem(DATA_KEY);
-        if(!savedSets) {
-            const v5 = localStorage.getItem('quiz_royale_sets_v5');
-            if(v5) { savedSets=v5; localStorage.setItem(DATA_KEY, v5); }
+        // MASTER LOAD (Auto Migration)
+        let masterData = localStorage.getItem(MASTER_KEY);
+        if(!masterData) {
+            // Try import from V7
+            const v7Sets = localStorage.getItem('quiz_royale_sets_v7');
+            const v7Conf = localStorage.getItem('quiz_royale_conf_v5');
+            if(v7Sets) {
+                masterData = JSON.stringify({ sets: JSON.parse(v7Sets), config: v7Conf ? JSON.parse(v7Conf) : Host.config });
+                localStorage.setItem(MASTER_KEY, masterData);
+            }
         }
-        if(savedSets) Host.sets = JSON.parse(savedSets);
-        else Host.sets = [{ title: "サンプル", time: 30, qs: ["首都", "果物", "計算", "干支", "山"] }];
 
-        const savedConf = localStorage.getItem(CONF_KEY);
-        if(savedConf) Host.config = JSON.parse(savedConf);
+        if(masterData) {
+            const d = JSON.parse(masterData);
+            Host.sets = d.sets || [];
+            if(d.config) Host.config = d.config;
+        } else {
+            Host.sets = [{ title: "サンプル", time: 30, qs: ["首都", "果物", "計算", "干支", "山"] }];
+        }
+
+        // Apply Config UI
         if(Host.config.volBgm!==undefined) { document.getElementById('vol-bgm').value=Host.config.volBgm; volBgm=Host.config.volBgm/100; }
         if(Host.config.volSe!==undefined) { document.getElementById('vol-se').value=Host.config.volSe; volSe=Host.config.volSe/100; }
 
@@ -444,22 +459,22 @@ const Host = {
         });
     },
 
+    saveAll: () => {
+        localStorage.setItem(MASTER_KEY, JSON.stringify({ sets: Host.sets, config: Host.config }));
+    },
+
     updateEditorInputs: (count) => {
         if(!count || count < 1) count = 1;
         const div = document.getElementById('q-inputs');
-        // keep values if possible
         const existing = [];
-        for(let i=1; i<=20; i++) {
-            const el = document.getElementById(`q-in-${i}`);
-            if(el) existing.push(el.value);
-        }
+        for(let i=1; i<=20; i++) { const el = document.getElementById(`q-in-${i}`); if(el) existing.push(el.value); }
         
         div.innerHTML = "";
         for(let i=1; i<=count; i++) {
             const val = existing[i-1] || "";
-            const color = getRainbowColor(i-1, count);
+            const color = getGradientColor(i-1, count);
             div.innerHTML += `<div style="display:flex; gap:5px; margin-bottom:5px;">
-                <span style="background:${color}; color:#000; padding:5px; width:30px; text-align:center; font-weight:bold; border-radius:3px;">${i}</span>
+                <span style="background:${color}; color:#fff; text-shadow:1px 1px 1px #000; padding:5px; width:30px; text-align:center; font-weight:bold; border-radius:3px;">${i}</span>
                 <input type="text" id="q-in-${i}" placeholder="Q${i} (${i}pt)" value="${val}" style="flex:1;">
             </div>`;
         }
@@ -475,24 +490,30 @@ const Host = {
         const list=document.getElementById('settings-list'); list.innerHTML="";
         Host.sets.forEach((set,i)=>{ const li=document.createElement('li'); li.className=`set-item ${i===Host.editingIndex?'active':''}`; li.innerHTML=`<div style="flex:1;">${set.title}</div><div class="set-controls"><button class="btn-action" onclick="event.stopPropagation();Host.moveSet(${i},-1)">▲</button><button class="btn-action" onclick="event.stopPropagation();Host.moveSet(${i},1)">▼</button><button class="btn-action" style="background:#a33;" onclick="event.stopPropagation();Host.deleteSet(${i})">×</button></div>`; li.onclick=()=>Host.loadSetForEdit(i); list.appendChild(li); });
     },
-    moveSet: (idx, dir) => { if(idx+dir<0||idx+dir>=Host.sets.length)return; const t=Host.sets[idx]; Host.sets[idx]=Host.sets[idx+dir]; Host.sets[idx+dir]=t; if(Host.editingIndex===idx)Host.editingIndex+=dir; else if(Host.editingIndex===idx+dir)Host.editingIndex-=dir; localStorage.setItem(DATA_KEY,JSON.stringify(Host.sets)); Host.renderSetList(); },
+    moveSet: (idx, dir) => { if(idx+dir<0||idx+dir>=Host.sets.length)return; const t=Host.sets[idx]; Host.sets[idx]=Host.sets[idx+dir]; Host.sets[idx+dir]=t; if(Host.editingIndex===idx)Host.editingIndex+=dir; else if(Host.editingIndex===idx+dir)Host.editingIndex-=dir; Host.saveAll(); Host.renderSetList(); },
     createNewSet: () => { Host.editingIndex=-1; Host.renderSetList(); document.getElementById('set-genre').value=""; document.getElementById('set-time').value=30; document.getElementById('set-font').value=24; document.getElementById('set-width').value=90; document.getElementById('set-count').value=5; Host.updateEditorInputs(5); },
     loadSetForEdit: (idx) => { Host.editingIndex=idx; Host.renderSetList(); const set=Host.sets[idx]; document.getElementById('set-genre').value=set.title; document.getElementById('set-time').value=set.time; document.getElementById('set-font').value=set.fontSize||24; document.getElementById('set-width').value=set.width||90; document.getElementById('set-count').value=set.qs.length; Host.updateEditorInputs(set.qs.length); setTimeout(()=>{ for(let i=1;i<=set.qs.length;i++)document.getElementById(`q-in-${i}`).value=set.qs[i-1]; }, 10); },
     saveCurrentSet: () => {
         const t=document.getElementById('set-genre').value; const tm=parseInt(document.getElementById('set-time').value); const fs=parseInt(document.getElementById('set-font').value)||24; const w=parseInt(document.getElementById('set-width').value)||90; const cnt=parseInt(document.getElementById('set-count').value); const qs=[]; for(let i=1;i<=cnt;i++)qs.push(document.getElementById(`q-in-${i}`).value);
         if(!t)return alert("タイトルを入力してください");
-        localStorage.setItem(CONF_KEY,JSON.stringify(Host.config));
+        
+        // Update Config
+        Host.config.volBgm = parseInt(document.getElementById('vol-bgm').value);
+        Host.config.volSe = parseInt(document.getElementById('vol-se').value);
+
         const ns={title:t, time:tm, fontSize:fs, width:w, qs:qs};
         if(Host.editingIndex>=0) Host.sets[Host.editingIndex]=ns; else { Host.sets.push(ns); Host.editingIndex=Host.sets.length-1; }
-        localStorage.setItem(DATA_KEY,JSON.stringify(Host.sets)); Host.renderSetList(); alert("保存しました");
+        
+        Host.saveAll();
+        Host.renderSetList(); alert("保存しました");
     },
-    deleteSet: (idx) => { if(!confirm("削除しますか？"))return; Host.sets.splice(idx,1); localStorage.setItem(DATA_KEY,JSON.stringify(Host.sets)); Host.createNewSet(); },
+    deleteSet: (idx) => { if(!confirm("削除しますか？"))return; Host.sets.splice(idx,1); Host.saveAll(); Host.createNewSet(); },
 
     startSet: (idx) => {
         const set=Host.sets[idx]; const count=set.qs.length; DB.state.currentSet=set; DB.resetAnswers(count);
         Host.showScreen('screen-game'); document.getElementById('game-genre-title').innerText=set.title; document.getElementById('timeup-msg').classList.add('hidden');
         const list=document.getElementById('host-q-list'); list.innerHTML=""; list.style.width=(set.width||90)+"%"; const fs=set.fontSize||24;
-        set.qs.forEach((q,i)=>{ const clr=getRainbowColor(i, count); list.innerHTML+=`<div class="q-bar"><div class="q-bar-pt" style="background:${clr}">${i+1}pt</div><div class="q-bar-text" style="font-size:${fs}px">${q}</div></div>`; });
+        set.qs.forEach((q,i)=>{ const clr=getGradientColor(i, count); list.innerHTML+=`<div class="q-bar"><div class="q-bar-pt" style="background:${clr}">${i+1}pt</div><div class="q-bar-text" style="font-size:${fs}px">${q}</div></div>`; });
         DB.state.phase='COUNTDOWN'; DB.save();
         const ol=document.getElementById('host-count-overlay'); ol.style.display='flex'; let c=3; ol.innerText=c; playSe('count');
         const ct=setInterval(()=>{ c--; if(c>0){ol.innerText=c;playSe('count');}else{clearInterval(ct);ol.style.display='none';playSe('start');playBgm();Host.startGameLoop(set.time);} },1000);
@@ -506,7 +527,7 @@ const Host = {
         DB.state.phase='JUDGING'; DB.save(); Host.showScreen('screen-judge');
         Host.sortedAnswers=[...DB.answers].sort((a,b)=>a.timestamp-b.timestamp); Host.judgeIndex=-1; Host.isJudgingActive=false;
         const list=document.getElementById('rank-list'); list.innerHTML=""; const count = DB.state.currentSet.qs.length;
-        Host.sortedAnswers.forEach((ans,i)=>{ const clr=getRainbowColor(ans.pt-1, count); list.innerHTML+=`<div class="rank-row" id="rank-item-${i}"><div class="rank-order">#${i+1}</div><div class="rank-name">${ans.name}</div><div class="rank-detail" id="rank-detail-${i}"><span class="rank-pt-badge" style="background:${clr}">${ans.pt}pt</span><span class="rank-ans">${ans.text}</span><span id="rank-result-${i}"></span></div></div>`; });
+        Host.sortedAnswers.forEach((ans,i)=>{ const clr=getGradientColor(ans.pt-1, count); list.innerHTML+=`<div class="rank-row" id="rank-item-${i}"><div class="rank-order">#${i+1}</div><div class="rank-name">${ans.name}</div><div class="rank-detail" id="rank-detail-${i}"><span class="rank-pt-badge" style="background:${clr}">${ans.pt}pt</span><span class="rank-ans">${ans.text}</span><span id="rank-result-${i}"></span></div></div>`; });
     },
     revealNext: () => {
         Host.judgeIndex++; if(Host.judgeIndex>=Host.sortedAnswers.length){ Host.finishJudging(); return; }
@@ -539,12 +560,11 @@ const Player = {
             if(DB.answers.find(a=>a.playerId===Player.id)){ wm.innerHTML="回答送信済み。<br>結果を待っています..."; wm.classList.remove('hidden'); ga.classList.add('hidden'); }
             else{ 
                 wm.classList.add('hidden'); ga.classList.remove('hidden'); 
-                // Render Dynamic Buttons if needed
                 const count = DB.state.currentSet ? DB.state.currentSet.qs.length : 5;
                 const container = document.getElementById('p-pt-container');
                 if(container.childElementCount !== count) {
                     container.innerHTML = "";
-                    for(let i=1; i<=count; i++) container.innerHTML += `<button class="btn-pt" style="background:${getRainbowColor(i-1, count)}" onclick="Player.selectPt(${i})" id="p-btn-${i}">${i}</button>`;
+                    for(let i=1; i<=count; i++) container.innerHTML += `<button class="btn-pt" style="background:${getGradientColor(i-1, count)}" onclick="Player.selectPt(${i})" id="p-btn-${i}">${i}</button>`;
                 }
             }
         } else if(ph==='TIMEUP'||ph==='JUDGING'){ wm.innerHTML="TIME UP!<br>集計中..."; wm.classList.remove('hidden'); ga.classList.add('hidden'); }
