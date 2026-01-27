@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V6.0 (Multi-Debug)</title>
+    <title>QUIZ ROYALE V6.0 (Online)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -118,6 +119,23 @@
         .solved-mark { color: #22aa22; font-weight: bold; margin-left: 10px; }
         .failed-mark { color: #aa2222; font-weight: bold; margin-left: 10px; }
 
+        /* PLAYER SPECIFIC UI (DISABLED STATE) */
+        .ui-disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+        .p-container { width: 100%; max-width: 500px; padding: 20px; box-sizing: border-box; text-align: center; }
+        .p-status { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; border: 1px solid #444; font-size: 18px; }
+        .p-pt-select { display: flex; justify-content: space-between; gap: 5px; margin-bottom: 20px; }
+        .btn-pt { flex: 1; aspect-ratio: 1.2; border-radius: 8px; border: none; font-size: 18px; font-weight: bold; font-family: 'Black Ops One'; opacity: 0.6; transition: 0.2s; }
+        .btn-pt.selected { opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(255,255,255,0.5); border: 2px solid #fff; }
+        .p-input { width: 100%; height: 60px; padding: 0 15px; font-size: 24px; box-sizing: border-box; margin-bottom: 20px; border-radius: 10px; border: 2px solid #555; background: #000; color: #fff; text-align: center; line-height: 60px; }
+        .btn-send { width: 100%; padding: 15px; font-size: 24px; font-weight: bold; background: #fff; color: #000; border: none; border-radius: 10px; }
+        .btn-send:disabled { background: #555; color: #888; }
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: none; z-index: 100; align-items: center; justify-content: center; }
+        .modal-content { background: #222; padding: 30px; border-radius: 15px; border: 2px solid #fff; text-align: center; max-width: 90%; }
+
     </style>
 </head>
 <body>
@@ -125,7 +143,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V6.0</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V6.0 Online</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
         </div>
@@ -280,10 +298,7 @@
                     <span id="p-disp-name">名無し</span>
                     <span style="font-weight: bold;"><span id="p-score">0</span> pts</span>
                 </div>
-                <div id="p-wait-msg" style="padding: 40px 0; color: #888;">
-                    問題出題まで<br>しばらくお待ちください...
-                </div>
-                <div id="p-game-area" class="hidden">
+                <div id="p-game-area" class="ui-disabled">
                     <div style="text-align: left; margin-bottom: 5px; color: #aaa;">問題を選択:</div>
                     <div class="p-pt-select">
                         <button class="btn-pt color-1" onclick="Player.selectPt(1)" id="p-btn-1">1</button>
@@ -295,6 +310,7 @@
                     <input type="text" id="p-answer-input" class="p-input" placeholder="答えを入力...">
                     <button id="p-submit-btn" class="btn-send" onclick="Player.confirmSend()">送信する</button>
                 </div>
+                <div id="p-status-text" style="color: #888; margin-top: 20px;">問題出題までお待ちください</div>
             </div>
         </div>
         <div id="p-modal" class="modal">
@@ -315,6 +331,42 @@
     <audio id="se-timeup-player"></audio>
 
 <script>
+/* NETWORK: PeerJS Wrapper */
+const Net = {
+    peer: null, conn: null, conns: [], isHost: false,
+    initHost: () => {
+        Net.isHost = true;
+        Net.peer = new Peer();
+        Net.peer.on('open', (id) => {
+            // URLにhostパラメータをつける
+            const url = location.href.split('?')[0] + "?role=player&host=" + id;
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff" });
+        });
+        Net.peer.on('connection', (c) => {
+            Net.conns.push(c);
+            c.on('data', (d) => Host.handleData(d, c.peer));
+            c.on('close', () => { 
+                // 切断時処理: 配列から削除して人数更新
+                Net.conns = Net.conns.filter(conn => conn !== c);
+                if(DB.players[c.peer]) delete DB.players[c.peer]; // DBからも消す
+                Host.updateCount();
+            });
+            // 接続時に現状を送信
+            c.send({ type: 'SYNC', db: DB });
+        });
+    },
+    initPlayer: (hostId) => {
+        Net.peer = new Peer();
+        Net.peer.on('open', () => {
+            Net.conn = Net.peer.connect(hostId);
+            Net.conn.on('data', (d) => Player.handleData(d));
+            Net.conn.on('close', () => { alert("ホストとの接続が切れました"); location.reload(); });
+        });
+    },
+    broadcast: (data) => { if(Net.isHost) Net.conns.forEach(c => c.send(data)); },
+    send: (data) => { if(Net.conn) Net.conn.send(data); }
+};
+
 /* STORAGE & DB */
 const DATA_KEY = 'quiz_royale_sets_v5'; 
 const CONF_KEY = 'quiz_royale_conf_v5'; 
@@ -323,21 +375,11 @@ const CHANNEL = 'quiz_royale_v6';
 const DB = {
     state: { phase: 'LOBBY', currentSet: null },
     players: {}, answers: [], solved: [false, false, false, false, false, false],
-    save: () => { localStorage.setItem(CHANNEL, JSON.stringify({ state: DB.state, players: DB.players, answers: DB.answers, solved: DB.solved, ts: Date.now() })); },
-    load: () => { const d = localStorage.getItem(CHANNEL); if(d){ const data = JSON.parse(d); DB.state = data.state; DB.players = data.players; DB.answers = data.answers; DB.solved = data.solved; return true; } return false; },
-    resetAnswers: () => { DB.answers = []; DB.solved = [false, false, false, false, false, false]; DB.save(); }
+    save: () => { /* LocalStorage not used for sync anymore */ },
+    load: () => { /* Not used for sync */ },
+    resetAnswers: () => { DB.answers = []; DB.solved = [false, false, false, false, false, false]; }
 };
-window.addEventListener('storage', (e) => { 
-    if(e.key === CHANNEL) { 
-        DB.load(); 
-        if(ROLE==='host') {
-            Host.onUpdate();
-            // Also update debug grid if present
-            if(!document.getElementById('screen-debug').classList.contains('hidden')) Debugger.onUpdate();
-        } 
-        if(ROLE==='player') Player.onUpdate(); 
-    }
-});
+
 const params = new URLSearchParams(window.location.search);
 const ROLE = params.get('role') === 'player' ? 'player' : 'host';
 
@@ -361,123 +403,23 @@ function playSe(type) {
 function playBgm() { const audio = document.getElementById('bgm-player'); audio.volume = volBgm; if(audio.src) audio.play().catch(e=>{}); }
 function stopBgm() { const audio = document.getElementById('bgm-player'); audio.pause(); audio.currentTime = 0; }
 
-/* DEBUGGER LOGIC (MULTI PLAYER SIM) */
-const Debugger = {
-    vPlayers: [], // {id, name, selectedPt}
-    
-    spawnPlayers: () => {
-        const count = parseInt(document.getElementById('debug-count').value) || 1;
-        Debugger.vPlayers = [];
-        const grid = document.getElementById('debug-grid');
-        grid.innerHTML = "";
-        
-        DB.load();
-        
-        for(let i=0; i<count; i++) {
-            const pid = 'debug_' + Date.now() + '_' + i;
-            const name = `TestPlayer ${i+1}`;
-            Debugger.vPlayers.push({ id: pid, name: name, selectedPt: null });
-            
-            // Register to DB
-            DB.players[pid] = { name: name, score: 0 };
-            
-            // Create UI
-            const card = document.createElement('div');
-            card.className = 'debug-card';
-            card.id = `d-card-${i}`;
-            card.innerHTML = `
-                <div class="debug-name-row"><span>${name}</span><span id="d-score-${i}">0pt</span></div>
-                <div class="debug-status-text" id="d-status-${i}">Waiting...</div>
-                <div class="debug-pt-row">
-                    <button class="d-pt-btn color-1" onclick="Debugger.sel(${i}, 1)" id="d-btn-${i}-1">1</button>
-                    <button class="d-pt-btn color-2" onclick="Debugger.sel(${i}, 2)" id="d-btn-${i}-2">2</button>
-                    <button class="d-pt-btn color-3" onclick="Debugger.sel(${i}, 3)" id="d-btn-${i}-3">3</button>
-                    <button class="d-pt-btn color-4" onclick="Debugger.sel(${i}, 4)" id="d-btn-${i}-4">4</button>
-                    <button class="d-pt-btn color-5" onclick="Debugger.sel(${i}, 5)" id="d-btn-${i}-5">5</button>
-                </div>
-                <input type="text" class="d-input" id="d-input-${i}" placeholder="Answer">
-                <div class="d-send" onclick="Debugger.send(${i})" id="d-send-${i}">SEND</div>
-            `;
-            grid.appendChild(card);
-        }
-        DB.save();
-    },
-    
-    sel: (idx, pt) => {
-        Debugger.vPlayers[idx].selectedPt = pt;
-        for(let p=1; p<=5; p++) {
-            const btn = document.getElementById(`d-btn-${idx}-${p}`);
-            if(p === pt) btn.classList.add('selected'); else btn.classList.remove('selected');
-        }
-    },
-    
-    send: (idx) => {
-        const p = Debugger.vPlayers[idx];
-        const text = document.getElementById(`d-input-${idx}`).value;
-        if(!p.selectedPt || !text) return;
-        
-        DB.load();
-        if(DB.state.phase !== 'ACTIVE') return alert("Not active");
-        if(DB.answers.find(a => a.playerId === p.id)) return;
-        
-        DB.answers.push({ playerId: p.id, name: p.name, pt: p.selectedPt, text: text, timestamp: Date.now() });
-        DB.save();
-        
-        // Update UI locally
-        Debugger.onUpdate();
-    },
-    
-    onUpdate: () => {
-        const phase = DB.state.phase;
-        Debugger.vPlayers.forEach((p, i) => {
-            // Update Score
-            if(DB.players[p.id]) document.getElementById(`d-score-${i}`).innerText = DB.players[p.id].score + "pt";
-            
-            // Check Answered
-            const ans = DB.answers.find(a => a.playerId === p.id);
-            const card = document.getElementById(`d-card-${i}`);
-            const stat = document.getElementById(`d-status-${i}`);
-            const sendBtn = document.getElementById(`d-send-${i}`);
-            
-            if(ans) {
-                card.classList.add('done');
-                stat.innerText = "Answered: " + ans.pt + "pt";
-                sendBtn.classList.remove('active');
-            } else {
-                card.classList.remove('done');
-                if(phase === 'ACTIVE') {
-                    stat.innerText = "ACTIVE!";
-                    stat.style.color = "#4f4";
-                    sendBtn.classList.add('active');
-                } else {
-                    stat.innerText = "Waiting (" + phase + ")";
-                    stat.style.color = "#666";
-                    sendBtn.classList.remove('active');
-                    // Reset if LOBBY
-                    if(phase === 'LOBBY' || phase === 'SELECT') {
-                        p.selectedPt = null;
-                        document.getElementById(`d-input-${i}`).value = "";
-                        for(let b=1; b<=5; b++) document.getElementById(`d-btn-${i}-${b}`).classList.remove('selected');
-                    }
-                }
-            }
-        });
-    }
-};
-
 /* HOST LOGIC */
 const Host = {
     sets: [], config: {fontSize: 24, barWidth: 90, volBgm: 50, volSe: 50},
     editingIndex: -1, timerInterval: null, judgeIndex: 0, sortedAnswers: [], isJudgingActive: false,
 
     init: () => {
-        if(ROLE !== 'host') {
+        if(ROLE === 'player') {
             document.getElementById('host-app').classList.add('hidden');
             document.getElementById('player-app').classList.remove('hidden');
-            Player.init();
+            const hostId = params.get('host');
+            if(hostId) Player.init(hostId); else alert("QRコードからアクセスしてください");
             return;
         }
         
+        // Host Init
+        Net.initHost();
+
         document.getElementById('bgm-file').addEventListener('change', (e) => { const f=e.target.files[0]; if(f) document.getElementById('bgm-player').src=URL.createObjectURL(f); });
         document.getElementById('se-timeup-file').addEventListener('change', (e) => { const f=e.target.files[0]; if(f) document.getElementById('se-timeup-player').src=URL.createObjectURL(f); });
         
@@ -500,9 +442,8 @@ const Host = {
         const qInputs = document.getElementById('q-inputs'); qInputs.innerHTML = "";
         for(let i=1; i<=5; i++) qInputs.innerHTML += `<div style="display:flex;gap:5px;margin-bottom:5px;"><span class="color-${i}" style="padding:5px;width:30px;text-align:center;font-weight:bold;border-radius:3px;">${i}</span><input type="text" id="q-in-${i}" placeholder="Q${i}" style="flex:1;"></div>`;
 
-        DB.state.phase = 'LOBBY'; DB.save();
-        setInterval(() => { if(DB.load()) document.getElementById('host-player-count').innerText = Object.keys(DB.players).length; }, 1000);
-
+        DB.state.phase = 'LOBBY'; 
+        
         document.addEventListener('keydown', (e) => {
             if(e.code === 'Escape' && DB.state.phase!=='LOBBY' && DB.state.phase!=='SELECT') { e.preventDefault(); Host.forceQuit(); return; }
             if(DB.state.phase === 'TIMEUP' && e.code === 'Space') { e.preventDefault(); Host.startJudging(); } 
@@ -510,11 +451,37 @@ const Host = {
         });
     },
 
-    goToLobby: () => { Host.showScreen('screen-lobby'); document.getElementById("qrcode").innerHTML=""; new QRCode(document.getElementById("qrcode"), { text:window.location.href+"?role=player", width:150, height:150, colorDark:"#000000", colorLight:"#ffffff" }); DB.state.phase='LOBBY'; DB.save(); },
-    goToSelect: () => { Host.showScreen('screen-select'); const list=document.getElementById('set-list'); list.innerHTML=""; Host.sets.forEach((set,idx)=>{ const btn=document.createElement('button'); btn.className='btn-large'; btn.innerText=set.title; btn.onclick=()=>Host.startSet(idx); list.appendChild(btn); }); DB.state.phase='SELECT'; },
+    // PeerJS Data Handling
+    handleData: (data, peerId) => {
+        if(data.type === 'LOGIN') {
+            DB.players[peerId] = { name: data.name, score: 0 };
+            Host.updateCount();
+            Net.broadcast({ type: 'SYNC', db: DB });
+        } else if(data.type === 'ANSWER') {
+            if(DB.state.phase === 'ACTIVE') {
+                if(!DB.answers.find(a => a.playerId === peerId)) {
+                    DB.answers.push({ playerId: peerId, name: data.name, pt: data.pt, text: data.text, timestamp: Date.now() });
+                    Net.broadcast({ type: 'SYNC', db: DB });
+                }
+            }
+        }
+    },
+    updateCount: () => {
+        document.getElementById('host-player-count').innerText = Object.keys(DB.players).length;
+    },
+
+    goToLobby: () => { 
+        Host.showScreen('screen-lobby'); 
+        // 参加者をリセット
+        DB.players = {};
+        DB.state.phase='LOBBY'; 
+        Host.updateCount();
+        Net.broadcast({ type: 'SYNC', db: DB });
+    },
+    goToSelect: () => { Host.showScreen('screen-select'); const list=document.getElementById('set-list'); list.innerHTML=""; Host.sets.forEach((set,idx)=>{ const btn=document.createElement('button'); btn.className='btn-large'; btn.innerText=set.title; btn.onclick=()=>Host.startSet(idx); list.appendChild(btn); }); DB.state.phase='SELECT'; Net.broadcast({type:'SYNC', db:DB}); },
     
     goToSettings: () => { Host.showScreen('screen-settings'); Host.renderSetList(); Host.createNewSet(); },
-    goToDebugMode: () => { Host.showScreen('screen-debug'); }, // New Screen
+    goToDebugMode: () => { Host.showScreen('screen-debug'); }, 
 
     renderSetList: () => {
         const list=document.getElementById('settings-list'); list.innerHTML="";
@@ -538,20 +505,20 @@ const Host = {
         Host.showScreen('screen-game'); document.getElementById('game-genre-title').innerText=set.title; document.getElementById('timeup-msg').classList.add('hidden');
         const list=document.getElementById('host-q-list'); list.innerHTML=""; list.style.width=(set.width||90)+"%"; const fs=set.fontSize||24;
         set.qs.forEach((q,i)=>list.innerHTML+=`<div class="q-bar"><div class="q-bar-pt color-${i+1}">${i+1}pt</div><div class="q-bar-text" style="font-size:${fs}px">${q}</div></div>`);
-        DB.state.phase='COUNTDOWN'; DB.save();
+        DB.state.phase='COUNTDOWN'; Net.broadcast({type:'SYNC', db:DB});
         const ol=document.getElementById('host-count-overlay'); ol.style.display='flex'; let c=3; ol.innerText=c; playSe('count');
         const ct=setInterval(()=>{ c--; if(c>0){ol.innerText=c;playSe('count');}else{clearInterval(ct);ol.style.display='none';playSe('start');playBgm();Host.startGameLoop(set.time);} },1000);
         Host.activeInterval=ct;
     },
     startGameLoop: (sec) => {
-        DB.state.phase='ACTIVE'; DB.save(); let left=sec; const el=document.getElementById('game-timer'); el.innerText=left;
+        DB.state.phase='ACTIVE'; Net.broadcast({type:'SYNC', db:DB}); let left=sec; const el=document.getElementById('game-timer'); el.innerText=left;
         Host.timerInterval=setInterval(()=>{ left--; el.innerText=left; if(left<=0)Host.timeUp(); },1000);
     },
-    timeUp: () => { clearInterval(Host.timerInterval); stopBgm(); playSe('timeup'); DB.state.phase='TIMEUP'; DB.save(); document.getElementById('timeup-msg').classList.remove('hidden'); },
-    forceQuit: () => { clearInterval(Host.timerInterval); clearInterval(Host.activeInterval); stopBgm(); document.getElementById('host-count-overlay').style.display='none'; Host.goToSelect(); DB.state.phase='SELECT'; DB.save(); },
+    timeUp: () => { clearInterval(Host.timerInterval); stopBgm(); playSe('timeup'); DB.state.phase='TIMEUP'; Net.broadcast({type:'SYNC', db:DB}); document.getElementById('timeup-msg').classList.remove('hidden'); },
+    forceQuit: () => { clearInterval(Host.timerInterval); clearInterval(Host.activeInterval); stopBgm(); document.getElementById('host-count-overlay').style.display='none'; Host.goToSelect(); DB.state.phase='SELECT'; Net.broadcast({type:'SYNC', db:DB}); },
 
     startJudging: () => {
-        DB.state.phase='JUDGING'; DB.save(); Host.showScreen('screen-judge');
+        DB.state.phase='JUDGING'; Net.broadcast({type:'SYNC', db:DB}); Host.showScreen('screen-judge');
         Host.sortedAnswers=[...DB.answers].sort((a,b)=>a.timestamp-b.timestamp); Host.judgeIndex=-1; Host.isJudgingActive=false;
         const list=document.getElementById('rank-list'); list.innerHTML="";
         Host.sortedAnswers.forEach((ans,i)=>list.innerHTML+=`<div class="rank-row" id="rank-item-${i}"><div class="rank-order">#${i+1}</div><div class="rank-name">${ans.name}</div><div class="rank-detail" id="rank-detail-${i}"><span class="rank-pt-badge color-${ans.pt}">${ans.pt}pt</span><span class="rank-ans">${ans.text}</span><span id="rank-result-${i}"></span></div></div>`);
@@ -569,8 +536,9 @@ const Host = {
         if(isOk){ DB.solved[ans.pt]=true; if(DB.players[ans.playerId])DB.players[ans.playerId].score+=parseInt(ans.pt); rs.innerHTML='<span class="solved-mark">◎ GET!</span>'; }
         else rs.innerHTML='<span class="failed-mark">×</span>';
         DB.save(); document.getElementById('judge-ui-top').classList.remove('active'); document.getElementById('judge-ui-bottom').classList.remove('active'); document.getElementById('judge-already-msg').classList.add('hidden'); Host.isJudgingActive=false;
+        Net.broadcast({type:'SYNC', db:DB}); // 得点更新を通知
     },
-    finishJudging: () => { Host.goToSelect(); DB.state.phase='SELECT'; DB.save(); },
+    finishJudging: () => { Host.goToSelect(); DB.state.phase='SELECT'; Net.broadcast({type:'SYNC', db:DB}); },
     showScreen: (id) => { document.querySelectorAll('#host-app .screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); },
     onUpdate: () => {}
 };
@@ -578,21 +546,68 @@ const Host = {
 /* PLAYER LOGIC */
 const Player = {
     id: null, name: null, selectedPt: null,
-    init: () => { const id=sessionStorage.getItem('p_id'); if(id){ Player.id=id; Player.name=sessionStorage.getItem('p_name'); Player.showScreen('p-screen-main'); Player.onUpdate(); } else { Player.id='p_'+Date.now()+Math.random().toString(36).substr(2,9); sessionStorage.setItem('p_id',Player.id); } },
-    login: () => { const n=document.getElementById('p-name-input').value; if(!n)return; Player.name=n; sessionStorage.setItem('p_name',n); DB.load(); DB.players[Player.id]={name:n,score:0}; DB.save(); Player.showScreen('p-screen-main'); Player.onUpdate(); },
-    onUpdate: () => {
-        if(!Player.name)return; if(DB.players[Player.id]){ document.getElementById('p-disp-name').innerText=Player.name; document.getElementById('p-score').innerText=DB.players[Player.id].score; }
-        const ph=DB.state.phase; const wm=document.getElementById('p-wait-msg'); const ga=document.getElementById('p-game-area');
-        if(ph==='ACTIVE'){
-            if(DB.answers.find(a=>a.playerId===Player.id)){ wm.innerHTML="回答送信済み。<br>結果を待っています..."; wm.classList.remove('hidden'); ga.classList.add('hidden'); }
-            else{ wm.classList.add('hidden'); ga.classList.remove('hidden'); }
-        } else if(ph==='TIMEUP'||ph==='JUDGING'){ wm.innerHTML="TIME UP!<br>集計中..."; wm.classList.remove('hidden'); ga.classList.add('hidden'); }
-        else{ wm.innerHTML="問題出題まで<br>しばらくお待ちください..."; wm.classList.remove('hidden'); ga.classList.add('hidden'); if(ph==='LOBBY'||ph==='SELECT'){ Player.selectedPt=null; document.getElementById('p-answer-input').value=""; Player.updatePtBtns(); } }
+    init: (hostId) => {
+        Net.initPlayer(hostId);
+    },
+    handleData: (data) => {
+        if(data.type === 'SYNC') {
+            const db = data.db;
+            const myData = db.players[Net.peer.id];
+            
+            // スコア表示更新
+            if(myData) {
+                document.getElementById('p-score').innerText = myData.score;
+            }
+
+            const phase = db.state.phase;
+            const gameArea = document.getElementById('p-game-area');
+            const statusText = document.getElementById('p-status-text');
+
+            // 画面制御：常にGameAreaを表示するが、無効化を切り替える
+            if (phase === 'ACTIVE') {
+                // アクティブ：入力可能
+                gameArea.classList.remove('ui-disabled');
+                statusText.innerText = "解答を受け付けています";
+                
+                // すでに回答済みかチェック
+                const myAns = db.answers.find(a => a.playerId === Net.peer.id);
+                if(myAns) {
+                    gameArea.classList.add('ui-disabled');
+                    statusText.innerText = "回答を送信しました。結果をお待ちください。";
+                }
+            } else {
+                // 非アクティブ：入力不可
+                gameArea.classList.add('ui-disabled');
+                
+                if (phase === 'TIMEUP') statusText.innerText = "TIME UP!";
+                else if (phase === 'JUDGING') statusText.innerText = "集計中...";
+                else if (phase === 'LOBBY' || phase === 'SELECT' || phase === 'COUNTDOWN') {
+                    statusText.innerText = "問題出題までお待ちください";
+                    // リセット
+                    Player.selectedPt = null;
+                    document.getElementById('p-answer-input').value = "";
+                    Player.updatePtBtns();
+                }
+            }
+        }
+    },
+    login: () => {
+        const n=document.getElementById('p-name-input').value; if(!n)return; 
+        Player.name=n; 
+        // 画面遷移
+        Player.showScreen('p-screen-main');
+        document.getElementById('p-disp-name').innerText = n;
+        // ホストへ通知
+        Net.send({type:'LOGIN', name:n});
     },
     selectPt: (pt) => { Player.selectedPt=pt; Player.updatePtBtns(); },
     updatePtBtns: () => { for(let i=1;i<=5;i++){ const b=document.getElementById(`p-btn-${i}`); if(i===Player.selectedPt)b.classList.add('selected'); else b.classList.remove('selected'); } },
     confirmSend: () => { const t=document.getElementById('p-answer-input').value; if(!Player.selectedPt||!t)return; document.getElementById('m-pt').innerText=Player.selectedPt; document.getElementById('m-ans').innerText=t; document.getElementById('p-modal').style.display='flex'; },
-    sendAnswer: () => { if(DB.state.phase!=='ACTIVE')return; const t=document.getElementById('p-answer-input').value; DB.load(); if(DB.answers.find(a=>a.playerId===Player.id))return; DB.answers.push({playerId:Player.id, name:Player.name, pt:Player.selectedPt, text:t, timestamp:Date.now()}); DB.save(); document.getElementById('p-modal').style.display='none'; Player.onUpdate(); },
+    sendAnswer: () => { 
+        const t=document.getElementById('p-answer-input').value; 
+        Net.send({type:'ANSWER', name:Player.name, pt:Player.selectedPt, text:t}); 
+        document.getElementById('p-modal').style.display='none'; 
+    },
     showScreen: (id) => { document.querySelectorAll('#player-app .screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
 };
 
