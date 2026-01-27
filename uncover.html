@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V9.0 (Start Signal Ver)</title>
+    <title>QUIZ ROYALE V10.0 (Score Fix)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -146,7 +146,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V9.0 (START Signal)</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V10.0 (Score Fix)</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
         </div>
@@ -349,7 +349,7 @@ const Net = {
         });
         Net.peer.on('connection', (c) => {
             Net.conns.push(c);
-            // 接続時はSYNCを送っておく（途中参加用）
+            // 接続時はSYNCを送っておく
             c.on('open', () => { c.send({ type: 'SYNC', db: DB }); });
             c.on('data', (d) => Host.handleData(d, c.peer));
             c.on('close', () => { 
@@ -372,16 +372,13 @@ const Net = {
         });
         Net.peer.on('error', (err) => { console.error(err); alert("通信エラー: " + err.type); });
     },
-    // ★【修正】過剰なエラーハンドリングを廃止
     broadcast: (data) => { 
         if(Net.isHost) {
             Net.conns.forEach(c => {
-                // c.openがfalseでも送信を試みる（遅延やバッファリング対応）
                 try {
                     c.send(data);
                 } catch (e) {
                     console.error("Broadcast failed for:", c.peer, e);
-                    // 送信エラーでもリストからは削除しない
                 }
             });
         }
@@ -528,7 +525,6 @@ const Host = {
         set.qs.forEach((q,i)=>list.innerHTML+=`<div class="q-bar"><div class="q-bar-pt color-${i+1}">${i+1}pt</div><div class="q-bar-text" style="font-size:${fs}px">${q}</div></div>`);
         
         DB.state.phase='COUNTDOWN'; 
-        // 待機状態を同期
         Net.broadcast({type:'SYNC', db:DB});
         
         const ol=document.getElementById('host-count-overlay'); ol.style.display='flex'; let c=3; ol.innerText=c; playSe('count');
@@ -537,12 +533,8 @@ const Host = {
     },
     startGameLoop: (sec) => {
         DB.state.phase='ACTIVE'; 
-        
-        // ★【最重要修正】 V39と同じく「START信号」を明示的に送る
-        // これによりクライアントは状態確認をスキップして強制的に画面を切り替える
+        // ★START信号（強制表示）
         Net.broadcast({type:'START'});
-        
-        // 念のため状態も同期（途中参加者用）
         Net.broadcast({type:'SYNC', db:DB}); 
         
         let left=sec; const el=document.getElementById('game-timer'); el.innerText=left;
@@ -567,10 +559,21 @@ const Host = {
     },
     judge: (isOk) => {
         const ans=Host.sortedAnswers[Host.judgeIndex]; const rs=document.getElementById(`rank-result-${Host.judgeIndex}`);
-        if(isOk){ DB.solved[ans.pt]=true; if(DB.players[ans.playerId])DB.players[ans.playerId].score+=parseInt(ans.pt); rs.innerHTML='<span class="solved-mark">◎ GET!</span>'; }
+        if(isOk){ 
+            DB.solved[ans.pt]=true; 
+            // ★【修正】DB.players[ID]にスコアを加算
+            if(DB.players[ans.playerId]) {
+                DB.players[ans.playerId].score += parseInt(ans.pt); 
+            }
+            rs.innerHTML='<span class="solved-mark">◎ GET!</span>'; 
+        }
         else rs.innerHTML='<span class="failed-mark">×</span>';
-        DB.save(); document.getElementById('judge-ui-top').classList.remove('active'); document.getElementById('judge-ui-bottom').classList.remove('active'); document.getElementById('judge-already-msg').classList.add('hidden'); Host.isJudgingActive=false;
-        Net.broadcast({type:'SYNC', db:DB}); // 得点更新を通知
+        
+        DB.save(); 
+        document.getElementById('judge-ui-top').classList.remove('active'); document.getElementById('judge-ui-bottom').classList.remove('active'); document.getElementById('judge-already-msg').classList.add('hidden'); Host.isJudgingActive=false;
+        
+        // ★【修正】点数更新を全クライアントへ同期
+        Net.broadcast({type:'SYNC', db:DB}); 
     },
     finishJudging: () => { Host.goToSelect(); DB.state.phase='SELECT'; Net.broadcast({type:'SYNC', db:DB}); },
     showScreen: (id) => { document.querySelectorAll('#host-app .screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); },
@@ -584,28 +587,23 @@ const Player = {
         Net.initPlayer(hostId);
     },
     handleData: (data) => {
-        // ★【最重要修正】 START信号を受け取ったら無条件で解答画面を表示
         if(data.type === 'START') {
             const gameArea = document.getElementById('p-game-area');
             const statusText = document.getElementById('p-status-text');
-            
-            // 強制表示
             gameArea.classList.remove('hidden');
             gameArea.classList.remove('ui-disabled');
             statusText.innerText = "解答を受け付けています！";
-            
-            // リセット処理
             Player.selectedPt = null;
             document.getElementById('p-answer-input').value = "";
             Player.updatePtBtns();
-            return; // 処理終了
+            return;
         }
 
-        // 通常の状態同期（途中参加や画面復帰用）
         if(data.type === 'SYNC') {
             const db = data.db;
             const myData = db.players[Net.peer.id];
             
+            // ★【修正】自分の点数があれば即座にUIへ反映
             if(myData) {
                 document.getElementById('p-score').innerText = myData.score;
             }
@@ -615,7 +613,6 @@ const Player = {
             const statusText = document.getElementById('p-status-text');
 
             if (phase === 'ACTIVE') {
-                // すでに回答済みかチェック
                 const myAns = db.answers.find(a => a.playerId === Net.peer.id);
                 if(myAns) {
                     gameArea.classList.add('hidden');
@@ -626,7 +623,6 @@ const Player = {
                     gameArea.classList.remove('ui-disabled');
                 }
             } else {
-                // ACTIVE以外は隠す
                 gameArea.classList.add('hidden');
                 
                 if (phase === 'TIMEUP') statusText.innerText = "TIME UP!";
@@ -654,6 +650,10 @@ const Player = {
         const t=document.getElementById('p-answer-input').value; 
         Net.send({type:'ANSWER', name:Player.name, pt:Player.selectedPt, text:t}); 
         document.getElementById('p-modal').style.display='none'; 
+        
+        // ★【修正】回答送信後、即座にローカルでロック（連打・再回答防止）
+        document.getElementById('p-game-area').classList.add('hidden');
+        document.getElementById('p-status-text').innerText = "回答を送信しました。結果をお待ちください。";
     },
     showScreen: (id) => { document.querySelectorAll('#player-app .screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
 };
