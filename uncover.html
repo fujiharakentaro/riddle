@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V10.0 (Score Fix)</title>
+    <title>QUIZ ROYALE V11.0 (Score Update Fix)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -138,6 +138,10 @@
         
         .conn-status { width: 10px; height: 10px; border-radius: 50%; background: #555; display: inline-block; margin-right: 5px; }
         .conn-status.on { background: #2f2; box-shadow: 0 0 5px #2f2; }
+        
+        /* 点数更新アニメーション */
+        .score-update { animation: flashScore 0.5s; color: #ffeb3b; }
+        @keyframes flashScore { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); } }
 
     </style>
 </head>
@@ -146,7 +150,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V10.0 (Score Fix)</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V11.0 (Final Score Update)</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
         </div>
@@ -349,7 +353,6 @@ const Net = {
         });
         Net.peer.on('connection', (c) => {
             Net.conns.push(c);
-            // 接続時はSYNCを送っておく
             c.on('open', () => { c.send({ type: 'SYNC', db: DB }); });
             c.on('data', (d) => Host.handleData(d, c.peer));
             c.on('close', () => { 
@@ -559,20 +562,22 @@ const Host = {
     },
     judge: (isOk) => {
         const ans=Host.sortedAnswers[Host.judgeIndex]; const rs=document.getElementById(`rank-result-${Host.judgeIndex}`);
+        const pts = parseInt(ans.pt) || 0; // ポイントを数値化
+
         if(isOk){ 
             DB.solved[ans.pt]=true; 
-            // ★【修正】DB.players[ID]にスコアを加算
+            // ★【修正点1】DBにスコアを加算
             if(DB.players[ans.playerId]) {
-                DB.players[ans.playerId].score += parseInt(ans.pt); 
+                DB.players[ans.playerId].score = (DB.players[ans.playerId].score || 0) + pts;
             }
-            rs.innerHTML='<span class="solved-mark">◎ GET!</span>'; 
+            rs.innerHTML=`<span class="solved-mark">◎ (+${pts})</span>`; 
         }
         else rs.innerHTML='<span class="failed-mark">×</span>';
         
         DB.save(); 
         document.getElementById('judge-ui-top').classList.remove('active'); document.getElementById('judge-ui-bottom').classList.remove('active'); document.getElementById('judge-already-msg').classList.add('hidden'); Host.isJudgingActive=false;
         
-        // ★【修正】点数更新を全クライアントへ同期
+        // ★【修正点2】即座に同期して点数更新を反映させる
         Net.broadcast({type:'SYNC', db:DB}); 
     },
     finishJudging: () => { Host.goToSelect(); DB.state.phase='SELECT'; Net.broadcast({type:'SYNC', db:DB}); },
@@ -603,9 +608,20 @@ const Player = {
             const db = data.db;
             const myData = db.players[Net.peer.id];
             
-            // ★【修正】自分の点数があれば即座にUIへ反映
+            // ★【修正点3】点数更新の反映とアニメーション
             if(myData) {
-                document.getElementById('p-score').innerText = myData.score;
+                const scoreEl = document.getElementById('p-score');
+                const currentVal = parseInt(scoreEl.innerText);
+                const newVal = myData.score;
+                
+                if(currentVal !== newVal) {
+                    scoreEl.classList.remove('score-update');
+                    void scoreEl.offsetWidth; // Reflow reset
+                    scoreEl.classList.add('score-update');
+                    scoreEl.innerText = newVal;
+                } else {
+                    scoreEl.innerText = newVal;
+                }
             }
 
             const phase = db.state.phase;
@@ -651,7 +667,7 @@ const Player = {
         Net.send({type:'ANSWER', name:Player.name, pt:Player.selectedPt, text:t}); 
         document.getElementById('p-modal').style.display='none'; 
         
-        // ★【修正】回答送信後、即座にローカルでロック（連打・再回答防止）
+        // ★【修正点4】送信後の即時ロック
         document.getElementById('p-game-area').classList.add('hidden');
         document.getElementById('p-status-text').innerText = "回答を送信しました。結果をお待ちください。";
     },
