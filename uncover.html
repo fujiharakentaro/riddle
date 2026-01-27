@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V13.1</title>
+    <title>QUIZ ROYALE V14.0</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -40,7 +40,7 @@
         .btn-sub { padding: 10px 20px; font-size: 14px; border-radius: 5px; background: #333; color: #aaa; border: 1px solid #555; }
         .btn-action { padding: 5px 10px; background: #555; color: #fff; border-radius: 4px; font-size: 12px; margin-left: 2px;}
         
-        /* SETTINGS LAYOUT (FIXED) */
+        /* SETTINGS LAYOUT (FIXED: 左右分割) */
         .settings-container { display: flex; width: 95%; max-width: 1000px; height: 85vh; background: var(--panel); border: 1px solid #333; border-radius: 12px; overflow: hidden; }
         .settings-sidebar { width: 250px; background: #181818; border-right: 1px solid #333; display: flex; flex-direction: column; }
         .settings-content { flex: 1; padding: 30px; overflow-y: auto; }
@@ -83,12 +83,12 @@
         .p-pt-select { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 20px; }
         .btn-pt { aspect-ratio: 1; border-radius: 8px; border: 2px solid transparent; font-size: 20px; font-weight: bold; font-family: 'Black Ops One'; opacity: 1; transition: 0.2s; color: #000; cursor: pointer; }
         .btn-pt.selected { transform: scale(1.1); border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.5); }
-        .btn-pt.disabled { opacity: 0.2; pointer-events: none; }
-        .p-input { width: 100%; height: 60px; padding: 0 15px; font-size: 24px; box-sizing: border-box; margin-bottom: 20px; border-radius: 12px; border: 2px solid #555; background: #111; color: #fff; text-align: center; }
-        .p-input:disabled { background: #222; color: #555; }
-        .btn-send { width: 100%; padding: 18px; font-size: 24px; font-weight: bold; background: var(--accent); color: #000; border: none; border-radius: 12px; margin-top: auto; }
-        .btn-send:disabled { background: #444; color: #888; pointer-events: none; }
+        /* Disabled State */
+        .disabled-ui { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
 
+        .p-input { width: 100%; height: 60px; padding: 0 15px; font-size: 24px; box-sizing: border-box; margin-bottom: 20px; border-radius: 12px; border: 2px solid #555; background: #111; color: #fff; text-align: center; }
+        .btn-send { width: 100%; padding: 18px; font-size: 24px; font-weight: bold; background: var(--accent); color: #000; border: none; border-radius: 12px; margin-top: auto; }
+        
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); display: none; z-index: 100; align-items: center; justify-content: center; }
         .modal-content { background: #222; padding: 30px; border-radius: 20px; border: 2px solid #fff; text-align: center; width: 85%; max-width: 400px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
     </style>
@@ -98,7 +98,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V13.1 STABLE</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V14.0 STABLE</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
             <div style="margin-top:20px; font-size:12px; color:#666;">※スマホ参加対応</div>
@@ -219,9 +219,9 @@
                     <span style="color:var(--c3);"><span id="p-score">0</span> pts</span>
                 </div>
                 
-                <div id="p-game-area" style="flex:1; display:flex; flex-direction:column;">
+                <div id="p-game-ui" style="flex:1; display:flex; flex-direction:column;">
                     <div style="text-align:left; color:#aaa; margin-bottom:10px; margin-top:20px;">▼ 問題を選択</div>
-                    <div class="p-pt-select">
+                    <div class="p-pt-select" id="p-pt-select">
                         <button class="btn-pt color-1" onclick="Player.selectPt(1)" id="p-btn-1">1</button>
                         <button class="btn-pt color-2" onclick="Player.selectPt(2)" id="p-btn-2">2</button>
                         <button class="btn-pt color-3" onclick="Player.selectPt(3)" id="p-btn-3">3</button>
@@ -232,7 +232,7 @@
                     <div style="text-align:left; color:#aaa; margin-bottom:10px;">▼ 解答</div>
                     <input type="text" id="p-answer-input" class="p-input" placeholder="答えを入力...">
                     
-                    <div id="p-info-text" style="color:#888; margin-top:10px;">問題出題までお待ちください</div>
+                    <div id="p-status-msg" style="color:#888; font-weight:bold; margin-top:20px; font-size:18px;">問題出題までお待ちください</div>
 
                     <button id="p-submit-btn" class="btn-send" onclick="Player.confirmSend()" disabled>送信する</button>
                 </div>
@@ -257,16 +257,16 @@
 
 <script>
 /* CONSTANTS */
-const MASTER_KEY = 'QUIZ_ROYALE_MASTER_DATA'; // Permanent Key
+const MASTER_KEY = 'QUIZ_ROYALE_MASTER_DATA'; 
 
 /* DATA MIGRATION */
 function migrateData() {
     let data = localStorage.getItem(MASTER_KEY);
     if (!data) {
-        // Try V12 key if exists
-        const v12 = localStorage.getItem('quiz_royale_sets_v12');
-        if (v12) {
-            data = JSON.stringify({ sets: JSON.parse(v12), config: {} });
+        // Try V13 key if exists
+        const v13 = localStorage.getItem('quiz_royale_sets_v13');
+        if (v13) {
+            data = JSON.stringify({ sets: JSON.parse(v13), config: {} });
             localStorage.setItem(MASTER_KEY, data);
         } else {
             return { sets: [{ title: "サンプル", time: 30, qs: ["首都", "果物", "計算", "干支", "山"] }], config: {} };
@@ -345,31 +345,24 @@ const Sound = {
     }
 };
 
-/* COLORS (5 Fixed) */
-function getPtColor(i) {
-    const colors = ["#42a5f5", "#66bb6a", "#ffee58", "#ffa726", "#ef5350"];
-    return colors[i % 5];
-}
-
 /* HOST LOGIC */
 const Host = {
-    data: { sets: [] }, editIdx: -1, timer: null, judgeIdx: 0, sortedAns: [], isJudgingActive: false, activeInterval: null,
+    sets: [], editingIndex: -1, timer: null, judgeIndex: 0, sortedAnswers: [], isJudgingActive: false,
 
     init: () => {
-        const p = new URLSearchParams(window.location.search);
-        const role = p.get('role');
-        const hostId = p.get('host');
-
-        if(role === 'player') {
+        const params = new URLSearchParams(window.location.search);
+        if(params.get('role') === 'player') {
             document.getElementById('host-app').classList.add('hidden');
             document.getElementById('player-app').classList.remove('hidden');
+            const hostId = params.get('host');
             if(!hostId) return alert("QRコードからアクセスしてください");
             Player.init(hostId);
             return;
         }
-        if(role === 'debug') {
+        if(params.get('role') === 'debug') {
             document.getElementById('host-app').classList.add('hidden');
             document.getElementById('debug-app').classList.remove('hidden');
+            const hostId = params.get('host');
             if(!hostId) return alert("Host ID Missing");
             Debugger.init(hostId);
             return;
@@ -422,7 +415,7 @@ const Host = {
     goToLobby: () => { 
         Host.showScreen('screen-lobby'); 
         DB.state.phase='LOBBY'; 
-        DB.players = {}; // Reset Players
+        DB.players = {}; // RESET PLAYERS
         DB.broadcast(); 
     },
     goToSelect: () => { 
@@ -487,7 +480,6 @@ const Host = {
     startSet: (i) => {
         const s = Host.data.sets[i]; DB.state.currentSet = s; DB.resetAnswers();
         
-        // BUG FIX: Clear any previous intervals to prevent double speed / broken countdown
         clearInterval(Host.activeInterval);
         clearInterval(Host.timer);
 
@@ -526,7 +518,7 @@ const Host = {
         Host.goToSelect();
     },
 
-    /* JUDGE */
+    /* JUDGING */
     startJudging: () => {
         DB.state.phase='JUDGING'; Net.broadcast({type:'STATE', db:DB}); Host.showScreen('screen-judge');
         Host.sortedAnswers = [...DB.answers].sort((a,b)=>a.timestamp-b.timestamp); Host.judgeIndex=-1; Host.isJudgingActive=false;
@@ -572,53 +564,44 @@ const Player = {
                 if(!document.getElementById('p-screen-login').classList.contains('hidden')) Player.showScreen('p-screen-main');
             }
 
-            // Sync Screen
+            // Sync UI State
             const ph = db.state.phase;
-            const wait = document.getElementById('p-wait-msg'); const game = document.getElementById('p-game-area'); const txt = document.getElementById('p-wait-text');
-            const submitBtn = document.getElementById('p-submit-btn'); const inputs = document.querySelectorAll('.p-input'); const pts = document.querySelectorAll('.btn-pt');
-            const info = document.getElementById('p-info-text');
-
+            const ui = document.getElementById('p-game-ui');
+            const msg = document.getElementById('p-status-msg');
+            const btn = document.getElementById('p-submit-btn');
+            
+            // Always enable/disable logic
             if(ph === 'ACTIVE') {
                 const myAns = db.answers.find(a=>a.playerId===myId);
                 if(myAns) {
-                    // Show disabled game screen instead of wait screen
-                    wait.classList.add('hidden'); game.classList.remove('hidden');
-                    
-                    submitBtn.disabled = true; submitBtn.innerText = "送信済み";
-                    inputs.forEach(el => { el.disabled = true; el.value = myAns.text; });
-                    pts.forEach(el => {
-                        el.classList.add('disabled');
-                        if(parseInt(el.innerText) === myAns.pt) el.classList.add('selected');
-                    });
-                    info.innerText = "結果発表をお待ちください";
+                    Player.toggleUI(false);
+                    btn.innerText = "送信済み"; msg.innerText = "結果発表をお待ちください";
                 } else {
-                    wait.classList.add('hidden'); game.classList.remove('hidden');
-                    // Enable UI
-                    submitBtn.disabled = false; submitBtn.innerText = "送信する";
-                    inputs.forEach(el => el.disabled = false);
-                    pts.forEach(el => el.classList.remove('disabled'));
-                    info.innerText = "";
+                    Player.toggleUI(true);
+                    btn.innerText = "送信する"; msg.innerText = "解答を受け付けています";
                 }
             } else {
-                // Always show game area but disabled (except login)
-                wait.classList.add('hidden'); game.classList.remove('hidden');
-                
-                // Disable UI
-                submitBtn.disabled = true;
-                inputs.forEach(el => el.disabled = true);
-                pts.forEach(el => el.classList.add('disabled'));
-
-                if(ph==='TIMEUP') info.innerText = "TIME UP!";
-                else if(ph==='JUDGING') info.innerText = "集計中...";
+                Player.toggleUI(false); // Show inputs but disabled
+                if(ph==='TIMEUP') msg.innerText = "TIME UP!";
+                else if(ph==='JUDGING') msg.innerText = "集計中...";
                 else {
-                    info.innerText = "問題出題までお待ちください";
+                    msg.innerText = "問題出題までお待ちください";
                     if(ph==='LOBBY'||ph==='SELECT'||ph==='COUNTDOWN') {
                         Player.selPt = null; document.getElementById('p-answer-input').value = ""; Player.updateBtns();
-                        submitBtn.innerText = "送信する";
+                        btn.innerText = "送信する";
                     }
                 }
             }
         }
+    },
+    toggleUI: (enabled) => {
+        document.getElementById('p-answer-input').disabled = !enabled;
+        document.getElementById('p-submit-btn').disabled = !enabled;
+        const pts = document.querySelectorAll('.btn-pt');
+        pts.forEach(p => {
+            if(enabled) p.classList.remove('disabled-ui');
+            else p.classList.add('disabled-ui');
+        });
     },
     login: () => {
         const n=document.getElementById('p-name-input').value; if(!n)return alert("名前を入力");
@@ -645,26 +628,16 @@ const Player = {
 /* DEBUGGER (NEW TAB LOGIC) */
 const Debugger = {
     vPlayers: [],
-    init: (hid) => {
-        Net.initDebugger(hid);
-    },
-    handleData: (d) => {
-        if(d.type==='STATE') {
-            Debugger.onUpdate(d.db);
-        }
-    },
+    init: (hid) => { Net.initDebugger(hid); },
+    handleData: (d) => { if(d.type==='STATE') Debugger.onUpdate(d.db); },
     spawnPlayers: () => {
         const count = Math.max(2, Math.min(10, parseInt(document.getElementById('debug-count').value)));
         const grid = document.getElementById('debug-grid'); grid.innerHTML = "";
         Debugger.vPlayers = [];
-        
         for(let i=0; i<count; i++) {
             const pid = 'debug_' + Date.now() + '_' + i; const name = `Test ${i+1}`;
             Debugger.vPlayers.push({ id: pid, name: name, sel: null });
-            
-            // Send Login to Host via Proxy
             Net.sendHost({ type: 'DEBUG_PROXY', action: 'LOGIN', payload: { playerId: pid, name: name } });
-
             grid.innerHTML += `
                 <div class="debug-card" id="d-card-${i}">
                     <div class="debug-name-row"><span>${name}</span><span id="d-score-${i}">0pt</span></div>
@@ -701,9 +674,8 @@ const Debugger = {
             const card = document.getElementById(`d-card-${i}`);
             const stat = document.getElementById(`d-status-${i}`);
             
-            if(ans) {
-                card.classList.add('done'); stat.innerText = "Done";
-            } else {
+            if(ans) { card.classList.add('done'); stat.innerText = "Done"; } 
+            else {
                 card.classList.remove('done');
                 if(ph==='ACTIVE') { stat.innerText = "ACTIVE"; } 
                 else { 
