@@ -3,73 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Impostor V9.1</title>
+    <title>AI Impostor V10.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #121212; --panel: #1e1e1e; --text: #e0e0e0;
-            --accent: #00e5ff; --primary: #6200ea; --danger: #cf6679; --success: #00e676;
+            /* Modern Cyberpunk Theme */
+            --bg: #0f172a; 
+            --panel: #1e293b; 
+            --text: #f1f5f9;
+            --accent: #22d3ee; /* Cyan */
+            --accent-glow: rgba(34, 211, 238, 0.4);
+            --primary: #f472b6; /* Pink */
+            --primary-dark: #db2777;
+            --danger: #ef4444; 
+            --success: #10b981;
+            --border-radius: 12px;
         }
         * { box-sizing: border-box; touch-action: manipulation; }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; height: 100vh; overflow: hidden; }
+        body { 
+            margin: 0; padding: 0; 
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            color: var(--text); 
+            font-family: 'Noto Sans JP', sans-serif; 
+            height: 100vh; overflow: hidden; 
+        }
         
         .hidden { display: none !important; }
-        .full-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; overflow-y: auto; }
+        .full-screen { 
+            width: 100%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            text-align: center; padding: 20px; overflow-y: auto; 
+        }
         
         /* --- UI COMPONENTS --- */
         h1.logo { 
             font-family: 'Black Ops One', cursive; 
             color: var(--accent); 
             font-size: 3.5rem; 
-            margin-bottom: 40px; 
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            margin-bottom: 30px; 
+            text-shadow: 0 0 15px var(--accent-glow);
+            letter-spacing: 2px;
         }
-        h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; width: 100%; max-width: 600px; }
+        h2 { 
+            border-bottom: 2px solid var(--primary); 
+            padding-bottom: 10px; margin-bottom: 25px; 
+            width: 100%; max-width: 600px; 
+            color: var(--text);
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
         
-        .card { background: var(--panel); padding: 20px; border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 15px; }
+        .card { 
+            background: rgba(30, 41, 59, 0.95); 
+            padding: 25px; 
+            border-radius: var(--border-radius); 
+            width: 100%; max-width: 600px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px; 
+            backdrop-filter: blur(5px);
+        }
         
-        input, textarea { width: 100%; padding: 15px; background: #333; border: 1px solid #555; color: #fff; border-radius: 8px; font-size: 16px; margin-bottom: 15px; }
+        input, textarea { 
+            width: 100%; padding: 15px; 
+            background: #0f172a; 
+            border: 1px solid #334155; 
+            color: #fff; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+            transition: 0.3s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
         
-        button { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
-        button:active { transform: scale(0.98); opacity: 0.8; }
-        button:disabled { background: #555; cursor: not-allowed; opacity: 0.6; }
-        button.secondary { background: #333; border: 1px solid #666; }
-        button.accent { background: var(--accent); color: #000; }
-        button.danger { background: var(--danger); }
+        button { 
+            width: 100%; padding: 16px; 
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #fff; border: none; 
+            border-radius: 50px; 
+            font-size: 16px; font-weight: bold; 
+            cursor: pointer; transition: 0.3s; 
+            margin-bottom: 15px; 
+            box-shadow: 0 4px 15px rgba(244, 114, 182, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:active { transform: scale(0.96); }
+        button:disabled { background: #475569; cursor: not-allowed; box-shadow: none; color: #94a3b8; }
+        
+        button.secondary { 
+            background: transparent; 
+            border: 2px solid #475569; 
+            color: #cbd5e1;
+            box-shadow: none;
+        }
+        button.secondary:hover { border-color: var(--text); color: #fff; }
+        
+        button.accent { 
+            background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%); 
+            color: #0f172a;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
 
         /* HOST SPECIFIC */
         #host-app .player-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
-        .player-chip { background: #333; padding: 10px 20px; border-radius: 20px; border: 1px solid var(--accent); }
+        .player-chip { 
+            background: #334155; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            border: 1px solid var(--accent); 
+            color: var(--accent);
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+        }
         
-        .answer-box { text-align: left; margin: 10px 0; border: 1px solid #444; padding: 15px; border-radius: 8px; background: #252525; font-size: 1.2em; }
-        .answer-reveal { border-color: var(--accent); background: #303030; }
-        .answer-author { display: block; font-size: 0.7em; color: var(--accent); margin-top: 5px; font-weight: bold; }
+        .answer-box { 
+            text-align: left; margin: 12px 0; 
+            border: 1px solid #475569; 
+            padding: 20px; border-radius: 12px; 
+            background: #1e293b; 
+            font-size: 1.2em; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .answer-reveal { border-color: var(--accent); background: rgba(34, 211, 238, 0.1); }
+        .answer-author { display: block; font-size: 0.8em; color: var(--accent); margin-top: 8px; font-weight: bold; text-align: right; }
         
         /* ROULETTE ANIMATION */
-        @keyframes flash { 0% { opacity: 0.5; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1.05); } }
-        .roulette-active { color: var(--accent); animation: flash 0.1s infinite alternate; }
+        @keyframes flash { 0% { opacity: 0.5; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.1); color: #fff; text-shadow: 0 0 10px var(--primary); } }
+        .roulette-active { color: var(--accent); animation: flash 0.08s infinite alternate; }
         
-        /* TEST MODE SPECIFIC */
-        .test-btns { display: flex; gap: 10px; margin-bottom: 15px; }
-        .test-btns button { flex: 1; font-size: 14px; padding: 10px; background: #333; border: 2px solid transparent; }
-        .test-btns button.active { border-color: var(--accent); background: #444; color: var(--accent); }
-        #h-test-result { min-height: 60px; padding: 15px; background: #000; border-radius: 8px; text-align: left; color: #fff; margin-bottom: 15px; border: 1px dashed #555; }
+        /* TEST MODE */
+        .test-btns { display: flex; gap: 10px; margin-bottom: 20px; }
+        .test-btns button { flex: 1; font-size: 14px; padding: 12px; background: #0f172a; border: 2px solid #334155; border-radius: 8px; color:#94a3b8; box-shadow: none; margin:0; }
+        .test-btns button.active { border-color: var(--accent); background: rgba(34, 211, 238, 0.1); color: var(--accent); }
+        #h-test-result { min-height: 80px; padding: 15px; background: #000; border-radius: 8px; text-align: left; color: var(--accent); margin-bottom: 20px; border: 1px dashed #475569; font-family: monospace; }
 
-        /* URL COPY AREA */
-        .url-area { display: flex; gap: 10px; margin-top: 10px; }
-        .url-area input { margin: 0; flex: 1; font-size: 12px; color: #aaa; }
-        .url-area button { width: auto; margin: 0; padding: 0 15px; font-size: 14px; }
+        /* URL COPY */
+        .url-area { display: flex; gap: 10px; margin-top: 10px; background: #0f172a; padding: 5px; border-radius: 50px; border: 1px solid #334155; }
+        .url-area input { margin: 0; flex: 1; background: transparent; border: none; font-size: 12px; color: #94a3b8; padding: 10px 15px; }
+        .url-area button { width: auto; margin: 0; padding: 8px 20px; font-size: 12px; border-radius: 40px; }
 
         /* CLIENT SPECIFIC */
-        .role-display { font-size: 1.5rem; font-weight: bold; color: var(--accent); margin: 20px 0; }
-        .ui-disabled { opacity: 0.4; pointer-events: none; filter: grayscale(100%); }
+        .role-display { font-size: 1.8rem; font-weight: bold; color: var(--accent); margin: 30px 0 10px; text-shadow: 0 0 10px var(--accent-glow); }
+        .ui-disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); transition: 0.3s; }
         
-        #qrcode { background: #fff; padding: 10px; border-radius: 8px; display: inline-block; }
+        #qrcode { background: #fff; padding: 10px; border-radius: 8px; display: inline-block; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+
+        /* --- CUSTOM MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+            opacity: 0; pointer-events: none; transition: 0.2s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 30px var(--accent-glow);
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%; max-width: 400px;
+            text-align: center;
+            transform: scale(0.9); transition: 0.2s;
+        }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-msg { font-size: 1.2rem; margin-bottom: 30px; line-height: 1.5; color: #fff; }
+        .modal-actions { display: flex; gap: 15px; }
+        .modal-actions button { margin: 0; }
     </style>
 </head>
 <body>
+
+    <div id="modal-confirm" class="modal-overlay">
+        <div class="modal-box">
+            <p id="modal-confirm-msg" class="modal-msg">よろしいですか？</p>
+            <div class="modal-actions">
+                <button id="modal-btn-no" class="secondary">キャンセル</button>
+                <button id="modal-btn-yes" class="accent">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-alert" class="modal-overlay">
+        <div class="modal-box">
+            <p id="modal-alert-msg" class="modal-msg">Alert</p>
+            <div class="modal-actions">
+                <button id="modal-btn-ok" class="accent">閉じる</button>
+            </div>
+        </div>
+    </div>
 
     <div id="host-app" class="hidden full-screen">
         
@@ -83,12 +215,12 @@
 
         <div id="h-screen-settings" class="hidden card">
             <h2>設定 / APIキー</h2>
-            <p style="font-size:12px; color:#888;">OpenAI API Keyを入力してください</p>
+            <p style="font-size:12px; color:#94a3b8;">OpenAI API Keyを入力してください</p>
             <input type="password" id="h-apikey" placeholder="sk-..." onchange="Host.saveKey()">
             
-            <hr style="border-color:#333; margin: 20px 0;">
+            <hr style="border-color:#334155; margin: 30px 0;">
             
-            <h3>AI 解答テスト</h3>
+            <h3 style="color:var(--text); margin-bottom:15px;">AI 解答テスト</h3>
             <div class="test-btns">
                 <button id="btn-mode-human" onclick="Host.setTestRole('HUMAN')" class="active">人になりきる</button>
                 <button id="btn-mode-ai" onclick="Host.setTestRole('AI')">AIとして答える</button>
@@ -102,19 +234,19 @@
 
         <div id="h-screen-lobby" class="hidden card">
             <h2>参加者募集中</h2>
-            <div style="display:flex; gap:20px; align-items:center; justify-content:center; flex-wrap:wrap;">
+            <div style="display:flex; gap:30px; align-items:center; justify-content:center; flex-wrap:wrap; margin: 20px 0;">
                 <div id="qrcode"></div>
                 <div style="text-align:left; max-width: 300px;">
-                    <p style="margin:0; color:#888; font-size:12px;">参加用URL</p>
+                    <p style="margin:0; color:#94a3b8; font-size:12px;">参加用URL</p>
                     <div class="url-area">
                         <input type="text" id="h-invite-url" readonly onclick="this.select()">
                         <button onclick="Host.copyURL()">Copy</button>
                     </div>
-                    <p style="font-size:2em; font-weight:bold; color:var(--accent); margin-top:10px;">人数: <span id="h-count">0</span></p>
+                    <p style="font-size:2.5em; font-weight:bold; color:var(--accent); margin-top:15px;">人数: <span id="h-count">0</span></p>
                 </div>
             </div>
             <div id="h-player-list" class="player-list"></div>
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 30px;">
                 <button onclick="Host.startGame()" id="h-btn-start" disabled class="accent">全員揃ったらスタート</button>
                 <button onclick="Host.goToTitle()" class="secondary">戻る</button>
             </div>
@@ -123,7 +255,7 @@
         <div id="h-screen-game" class="hidden card">
             <h2 id="h-phase-title">進行中</h2>
             <div id="h-game-content" style="min-height: 200px;"></div>
-            <div id="h-result-controls" class="hidden" style="margin-top:30px;">
+            <div id="h-result-controls" class="hidden" style="margin-top:40px;">
                 <button onclick="Host.restartGame()" class="accent">もう一度遊ぶ</button>
                 <button onclick="Host.goToTitle()" class="secondary">タイトルに戻る</button>
             </div>
@@ -132,31 +264,31 @@
 
     <div id="client-app" class="hidden full-screen">
         <div id="c-screen-login" class="card">
-            <h1>ENTRY</h1>
-            <p>名前を入力してください</p>
+            <h1 style="font-size:2rem; margin-bottom:20px;">ENTRY</h1>
+            <p style="color:#94a3b8; margin-bottom:10px;">名前を入力してください</p>
             <input type="text" id="c-name" placeholder="名前">
             <button onclick="Client.join()">参加する</button>
         </div>
 
         <div id="c-screen-main" class="hidden card">
-            <div style="text-align:right; font-size:0.8em; color:#888;">Name: <span id="c-disp-name"></span></div>
+            <div style="text-align:right; font-size:0.8em; color:#64748b;">Player: <span id="c-disp-name"></span></div>
 
             <div id="c-view-wait" class="hidden">
-                <h2 style="margin-top:20px; color:#888;">待機中</h2>
-                <p id="c-wait-msg">ゲーム開始までお待ちください</p>
+                <h2 style="margin-top:30px; color:#94a3b8; border:none;">WAITING...</h2>
+                <p id="c-wait-msg" style="font-size:1.2rem;">ゲーム開始までお待ちください</p>
             </div>
 
             <div id="c-view-action" class="hidden">
                 <div class="role-display" id="c-role-text"></div>
-                <p id="c-instruction" style="margin-bottom:15px; color:#e0e0e0;"></p>
+                <p id="c-instruction" style="margin-bottom:20px; color:#cbd5e1; font-size:1.1rem; line-height:1.6;"></p>
                 
                 <div id="c-input-area" class="hidden">
-                    <p id="c-area-label" style="text-align:left; color:#888; font-size:12px;">入力欄</p>
+                    <p id="c-area-label" style="text-align:left; color:#94a3b8; font-size:12px; margin-bottom:5px;">入力欄</p>
                     <textarea id="c-input-text" rows="3" placeholder="..."></textarea>
                     <button onclick="Client.sendAction()">送信</button>
                 </div>
 
-                <div id="c-b-controls" class="hidden" style="margin-top:20px;">
+                <div id="c-b-controls" class="hidden" style="margin-top:30px;">
                     <button id="c-btn-show" onclick="Client.sendShowRequest()" disabled class="secondary">全員の回答を表示</button>
                     <button id="c-btn-reveal" onclick="Client.sendRevealRequest()" class="hidden accent">答えを見る（結果発表）</button>
                 </div>
@@ -168,7 +300,38 @@
 /* ================= COMMON UTILS ================= */
 const Utils = {
     shuffle: (array) => array.sort(() => Math.random() - 0.5),
-    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
+    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+    
+    /* Custom Modal Functions */
+    showConfirm: (msg) => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('modal-confirm');
+            const txt = document.getElementById('modal-confirm-msg');
+            const yes = document.getElementById('modal-btn-yes');
+            const no = document.getElementById('modal-btn-no');
+            
+            txt.innerText = msg;
+            modal.classList.add('active');
+            
+            const cleanup = () => {
+                modal.classList.remove('active');
+                yes.onclick = null;
+                no.onclick = null;
+            };
+            
+            yes.onclick = () => { cleanup(); resolve(true); };
+            no.onclick = () => { cleanup(); resolve(false); };
+        });
+    },
+    
+    showAlert: (msg) => {
+        const modal = document.getElementById('modal-alert');
+        document.getElementById('modal-alert-msg').innerText = msg;
+        modal.classList.add('active');
+        document.getElementById('modal-btn-ok').onclick = () => {
+            modal.classList.remove('active');
+        };
+    }
 };
 
 /* ================= HOST LOGIC (PC) ================= */
@@ -232,12 +395,12 @@ const Host = {
     runTest: async () => {
         const q = document.getElementById('h-test-input').value;
         const key = document.getElementById('h-apikey').value;
-        if(!key) return alert("APIキーを入力してください");
-        if(!q) return alert("質問を入力してください");
+        if(!key) return Utils.showAlert("APIキーを入力してください");
+        if(!q) return Utils.showAlert("質問を入力してください");
 
         const resultBox = document.getElementById('h-test-result');
         resultBox.innerText = "生成中...";
-        resultBox.style.color = "#aaa";
+        resultBox.style.color = "#94a3b8";
 
         const response = await Host.generateAIResponse(key, Host.testRole, q);
         resultBox.innerText = response;
@@ -249,7 +412,7 @@ const Host = {
         let systemPrompt = "";
         
         if (mode === 'AI') {
-            systemPrompt = `あなたは「AI」として、ユーザーの質問に回答してください。ただし、長々とした解説は避け、チャットボットのような「簡潔な応答」を心がけてください。回答を作成する前に、内部的に1〜10の乱数を生成し、その数値に応じた【モード】で回答を出力してください。（※思考プロセスや乱数の結果は出力せず、回答のセリフのみを出力すること）【共通ルール】・文字数は「60文字以内」に収めること。長文はNG。・回答の冒頭に「A:」や「回答:」などを付けないこと。【モード定義】■乱数が 1〜7 の場合（通常AIモード）：・素直なAIとして回答する。・「です・ます」調の丁寧語を使う。・教科書的で優等生な回答をする。・例：「カレーライスです。多くの人に人気がありますね。」「23時には就寝しました。」■乱数が 8〜10 の場合（揺らぎモード）：・AIだが、少し人間味のある回答をする。・丁寧語を崩したり、少し主観的な感想を混ぜたりする。・または、あえて単語だけで短く返すなど、人間（上記1のプロンプト）に寄せた挙動をする。・例：「カレーかな。美味しいですよね。」「昨日は2時でした。」`;
+            systemPrompt = `あなたは「AI」として、ユーザーの質問に回答してください。ただし、長々とした解説は避け、チャットボットのような「簡潔な応答」を心がけてください。回答を作成する前に、内部的に1〜10の乱数を生成し、その数値に応じた【モード】で回答を出力してください。（※思考プロセスや乱数の結果は出力せず、回答のセリフのみを出力すること）【共通ルール】・「乱数：」や数値などの内部ステータスは絶対に出力しないこと。・文字数は「60文字以内」に収めること。長文はNG。・回答の冒頭に「A:」や「回答:」などを付けないこと。【モード定義】■乱数が 1〜7 の場合（通常AIモード）：・素直なAIとして回答する。・「です・ます」調の丁寧語を使う。・教科書的で優等生な回答をする。・例：「カレーライスです。多くの人に人気がありますね。」「23時には就寝しました。」■乱数が 8〜10 の場合（揺らぎモード）：・AIだが、少し人間味のある回答をする。・丁寧語を崩したり、少し主観的な感想を混ぜたりする。・または、あえて単語だけで短く返すなど、人間（上記1のプロンプト）に寄せた挙動をする。・例：「カレーかな。美味しいですよね。」「昨日は2時でした。」`;
         } else {
             systemPrompt = `あなたは「スマホでチャットを返信している一般人」です。クイズの回答者として、人間に紛れることが目的です。以下の【思考プロセス】を経て、【制約事項】を守った回答のみを出力してください。【思考プロセス】（※この内容は出力しない）1. まず、質問に対して「具体的」かつ「少しニッチ（万人受けしない）」な実体験や好みを設定する。- 「食べ物」「秘密」といった抽象的な概念ではなく、「セブンの冷凍パスタ」「親の財布から小銭を抜いた」のような具体的な映像が浮かぶレベルまで具体化する。- 質問と無関係な単語（例：秘密は？→ペンギン）は絶対に出力しない。文脈を通すこと。2. その具体化した内容を、親しい友人にLINEで返すような「短く、ぶっきらぼうだが自然な言葉」に変換する。【制約事項】・回答は「1単語」〜「30文字以内」。・丁寧語（です・ます）、句点（。）、フィラー（えーっと）は禁止。基本はタメ口、体言止め。・理由は聞かれない限り言わない。・同じ質問がされたときは、毎回違う解答をする・回答の冒頭に「A:」や「回答:」などを付けないこと。【回答のトーンと具体性の例】Q：秘密にしていることは？A：実は親のフリして学校に電話したことある（NG例：ペンギン / 特になし / 秘密です）Q：好きな食べ物は？A：マックのポテトのしなしなのとこ（NG例：ポテト / ハンバーガー / マクドナルド）Q：昨日は何時に寝た？A：気づいたら朝4時だった（NG例：4時 / 遅かった）Q：AIについてどう思う？A：宿題やってくれるなら何でもいい（NG例：便利 / 怖い）`;
         }
@@ -267,7 +430,7 @@ const Host = {
             const data = await res.json();
             if(data.error) return "API Error: " + data.error.message;
             let content = data.choices[0].message.content.trim();
-            // Remove prefix like "A:" or "回答:" just in case
+            // Prefix cleanup
             return content.replace(/^(A:|回答:|Answer:)\s*/i, '');
         } catch(e) {
             console.error(e);
@@ -312,7 +475,7 @@ const Host = {
         const copyText = document.getElementById("h-invite-url");
         copyText.select();
         copyText.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(copyText.value).then(() => alert("URLをコピーしました"));
+        navigator.clipboard.writeText(copyText.value).then(() => Utils.showAlert("URLをコピーしました"));
     },
 
     updateLobby: () => {
@@ -325,14 +488,14 @@ const Host = {
     broadcast: (data) => Object.values(Host.conns).forEach(c => c.send(data)),
 
     /* --- GAME LOGIC --- */
-    startGame: () => {
-        if(!Host.apiKey) return alert("設定画面でAPIキーを入力してください");
-        if(!confirm("ゲームを開始しますか？")) return;
+    startGame: async () => {
+        if(!Host.apiKey) return Utils.showAlert("設定画面でAPIキーを入力してください");
+        if(!await Utils.showConfirm("ゲームを開始しますか？")) return;
         Host.startNewRound();
     },
 
-    restartGame: () => {
-        if(!confirm("同じメンバーでもう一度遊びますか？")) return;
+    restartGame: async () => {
+        if(!await Utils.showConfirm("同じメンバーでもう一度遊びますか？")) return;
         Host.startNewRound();
     },
 
@@ -365,7 +528,7 @@ const Host = {
         // Roulette Logic
         const names = [...ids.map(id => Host.players[id].name), "AI"];
         let count = 0;
-        const maxCount = 20; // Number of flashes
+        const maxCount = 10;
         
         while (count < maxCount) {
             const randA = names[Math.floor(Math.random() * names.length)];
@@ -373,15 +536,15 @@ const Host = {
             
             content.innerHTML = `
                 <div style="font-size:1.5em; margin-bottom:20px;">
-                    <div>ターゲット</div>
+                    <div style="font-size:0.6em; color:#94a3b8;">ターゲット</div>
                     <div class="roulette-active" style="font-size:2em; font-weight:bold;">${randA}</div>
                 </div>
                 <div style="font-size:1.5em;">
-                    <div>質問者</div>
+                    <div style="font-size:0.6em; color:#94a3b8;">質問者</div>
                     <div class="roulette-active" style="font-size:2em; font-weight:bold;">${randB}</div>
                 </div>
             `;
-            await Utils.sleep(100 + (count * 10)); // Slow down
+            await Utils.sleep(80 + (count * 10)); // Speed up slightly
             count++;
         }
 
@@ -389,14 +552,13 @@ const Host = {
         document.getElementById('h-phase-title').innerText = "役割決定！";
         content.innerHTML = `
             <div style="font-size:1.5em; margin-bottom:20px;">
-                <div>ターゲット</div>
-                <div style="font-size:2.5em; font-weight:bold; color:var(--accent);">${aName}</div>
+                <div style="font-size:0.6em; color:#94a3b8;">ターゲット</div>
+                <div style="font-size:2.5em; font-weight:bold; color:var(--accent); text-shadow:0 0 20px var(--accent-glow);">${aName}</div>
             </div>
             <div style="font-size:1.5em;">
-                <div>質問者</div>
-                <div style="font-size:2.5em; font-weight:bold; color:var(--accent);">${bName}</div>
+                <div style="font-size:0.6em; color:#94a3b8;">質問者</div>
+                <div style="font-size:2.5em; font-weight:bold; color:var(--primary); text-shadow:0 0 20px rgba(244, 114, 182, 0.4);">${bName}</div>
             </div>
-            <p style="margin-top:30px; color:#888;">Bが質問を入力するのを待っています...</p>
         `;
 
         Host.broadcast({ type: 'ROLE_ASSIGN', roleA: Host.state.roleA, roleB: Host.state.roleB });
@@ -406,9 +568,9 @@ const Host = {
         Host.state.question = text;
         document.getElementById('h-phase-title').innerText = "回答フェーズ";
         document.getElementById('h-game-content').innerHTML = `
-            <div style="color:#888;">質問</div>
+            <div style="color:#94a3b8;">質問</div>
             <div style="font-size:1.5em; font-weight:bold; margin-bottom:20px;">${text}</div>
-            <div id="h-ans-status">回答を待っています...</div>
+            <div id="h-ans-status" style="color:var(--accent);">回答を待っています...</div>
         `;
         Host.broadcast({ type: 'PHASE_ANSWER', question: text });
         Host.callAI(text); 
@@ -432,7 +594,7 @@ const Host = {
         const required = (totalPlayers - 1) + 1; // Clients - B + AI
         if (Host.state.answers.length >= required) {
             Utils.shuffle(Host.state.answers);
-            document.getElementById('h-ans-status').innerText = "全員の回答が集まりました！\nBの操作を待っています...";
+            document.getElementById('h-ans-status').innerText = "全員の回答が集まりました！\n質問者の操作を待っています...";
             const bConn = Host.conns[Host.state.roleB.id];
             if(bConn) bConn.send({ type: 'B_READY_TO_SHOW' });
         }
@@ -482,20 +644,18 @@ const Client = {
         const peer = new Peer();
         peer.on('open', () => {
             Client.conn = peer.connect(hid);
-            Client.conn.on('open', () => {
-                // Connection Ready
-            });
+            Client.conn.on('open', () => { /* Ready */ });
             Client.conn.on('data', data => Client.handleData(data));
-            Client.conn.on('close', () => { alert("通信が切断されました"); location.reload(); });
+            Client.conn.on('close', () => { Utils.showAlert("通信が切断されました"); location.reload(); });
         });
     },
 
-    join: () => {
+    join: async () => {
         const name = document.getElementById('c-name').value;
         if(!name) return;
-        if(!Client.conn) return alert("接続中...少々お待ちください");
+        if(!Client.conn) return Utils.showAlert("接続中...少々お待ちください");
         
-        if(!confirm(`${name} で参加します。よろしいですか？`)) return;
+        if(!await Utils.showConfirm(`${name} で参加します。よろしいですか？`)) return;
 
         Client.name = name;
         Client.conn.send({ type: 'JOIN', name: name });
@@ -571,10 +731,10 @@ const Client = {
         }
     },
 
-    sendAction: () => {
+    sendAction: async () => {
         const text = document.getElementById('c-input-text').value;
         if(!text) return;
-        if(!confirm("送信します。よろしいですか？")) return;
+        if(!await Utils.showConfirm("送信します。よろしいですか？")) return;
         
         if (Client.actionType === 'QUESTION') {
             Client.conn.send({ type: 'QUESTION', text: text });
@@ -587,14 +747,14 @@ const Client = {
         }
     },
 
-    sendShowRequest: () => {
-        if(!confirm("全員の回答をホスト画面に表示しますか？")) return;
+    sendShowRequest: async () => {
+        if(!await Utils.showConfirm("全員の回答をホスト画面に表示しますか？")) return;
         Client.conn.send({ type: 'SHOW_REQ' });
         document.getElementById('c-btn-show').disabled = true;
     },
 
-    sendRevealRequest: () => {
-        if(!confirm("正解を発表しますか？")) return;
+    sendRevealRequest: async () => {
+        if(!await Utils.showConfirm("正解を発表しますか？")) return;
         Client.conn.send({ type: 'REVEAL_REQ' });
         document.getElementById('c-b-controls').classList.add('hidden');
         Client.showWait("結果発表中...");
