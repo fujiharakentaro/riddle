@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QUIZ ROYALE V13.1 (Debug Fix)</title>
+    <title>QUIZ ROYALE V13.3 (CPU Exclude)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=M+PLUS+Rounded+1c:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -146,7 +146,7 @@
     <div id="host-app">
         <div id="screen-title" class="screen">
             <h1 style="font-size: 80px; text-shadow: 0 0 20px #fff;">QUIZ ROYALE</h1>
-            <h2 style="color: #aaa; margin-bottom: 40px;">V13.1 (Debug Fix)</h2>
+            <h2 style="color: #aaa; margin-bottom: 40px;">V13.3 (CPU Exclude)</h2>
             <button class="btn-large" onclick="Host.goToLobby()">GAME START</button>
             <button class="btn-sub" onclick="Host.goToSettings()">設定 (SETTINGS)</button>
         </div>
@@ -307,6 +307,7 @@
                         <span id="p-conn-status" class="conn-status"></span>
                         <span id="p-disp-name">名無し</span>
                     </div>
+                    <span style="font-weight: bold;"><span id="p-score">0</span> pts</span>
                 </div>
                 <div id="p-game-area" class="hidden">
                     <div style="text-align: left; margin-bottom: 5px; color: #aaa;">問題を選択:</div>
@@ -341,7 +342,7 @@
     <audio id="se-timeup-player"></audio>
 
 <script>
-/* ★追加: Debugger Logic */
+/* ★デバッガー機能 (スコア表示付き) */
 const Debugger = {
     spawnPlayers: () => {
         const count = parseInt(document.getElementById('debug-count').value);
@@ -352,10 +353,10 @@ const Debugger = {
             const id = 'cpu-' + i;
             const name = 'CPU' + i;
             
-            // 擬似ログイン
+            // 擬似ログイン (名前ベースでスコア管理される)
             Host.handleData({type:'LOGIN', name:name}, id);
             
-            // カード作成
+            // カード作成 (★点数表示を追加)
             const card = document.createElement('div');
             card.className = 'debug-card';
             let btnsHtml = '<div class="debug-pt-row">';
@@ -365,7 +366,10 @@ const Debugger = {
             btnsHtml += '</div>';
             
             card.innerHTML = `
-                <div class="debug-name-row"><span>${name}</span></div>
+                <div class="debug-name-row">
+                    <span>${name}</span>
+                    <span id="d-score-${name}" style="color:#ffeb3b; font-weight:bold;">0pts</span>
+                </div>
                 ${btnsHtml}
                 <div style="display:flex; gap:5px; margin-top:5px;">
                     <input type="text" class="d-input" id="d-in-${id}" placeholder="回答">
@@ -375,14 +379,21 @@ const Debugger = {
             grid.appendChild(card);
         }
         alert(count + "人のCPUを追加しました");
+        Debugger.update(); // 初期表示更新
     },
     sendAns: (id, name, pt) => {
-        // デバッグなので即座に回答として処理させる
         Host.handleData({type:'ANSWER', name:name, pt:pt, text:pt}, id);
     },
     sendText: (id, name) => {
         const t = document.getElementById(`d-in-${id}`).value;
         if(t) Host.handleData({type:'ANSWER', name:name, pt:1, text:t}, id);
+    },
+    // ★点数更新用関数
+    update: () => {
+        for(let name in DB.scores){
+            const el = document.getElementById(`d-score-${name}`);
+            if(el) el.innerText = DB.scores[name] + "pts";
+        }
     }
 };
 
@@ -395,7 +406,6 @@ const Net = {
         Net.peer.on('open', (id) => {
             const url = location.href.split('?')[0] + "?role=player&host=" + id;
             new QRCode(document.getElementById("qrcode"), { text: url, width: 150, height: 150, colorDark : "#000000", colorLight : "#ffffff" });
-            // ★追加: URL欄にもセット
             document.getElementById('host-url-display').value = url;
         });
         Net.peer.on('connection', (c) => {
@@ -442,7 +452,7 @@ const CHANNEL = 'quiz_royale_v6';
 
 const DB = {
     state: { phase: 'LOBBY', currentSet: null },
-    // 手動集計のためスコア管理は最小限
+    // ★名前ベースでスコア管理
     scores: {}, 
     players: {}, 
     answers: [], 
@@ -527,8 +537,14 @@ const Host = {
     handleData: (data, peerId) => {
         if(data.type === 'LOGIN') {
             DB.players[peerId] = { name: data.name };
+            // ★名前ベースでスコア管理 (初期化)
+            if(DB.scores[data.name] === undefined) {
+                DB.scores[data.name] = 0;
+            }
             Host.updateCount();
             Net.broadcast({ type: 'SYNC', db: DB });
+            // ★デバッグ画面も更新
+            if(typeof Debugger !== 'undefined') Debugger.update();
         } else if(data.type === 'ANSWER') {
             if(DB.state.phase === 'ACTIVE') {
                 if(!DB.answers.find(a => a.playerId === peerId)) {
@@ -545,7 +561,9 @@ const Host = {
         }
     },
     updateCount: () => {
-        document.getElementById('host-player-count').innerText = Object.keys(DB.players).length;
+        // ★修正点2: "CPU"で始まる名前を除外してカウント
+        const count = Object.values(DB.players).filter(p => !p.name.startsWith('CPU')).length;
+        document.getElementById('host-player-count').innerText = count;
     },
 
     goToLobby: () => { 
@@ -616,8 +634,16 @@ const Host = {
     },
     judge: (isOk) => {
         const ans=Host.sortedAnswers[Host.judgeIndex]; const rs=document.getElementById(`rank-result-${Host.judgeIndex}`);
+        const pts = parseInt(ans.pt) || 0; 
+
         if(isOk){ 
             DB.solved[ans.pt]=true; 
+            // ★名前ベースでスコア加算
+            const playerName = ans.name;
+            if(playerName) {
+                if(DB.scores[playerName] === undefined) DB.scores[playerName] = 0;
+                DB.scores[playerName] += pts;
+            }
             rs.innerHTML=`<span class="solved-mark">◎ GET!</span>`; 
         }
         else rs.innerHTML='<span class="failed-mark">×</span>';
@@ -626,6 +652,8 @@ const Host = {
         document.getElementById('judge-ui-top').classList.remove('active'); document.getElementById('judge-ui-bottom').classList.remove('active'); document.getElementById('judge-already-msg').classList.add('hidden'); Host.isJudgingActive=false;
         
         Net.broadcast({type:'SYNC', db:DB}); 
+        // ★デバッグ画面も更新
+        if(typeof Debugger !== 'undefined') Debugger.update();
     },
     finishJudging: () => { Host.goToSelect(); DB.state.phase='SELECT'; Net.broadcast({type:'SYNC', db:DB}); },
     showScreen: (id) => { document.querySelectorAll('#host-app .screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); },
@@ -656,6 +684,11 @@ const Player = {
             const phase = db.state.phase;
             const gameArea = document.getElementById('p-game-area');
             const statusText = document.getElementById('p-status-text');
+
+            // ★修正点1: 自分の点数があれば即座にUIへ反映 (復活)
+            if(Player.name && db.scores && db.scores[Player.name] !== undefined) {
+                document.getElementById('p-score').innerText = db.scores[Player.name];
+            }
 
             if (phase === 'ACTIVE') {
                 const myAns = db.answers.find(a => a.playerId === Net.peer.id);
