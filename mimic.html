@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Impostor V9.0</title>
+    <title>AI Impostor V9.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -46,6 +46,10 @@
         .answer-box { text-align: left; margin: 10px 0; border: 1px solid #444; padding: 15px; border-radius: 8px; background: #252525; font-size: 1.2em; }
         .answer-reveal { border-color: var(--accent); background: #303030; }
         .answer-author { display: block; font-size: 0.7em; color: var(--accent); margin-top: 5px; font-weight: bold; }
+        
+        /* ROULETTE ANIMATION */
+        @keyframes flash { 0% { opacity: 0.5; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1.05); } }
+        .roulette-active { color: var(--accent); animation: flash 0.1s infinite alternate; }
         
         /* TEST MODE SPECIFIC */
         .test-btns { display: flex; gap: 10px; margin-bottom: 15px; }
@@ -163,7 +167,8 @@
 <script>
 /* ================= COMMON UTILS ================= */
 const Utils = {
-    shuffle: (array) => array.sort(() => Math.random() - 0.5)
+    shuffle: (array) => array.sort(() => Math.random() - 0.5),
+    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
 };
 
 /* ================= HOST LOGIC (PC) ================= */
@@ -205,7 +210,7 @@ const Host = {
         Host.hideAllHostScreens();
         document.getElementById('h-screen-lobby').classList.remove('hidden');
         if(!Host.peer) Host.initNetwork();
-        else Host.updateLobby(); // Refresh display
+        else Host.updateLobby();
     },
     hideAllHostScreens: () => {
         document.getElementById('h-screen-title').classList.add('hidden');
@@ -244,9 +249,9 @@ const Host = {
         let systemPrompt = "";
         
         if (mode === 'AI') {
-            systemPrompt = `あなたは「AI」として、ユーザーの質問に回答してください。ただし、長々とした解説は避け、チャットボットのような「簡潔な応答」を心がけてください。回答を作成する前に、内部的に1〜10の乱数を生成し、その数値に応じた【モード】で回答を出力してください。（※思考プロセスや乱数の結果は出力せず、回答のセリフのみを出力すること）【共通ルール】・文字数は「60文字以内」に収めること。長文はNG。【モード定義】■乱数が 1〜7 の場合（通常AIモード）：・素直なAIとして回答する。・「です・ます」調の丁寧語を使う。・教科書的で優等生な回答をする。・例：「カレーライスです。多くの人に人気がありますね。」「23時には就寝しました。」■乱数が 8〜10 の場合（揺らぎモード）：・AIだが、少し人間味のある回答をする。・丁寧語を崩したり、少し主観的な感想を混ぜたりする。・または、あえて単語だけで短く返すなど、人間（上記1のプロンプト）に寄せた挙動をする。・例：「カレーかな。美味しいですよね。」「昨日は2時でした。」`;
+            systemPrompt = `あなたは「AI」として、ユーザーの質問に回答してください。ただし、長々とした解説は避け、チャットボットのような「簡潔な応答」を心がけてください。回答を作成する前に、内部的に1〜10の乱数を生成し、その数値に応じた【モード】で回答を出力してください。（※思考プロセスや乱数の結果は出力せず、回答のセリフのみを出力すること）【共通ルール】・文字数は「60文字以内」に収めること。長文はNG。・回答の冒頭に「A:」や「回答:」などを付けないこと。【モード定義】■乱数が 1〜7 の場合（通常AIモード）：・素直なAIとして回答する。・「です・ます」調の丁寧語を使う。・教科書的で優等生な回答をする。・例：「カレーライスです。多くの人に人気がありますね。」「23時には就寝しました。」■乱数が 8〜10 の場合（揺らぎモード）：・AIだが、少し人間味のある回答をする。・丁寧語を崩したり、少し主観的な感想を混ぜたりする。・または、あえて単語だけで短く返すなど、人間（上記1のプロンプト）に寄せた挙動をする。・例：「カレーかな。美味しいですよね。」「昨日は2時でした。」`;
         } else {
-            systemPrompt = `あなたは「スマホでチャットを返信している一般人」です。クイズの回答者として、人間に紛れることが目的です。以下の【思考プロセス】を経て、【制約事項】を守った回答のみを出力してください。【思考プロセス】（※この内容は出力しない）1. まず、質問に対して「具体的」かつ「少しニッチ（万人受けしない）」な実体験や好みを設定する。- 「食べ物」「秘密」といった抽象的な概念ではなく、「セブンの冷凍パスタ」「親の財布から小銭を抜いた」のような具体的な映像が浮かぶレベルまで具体化する。- 質問と無関係な単語（例：秘密は？→ペンギン）は絶対に出力しない。文脈を通すこと。2. その具体化した内容を、親しい友人にLINEで返すような「短く、ぶっきらぼうだが自然な言葉」に変換する。【制約事項】・回答は「1単語」〜「30文字以内」。・丁寧語（です・ます）、句点（。）、フィラー（えーっと）は禁止。基本はタメ口、体言止め。・理由は聞かれない限り言わない。・同じ質問がされたときは、毎回違う解答をする【回答のトーンと具体性の例】Q：秘密にしていることは？A：実は親のフリして学校に電話したことある（NG例：ペンギン / 特になし / 秘密です）Q：好きな食べ物は？A：マックのポテトのしなしなのとこ（NG例：ポテト / ハンバーガー / マクドナルド）Q：昨日は何時に寝た？A：気づいたら朝4時だった（NG例：4時 / 遅かった）Q：AIについてどう思う？A：宿題やってくれるなら何でもいい（NG例：便利 / 怖い）`;
+            systemPrompt = `あなたは「スマホでチャットを返信している一般人」です。クイズの回答者として、人間に紛れることが目的です。以下の【思考プロセス】を経て、【制約事項】を守った回答のみを出力してください。【思考プロセス】（※この内容は出力しない）1. まず、質問に対して「具体的」かつ「少しニッチ（万人受けしない）」な実体験や好みを設定する。- 「食べ物」「秘密」といった抽象的な概念ではなく、「セブンの冷凍パスタ」「親の財布から小銭を抜いた」のような具体的な映像が浮かぶレベルまで具体化する。- 質問と無関係な単語（例：秘密は？→ペンギン）は絶対に出力しない。文脈を通すこと。2. その具体化した内容を、親しい友人にLINEで返すような「短く、ぶっきらぼうだが自然な言葉」に変換する。【制約事項】・回答は「1単語」〜「30文字以内」。・丁寧語（です・ます）、句点（。）、フィラー（えーっと）は禁止。基本はタメ口、体言止め。・理由は聞かれない限り言わない。・同じ質問がされたときは、毎回違う解答をする・回答の冒頭に「A:」や「回答:」などを付けないこと。【回答のトーンと具体性の例】Q：秘密にしていることは？A：実は親のフリして学校に電話したことある（NG例：ペンギン / 特になし / 秘密です）Q：好きな食べ物は？A：マックのポテトのしなしなのとこ（NG例：ポテト / ハンバーガー / マクドナルド）Q：昨日は何時に寝た？A：気づいたら朝4時だった（NG例：4時 / 遅かった）Q：AIについてどう思う？A：宿題やってくれるなら何でもいい（NG例：便利 / 怖い）`;
         }
 
         try {
@@ -261,7 +266,9 @@ const Host = {
             });
             const data = await res.json();
             if(data.error) return "API Error: " + data.error.message;
-            return data.choices[0].message.content.trim();
+            let content = data.choices[0].message.content.trim();
+            // Remove prefix like "A:" or "回答:" just in case
+            return content.replace(/^(A:|回答:|Answer:)\s*/i, '');
         } catch(e) {
             console.error(e);
             return "通信エラーが発生しました";
@@ -271,6 +278,8 @@ const Host = {
     /* --- NETWORK --- */
     initNetwork: () => {
         Host.apiKey = document.getElementById('h-apikey').value;
+        if(Host.peer) return; 
+
         Host.peer = new Peer();
         Host.peer.on('open', id => {
             const url = `${location.href.split('?')[0]}?mode=client&host=${id}`;
@@ -327,11 +336,11 @@ const Host = {
         Host.startNewRound();
     },
 
-    startNewRound: () => {
+    startNewRound: async () => {
         const ids = Object.keys(Host.players);
         Host.state.answers = [];
         
-        // Roles
+        // Roles Setup
         const candidatesA = [...ids, "AI"];
         const bId = ids[Math.floor(Math.random() * ids.length)];
         let aId = bId;
@@ -349,11 +358,45 @@ const Host = {
         document.getElementById('h-screen-game').classList.remove('hidden');
         document.getElementById('h-result-controls').classList.add('hidden');
         
-        document.getElementById('h-phase-title').innerText = "役割確認中";
-        document.getElementById('h-game-content').innerHTML = `
-            <p>ターゲット(A): <strong style="color:var(--accent); font-size:1.5em;">${aName}</strong></p>
-            <p>質問者(B): <strong style="color:var(--accent); font-size:1.5em;">${bName}</strong></p>
-            <p style="margin-top:20px; color:#888;">Bが質問を入力するのを待っています...</p>
+        // ROULETTE ANIMATION
+        document.getElementById('h-phase-title').innerText = "役割抽選中...";
+        const content = document.getElementById('h-game-content');
+        
+        // Roulette Logic
+        const names = [...ids.map(id => Host.players[id].name), "AI"];
+        let count = 0;
+        const maxCount = 20; // Number of flashes
+        
+        while (count < maxCount) {
+            const randA = names[Math.floor(Math.random() * names.length)];
+            const randB = names[Math.floor(Math.random() * names.length)];
+            
+            content.innerHTML = `
+                <div style="font-size:1.5em; margin-bottom:20px;">
+                    <div>ターゲット</div>
+                    <div class="roulette-active" style="font-size:2em; font-weight:bold;">${randA}</div>
+                </div>
+                <div style="font-size:1.5em;">
+                    <div>質問者</div>
+                    <div class="roulette-active" style="font-size:2em; font-weight:bold;">${randB}</div>
+                </div>
+            `;
+            await Utils.sleep(100 + (count * 10)); // Slow down
+            count++;
+        }
+
+        // Final Result Display
+        document.getElementById('h-phase-title').innerText = "役割決定！";
+        content.innerHTML = `
+            <div style="font-size:1.5em; margin-bottom:20px;">
+                <div>ターゲット</div>
+                <div style="font-size:2.5em; font-weight:bold; color:var(--accent);">${aName}</div>
+            </div>
+            <div style="font-size:1.5em;">
+                <div>質問者</div>
+                <div style="font-size:2.5em; font-weight:bold; color:var(--accent);">${bName}</div>
+            </div>
+            <p style="margin-top:30px; color:#888;">Bが質問を入力するのを待っています...</p>
         `;
 
         Host.broadcast({ type: 'ROLE_ASSIGN', roleA: Host.state.roleA, roleB: Host.state.roleB });
@@ -390,7 +433,6 @@ const Host = {
         if (Host.state.answers.length >= required) {
             Utils.shuffle(Host.state.answers);
             document.getElementById('h-ans-status').innerText = "全員の回答が集まりました！\nBの操作を待っています...";
-            // Signal B to enable "Show Answers" button
             const bConn = Host.conns[Host.state.roleB.id];
             if(bConn) bConn.send({ type: 'B_READY_TO_SHOW' });
         }
@@ -403,7 +445,6 @@ const Host = {
         html += `</div>`;
         document.getElementById('h-game-content').innerHTML = html;
         
-        // Signal B to enable "Reveal" button
         const bConn = Host.conns[Host.state.roleB.id];
         if(bConn) bConn.send({ type: 'B_READY_TO_REVEAL' });
     },
@@ -416,7 +457,7 @@ const Host = {
             let name = a.isAI ? "AI" : Host.players[a.id].name;
             let isTarget = (a.id === Host.state.roleA.id);
             let styleClass = isTarget ? "answer-box answer-reveal" : "answer-box";
-            let mark = isTarget ? " <span style='color:var(--accent);'>★ A (本物)</span>" : "";
+            let mark = isTarget ? " <span style='color:var(--accent);'>★ ターゲット</span>" : "";
             
             html += `<div class="${styleClass}">
                 ${a.text}
@@ -482,18 +523,15 @@ const Client = {
     },
 
     handleData: (data) => {
-        const roleText = document.getElementById('c-role-text');
-        
         if (data.type === 'ROLE_ASSIGN') {
             const isB = (Client.conn.provider.id === data.roleB.id);
             if (isB) {
-                Client.showAction("あなたは【質問者 B】", `A (${data.roleA.name}) への質問を考えてください`);
+                Client.showAction("あなたは【質問者】", `ターゲット (${data.roleA.name}) への質問を考えてください`);
                 document.getElementById('c-input-area').classList.remove('hidden');
                 document.getElementById('c-area-label').innerText = "質問を入力";
                 Client.actionType = 'QUESTION';
             } else {
                 const isA = (Client.conn.provider.id === data.roleA.id);
-                // Store roles to display later
                 Client.isA = isA;
                 Client.targetName = data.roleA.name;
                 Client.showWait("質問者が質問を考え中...");
@@ -501,13 +539,11 @@ const Client = {
         }
         else if (data.type === 'PHASE_ANSWER') {
             if (Client.actionType === 'QUESTION') {
-                // I am B
-                Client.showAction("あなたは【質問者 B】", "回答が集まるのを待っています...");
+                Client.showAction("あなたは【質問者】", "回答が集まるのを待っています...");
             } else {
-                // I am Answerer
                 let instr = `質問: ${data.question}\n\n`;
-                if (Client.isA) instr += "あなたはA本人です。正直に答えてください。";
-                else instr += `A (${Client.targetName}) になりすまして回答してください。`;
+                if (Client.isA) instr += "あなたはターゲット本人です。正直に答えてください。";
+                else instr += `ターゲット (${Client.targetName}) になりすまして回答してください。`;
                 
                 Client.showAction("回答タイム", instr);
                 document.getElementById('c-input-area').classList.remove('hidden');
@@ -517,7 +553,6 @@ const Client = {
             }
         }
         else if (data.type === 'B_READY_TO_SHOW') {
-            // Only B receives this
             document.getElementById('c-b-controls').classList.remove('hidden');
             document.getElementById('c-btn-show').disabled = false;
             document.getElementById('c-instruction').innerText = "回答が集まりました。ホスト画面に表示します。";
