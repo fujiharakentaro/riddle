@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V40</title>
+    <title>All-Star Quiz System V41</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -368,7 +368,9 @@
 
     // --- Editor Logic (Improved) ---
     function addPeriod(){
-        periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}}); 
+        // Auto-increment title
+        const nextNum = periods.length + 1;
+        periods.push({title:`第${nextNum}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}}); 
         saveData(); 
         editingPIdx = periods.length - 1;
         renderPTabs(); 
@@ -378,13 +380,21 @@
     function movePeriod(idx, dir) {
         if (idx+dir < 0 || idx+dir >= periods.length) return;
         const temp = periods[idx]; periods[idx] = periods[idx+dir]; periods[idx+dir] = temp;
+        
+        // Auto-update titles after move
+        periods.forEach((p, i) => { p.title = `第${i+1}ピリオド`; });
+
         if(editingPIdx === idx) editingPIdx += dir;
         else if(editingPIdx === idx+dir) editingPIdx -= dir;
-        saveData(); renderPTabs();
+        saveData(); renderPTabs(); renderPEdit(); // Re-render edit to show new title
     }
     function delPeriod(idx) {
         if(!confirm("このピリオドを削除しますか？")) return;
         periods.splice(idx, 1);
+        
+        // Auto-update titles after delete
+        periods.forEach((p, i) => { p.title = `第${i+1}ピリオド`; });
+
         if(editingPIdx >= periods.length) editingPIdx = periods.length - 1;
         if(editingPIdx < 0) editingPIdx = 0;
         saveData(); renderPTabs(); renderPEdit();
@@ -543,8 +553,6 @@
         for(let id in answers) {
             if(answers[id].choice == c) {
                 let t = parseFloat(answers[id].time || 0);
-                // PeerJS latency may cause time to be unreliable but we use client sent time
-                // Add tiny offset if time is 0 to avoid bugs
                 if(t <= 0) t = 0.001;
                 
                 correctUsers.push({ id: id, time: t });
@@ -552,18 +560,15 @@
             }
         }
 
-        // 2. Award Points
+        // 2. Award Points (2pt for fastest, 1pt for others)
         correctUsers.forEach(u => {
             let id = u.id;
-            // Init check
             if(isNaN(scores[id])) scores[id] = 0;
             if(isNaN(periodScores[id])) periodScores[id] = 0;
             if(isNaN(periodTimes[id])) periodTimes[id] = 0;
 
-            // Base point
             let pts = 1;
-            // Bonus point for fastest
-            if(u.time === minTime) pts = 2;
+            if(u.time === minTime) pts = 2; // Bonus
 
             scores[id] += pts;
             periodScores[id] += pts;
@@ -573,7 +578,8 @@
         broadcastScores(); 
     }
     
-    function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); } 
+    // NO POINT for Sorting Quiz (Just broadcast score as is)
+    function calcSortScores(ord){ broadcastScores(); } 
     function broadcastScores(){ for(let id in conns) conns[id].send({type:'SCORE', score:scores[id]}); }
     
     function showRank(correctAnswer, type = 'speed'){
@@ -606,7 +612,6 @@
                 let val;
                 if(type === 'speed') {
                     val = `${p.v.toFixed(2)}s`;
-                    // Mark fastest bonus visually in list (optional, simple text color change)
                     if(i === 0) val = "★" + val; 
                 } else val = `${p.v}P`;
                 let delay = i * 0.1;
