@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Image Blackout Quiz</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #121212; --panel: #1e1e1e; --text: #eee;
+            --accent: #00e5ff; --accent-dark: #008c99;
+            --btn-bg: #333; --border: #444;
+        }
+        * { box-sizing: border-box; touch-action: manipulation; user-select: none; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'M PLUS Rounded 1c', sans-serif; overflow: hidden; height: 100vh; width: 100vw; }
+        
+        .hidden { display: none !important; }
+        .screen { position: absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+        
+        /* UI Components */
+        h1, h2 { margin: 0 0 20px 0; text-align: center; }
+        h1 { font-family: 'Orbitron', sans-serif; font-size: 40px; color: var(--accent); text-shadow: 0 0 10px var(--accent-dark); }
+        
+        .btn {
+            background: linear-gradient(135deg, #444, #222); border: 1px solid var(--accent); color: #fff;
+            padding: 15px 30px; margin: 10px; font-size: 18px; font-weight: bold; border-radius: 8px;
+            cursor: pointer; transition: 0.2s; min-width: 200px; text-align: center;
+            box-shadow: 0 4px 0 #000;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(100%); }
+        .btn-lg { font-size: 24px; padding: 20px 40px; }
+        .btn-red { border-color: #ff4444; color: #ffcccc; }
+        
+        input { background: #333; border: 1px solid #666; color: #fff; padding: 10px; font-size: 16px; border-radius: 4px; text-align: center; }
+
+        /* Grid System (4x4) */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr);
+            width: 90vmin; height: 90vmin; max-width: 500px; max-height: 500px;
+            border: 2px solid #fff; position: relative; background-size: cover; background-position: center;
+        }
+        .grid-cell { border: 1px solid rgba(255,255,255,0.3); cursor: pointer; transition: background 0.1s; }
+        .grid-cell.black { background-color: #000; }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 1000;
+            display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:0.3s;
+        }
+        .modal-overlay.active { opacity:1; pointer-events:auto; }
+        .modal-box { background: #222; border: 2px solid var(--accent); padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
+        .modal-msg { font-size: 20px; margin-bottom: 20px; line-height: 1.5; }
+        .modal-btns { display:flex; justify-content:center; gap:10px; }
+
+        /* HOST Specific */
+        .preview-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; overflow-y: auto; max-height: 60vh; }
+        .preview-card { background: #222; border: 1px solid #555; padding: 5px; width: 120px; text-align: center; }
+        .preview-grid-mini { 
+            width: 100px; height: 100px; margin: 0 auto 5px auto; display: grid; 
+            grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); 
+            border: 1px solid #fff; background-size: cover; 
+        }
+        .mini-cell { background: rgba(0,0,0,0); }
+        .mini-cell.black { background: #000; }
+
+        .player-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
+        .player-badge { background: #333; border: 1px solid #666; padding: 8px 16px; border-radius: 20px; cursor: pointer; }
+        .player-badge.selected { background: var(--accent); color: #000; border-color: #fff; font-weight: bold; }
+        
+        .timer-box { font-size: 80px; font-family: 'Orbitron'; color: #ff4444; margin: 20px; text-shadow: 0 0 20px #ff0000; }
+
+        /* Client Specific */
+        .guide-text { margin-bottom: 10px; color: #aaa; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div id="modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-msg" class="modal-msg"></div>
+            <div class="modal-btns">
+                <button class="btn btn-red" onclick="closeModal(false)">キャンセル</button>
+                <button class="btn" onclick="closeModal(true)">決定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="host-app" class="hidden">
+        <div id="h-title" class="screen">
+            <h1>BLACKOUT QUIZ</h1>
+            <button class="btn btn-lg" onclick="H.goToLobby()">ゲームスタート</button>
+            <button class="btn" onclick="H.goToSettings()">設定</button>
+        </div>
+
+        <div id="h-settings" class="screen hidden">
+            <h2>問題設定</h2>
+            <div style="text-align:left; width:100%; max-width:500px;">
+                <p>画像を登録 (複数可)</p>
+                <input type="file" id="h-file-input" accept="image/*" multiple onchange="H.handleFiles(this)">
+                <div id="h-reg-list" style="margin-top:10px; max-height:300px; overflow-y:auto;"></div>
+            </div>
+            <button class="btn" onclick="H.goToTitle()">戻る</button>
+        </div>
+
+        <div id="h-lobby" class="screen hidden">
+            <h2>参加待機中</h2>
+            <div style="background:#fff; padding:10px; margin:10px;" id="qrcode"></div>
+            <div id="h-url" style="font-size:12px; color:#aaa; margin-bottom:10px;"></div>
+            <div style="font-size:24px; font-weight:bold;">参加人数: <span id="h-p-count">0</span></div>
+            <div id="h-p-list" class="player-list"></div>
+            <button class="btn btn-lg" onclick="H.goToProbSelect()">問題選択へ</button>
+        </div>
+
+        <div id="h-prob-select" class="screen hidden">
+            <h2>問題選択</h2>
+            <div id="h-prob-grid" style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center;"></div>
+        </div>
+
+        <div id="h-mode-select" class="screen hidden">
+            <h2>モードを選択してください</h2>
+            <button class="btn btn-lg" onclick="H.selectMode('MIN')">最小で当てさせる<br><span style="font-size:12px">黒い四角が多い人が出題者</span></button>
+            <button class="btn btn-lg" onclick="H.selectMode('MAX')">最多で当てさせない<br><span style="font-size:12px">黒い四角が少ない人が出題者</span></button>
+        </div>
+
+        <div id="h-guesser-select" class="screen hidden">
+            <h2>解答者を選んでください</h2>
+            <div id="h-guesser-list" class="player-list"></div>
+            <button id="h-btn-start-sel" class="btn" disabled onclick="H.startSelectionPhase()">決定</button>
+        </div>
+
+        <div id="h-selection-wait" class="screen hidden">
+            <h2 style="color:#ff4444;">解答者は画面を見ないでください</h2>
+            <button class="btn btn-lg" onclick="H.showGridToHost()">問題を表示する</button>
+        </div>
+
+        <div id="h-monitoring" class="screen hidden">
+            <h2>選択中...</h2>
+            <div class="grid-container" id="h-monitor-grid" style="opacity:0.5;"></div>
+            <div style="margin-top:20px;">提出状況: <span id="h-submit-count">0</span> / <span id="h-submit-total">0</span></div>
+            <button id="h-btn-show-result" class="btn hidden" onclick="H.showSelections()">選択を表示する</button>
+        </div>
+
+        <div id="h-show-selections" class="screen hidden">
+            <h2>選択結果</h2>
+            <div id="h-selection-list" class="preview-list"></div>
+            <div style="margin-top:20px; font-size:24px; color:var(--accent);">
+                出題者: <span id="h-questioner-name" style="font-weight:bold; font-size:32px;">---</span>
+            </div>
+            <button class="btn" onclick="H.goToQuestion()">出題に進む</button>
+        </div>
+
+        <div id="h-question-phase" class="screen hidden">
+            <div class="grid-container" id="h-game-grid"></div> <div id="h-timer" class="timer-box hidden">60</div>
+            <div id="h-finish-msg" class="hidden" style="font-size:60px; color:#fff; font-weight:bold;">終了</div>
+            
+            <button id="h-btn-exec-q" class="btn btn-lg" onclick="H.executeQuestion()">出題する</button>
+            <button id="h-btn-show-ans" class="btn hidden" onclick="H.showAnswer()">解答を表示する</button>
+        </div>
+
+        <div id="h-answer-phase" class="screen hidden">
+            <h2>正解</h2>
+            <div class="grid-container" id="h-ans-grid" style="border-color:var(--accent);"></div>
+            <div id="h-ans-text" style="font-size:32px; margin:20px 0; font-weight:bold;"></div>
+            <button class="btn" onclick="H.goToProbSelect()">問題選択画面に戻る</button>
+        </div>
+    </div>
+
+    <div id="client-app" class="hidden">
+        <div id="c-login" class="screen">
+            <h1>ENTRY</h1>
+            <input type="text" id="c-name" placeholder="名前を入力">
+            <button class="btn" onclick="C.join()">送信</button>
+        </div>
+
+        <div id="c-wait" class="screen hidden">
+            <h2>WAITING...</h2>
+            <p>ゲーム開始までしばらくお待ちください</p>
+        </div>
+
+        <div id="c-guesser-wait" class="screen hidden">
+            <h2 style="color:var(--accent);">あなたは解答者です</h2>
+            <p>画面を見ずに待機してください</p>
+        </div>
+
+        <div id="c-grid-select" class="screen hidden">
+            <div class="guide-text">タップして黒く塗りつぶす</div>
+            <div class="grid-container" id="c-grid"></div>
+            <button class="btn" onclick="C.confirmSubmit()">決定</button>
+        </div>
+
+        <div id="c-locked" class="screen hidden">
+            <h2>送信完了</h2>
+            <p>ホストの進行をお待ちください</p>
+        </div>
+    </div>
+
+<script>
+// --- STUN Config for Corporate WiFi ---
+const PEER_CONFIG = {
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+        ]
+    }
+};
+
+// --- Utilities ---
+const $ = (id) => document.getElementById(id);
+const show = (id) => $(id).classList.remove('hidden');
+const hide = (id) => $(id).classList.add('hidden');
+const confirmModal = (msg) => {
+    return new Promise(resolve => {
+        $('modal-msg').innerText = msg;
+        $('modal').classList.add('active');
+        window.closeModal = (res) => {
+            $('modal').classList.remove('active');
+            resolve(res);
+        };
+    });
+};
+
+// --- DATA ---
+const Data = {
+    problems: [], // { img: dataURL, ans: string }
+    players: {}, // { id: name }
+    selections: {}, // { id: [0,1,0...] } 1=Black, 0=Show
+    timestamps: {}, // { id: time }
+    currentProbIdx: -1,
+    mode: 'MIN', // 'MIN' or 'MAX'
+    guesserId: null,
+    questionerId: null
+};
+
+// --- HOST ---
+const H = {
+    peer: null, conns: {},
+    init: () => {
+        H.peer = new Peer(PEER_CONFIG);
+        H.peer.on('open', id => {
+            const url = location.href.split('?')[0] + '?host=' + id;
+            new QRCode($('qrcode'), { text: url, width: 150, height: 150 });
+            $('h-url').innerText = url;
+        });
+        H.peer.on('connection', c => {
+            H.conns[c.peer] = c;
+            c.on('data', d => {
+                if (d.type === 'LOGIN') {
+                    Data.players[c.peer] = d.name;
+                    H.updateLobby();
+                } else if (d.type === 'SUBMIT') {
+                    Data.selections[c.peer] = d.grid;
+                    Data.timestamps[c.peer] = Date.now();
+                    H.checkSubmissions();
+                }
+            });
+            c.on('close', () => { delete Data.players[c.peer]; H.updateLobby(); });
+        });
+        show('host-app');
+    },
+
+    // Navigation & Logic
+    goToTitle: () => H.switchScreen('h-title'),
+    goToSettings: () => { H.switchScreen('h-settings'); H.renderRegList(); },
+    goToLobby: () => H.switchScreen('h-lobby'),
+    
+    switchScreen: (id) => {
+        document.querySelectorAll('#host-app .screen').forEach(e => e.classList.add('hidden'));
+        show(id);
+    },
+
+    // Settings
+    handleFiles: (input) => {
+        Array.from(input.files).forEach(f => {
+            const r = new FileReader();
+            r.onload = e => {
+                const ans = prompt(`画像「${f.name}」の正解を入力してください`, "");
+                if (ans) {
+                    Data.problems.push({ img: e.target.result, ans: ans });
+                    H.renderRegList();
+                }
+            };
+            r.readAsDataURL(f);
+        });
+        input.value = "";
+    },
+    renderRegList: () => {
+        $('h-reg-list').innerHTML = Data.problems.map((p, i) => 
+            `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #444; padding:5px;">
+                <span>第${i+1}問: ${p.ans}</span>
+                <button class="btn btn-red" style="padding:2px 10px; min-width:auto; margin:0;" onclick="Data.problems.splice(${i},1);H.renderRegList()">削除</button>
+            </div>`
+        ).join('');
+    },
+
+    // Lobby
+    updateLobby: () => {
+        $('h-p-count').innerText = Object.keys(Data.players).length;
+        $('h-p-list').innerHTML = Object.values(Data.players).map(n => `<span class="player-badge" style="cursor:default">${n}</span>`).join('');
+    },
+
+    // Problem Select
+    goToProbSelect: () => {
+        H.switchScreen('h-prob-select');
+        $('h-prob-grid').innerHTML = Data.problems.map((p, i) => 
+            `<button class="btn" style="width:120px; height:100px;" onclick="H.selectProb(${i})">第${i+1}問</button>`
+        ).join('');
+        H.broadcast({ type: 'WAIT', msg: '問題選択中...' });
+    },
+    selectProb: (idx) => {
+        Data.currentProbIdx = idx;
+        H.switchScreen('h-mode-select');
+    },
+
+    // Mode Select
+    selectMode: (m) => {
+        Data.mode = m;
+        H.switchScreen('h-guesser-select');
+        H.renderGuesserSelect();
+    },
+
+    // Guesser Select
+    renderGuesserSelect: () => {
+        $('h-guesser-list').innerHTML = Object.keys(Data.players).map(id => 
+            `<span class="player-badge" id="g-sel-${id}" onclick="H.toggleGuesser('${id}')">${Data.players[id]}</span>`
+        ).join('');
+        Data.guesserId = null;
+        $('h-btn-start-sel').disabled = true;
+    },
+    toggleGuesser: (id) => {
+        document.querySelectorAll('.player-badge').forEach(e => e.classList.remove('selected'));
+        $(`g-sel-${id}`).classList.add('selected');
+        Data.guesserId = id;
+        $('h-btn-start-sel').disabled = false;
+    },
+    startSelectionPhase: () => {
+        H.switchScreen('h-selection-wait');
+        // Notify Guesser to wait, others to select
+        const prob = Data.problems[Data.currentProbIdx];
+        
+        for (let id in H.conns) {
+            if (id === Data.guesserId) {
+                H.conns[id].send({ type: 'GUESSER_WAIT' });
+            } else {
+                H.conns[id].send({ type: 'START_SELECT', img: prob.img });
+            }
+        }
+        Data.selections = {};
+        Data.timestamps = {};
+    },
+
+    // Monitoring
+    showGridToHost: () => {
+        H.switchScreen('h-monitoring');
+        // Host also sees the grid (just for visual context, not interactive)
+        const prob = Data.problems[Data.currentProbIdx];
+        const grid = $('h-monitor-grid');
+        grid.style.backgroundImage = `url(${prob.img})`;
+        grid.innerHTML = "";
+        for(let i=0; i<16; i++) {
+            const d = document.createElement('div');
+            d.className = 'grid-cell';
+            grid.appendChild(d);
+        }
+        H.checkSubmissions(); // Update count
+    },
+    checkSubmissions: () => {
+        const total = Object.keys(Data.players).length - 1; // Exclude guesser
+        const current = Object.keys(Data.selections).length;
+        $('h-submit-count').innerText = current;
+        $('h-submit-total').innerText = total;
+        
+        if (current >= total && total > 0) {
+            $('h-submit-count').innerText = "全員の選択が終わりました";
+            show('h-btn-show-result');
+        }
+    },
+
+    // Reveal Selections & Determine Questioner
+    showSelections: () => {
+        H.switchScreen('h-show-selections');
+        const list = $('h-selection-list');
+        list.innerHTML = "";
+        const prob = Data.problems[Data.currentProbIdx];
+        
+        // Calculate Questioner
+        let candidates = [];
+        
+        Object.keys(Data.selections).forEach(id => {
+            const grid = Data.selections[id];
+            // 1=Black, 0=Visible.
+            // "Number not replaced by black" = Count of 0.
+            const visibleCount = grid.filter(v => v === 0).length;
+            const blackCount = 16 - visibleCount;
+            
+            candidates.push({ id, visible: visibleCount, black: blackCount, time: Data.timestamps[id] });
+
+            // Render Preview
+            const card = document.createElement('div');
+            card.className = 'preview-card';
+            let gridHtml = `<div class="preview-grid-mini" style="background-image:url(${prob.img})">`;
+            grid.forEach(v => {
+                gridHtml += `<div class="mini-cell ${v===1?'black':''}"></div>`;
+            });
+            gridHtml += `</div>`;
+            card.innerHTML = `${gridHtml}<div>${Data.players[id]}<br>${visibleCount}枚</div>`;
+            list.appendChild(card);
+        });
+
+        // Sort candidates based on mode
+        candidates.sort((a, b) => {
+            if (Data.mode === 'MIN') {
+                // Min clues = Most Black squares wins (Hide most)
+                if (b.black !== a.black) return b.black - a.black; // Descending Black
+                return a.time - b.time; // Ascending Time
+            } else {
+                // Max clues = Least Black squares wins (Show most)
+                if (a.black !== b.black) return a.black - b.black; // Ascending Black
+                return a.time - b.time;
+            }
+        });
+
+        if (candidates.length > 0) {
+            Data.questionerId = candidates[0].id;
+            $('h-questioner-name').innerText = Data.players[Data.questionerId];
+        }
+    },
+
+    // Question Phase
+    goToQuestion: () => {
+        H.switchScreen('h-question-phase');
+        const grid = $('h-game-grid');
+        grid.innerHTML = "";
+        // Show All Black Initially
+        for(let i=0; i<16; i++) {
+            const d = document.createElement('div');
+            d.className = 'grid-cell black';
+            d.id = `q-cell-${i}`;
+            grid.appendChild(d);
+        }
+        // Image is hidden behind
+        grid.style.backgroundImage = `url(${Data.problems[Data.currentProbIdx].img})`;
+        
+        show('h-btn-exec-q');
+        hide('h-timer');
+        hide('h-finish-msg');
+        hide('h-btn-show-ans');
+    },
+    executeQuestion: () => {
+        hide('h-btn-exec-q');
+        
+        // Reveal Questioner's Grid
+        const pattern = Data.selections[Data.questionerId];
+        pattern.forEach((val, i) => {
+            if (val === 0) { // 0 = Show Image
+                $(`q-cell-${i}`).classList.remove('black');
+            }
+        });
+
+        // Start Timer
+        show('h-timer');
+        let t = 60;
+        $('h-timer').innerText = t;
+        const timer = setInterval(() => {
+            t--;
+            $('h-timer').innerText = t;
+            if (t <= 0) {
+                clearInterval(timer);
+                H.finishQuestion();
+            }
+        }, 1000);
+    },
+    finishQuestion: () => {
+        hide('h-timer');
+        // Hide image (All black) + Show "Finish"
+        const grid = $('h-game-grid');
+        grid.style.backgroundImage = 'none';
+        Array.from(grid.children).forEach(c => c.classList.add('black'));
+        
+        show('h-finish-msg');
+        show('h-btn-show-ans');
+    },
+
+    // Answer Reveal
+    showAnswer: () => {
+        H.switchScreen('h-answer-phase');
+        const prob = Data.problems[Data.currentProbIdx];
+        $('h-ans-text').innerText = prob.ans;
+        
+        // Show same visual pattern as question but static
+        const grid = $('h-ans-grid');
+        grid.style.backgroundImage = `url(${prob.img})`;
+        grid.innerHTML = "";
+        const pattern = Data.selections[Data.questionerId];
+        pattern.forEach(val => {
+            const d = document.createElement('div');
+            d.className = `grid-cell ${val===1?'black':''}`; // 1 is Black
+            grid.appendChild(d);
+        });
+        
+        H.broadcast({ type: 'WAIT', msg: '次の問題を待機中...' });
+    },
+
+    broadcast: (msg) => {
+        for (let id in H.conns) H.conns[id].send(msg);
+    }
+};
+
+// --- CLIENT ---
+const C = {
+    peer: null, conn: null, gridState: [],
+    init: (hostId) => {
+        C.peer = new Peer(PEER_CONFIG);
+        C.peer.on('open', () => {
+            C.conn = C.peer.connect(hostId);
+            C.conn.on('data', d => {
+                if (d.type === 'WAIT') C.showWait(d.msg);
+                else if (d.type === 'GUESSER_WAIT') C.showGuesserWait();
+                else if (d.type === 'START_SELECT') C.startSelect(d.img);
+            });
+        });
+        show('client-app');
+    },
+    join: async () => {
+        const name = $('c-name').value;
+        if (!name) return;
+        if (await confirmModal(`${name} で参加しますか？`)) {
+            C.conn.send({ type: 'LOGIN', name: name });
+            C.showWait('ゲーム開始までしばらくお待ちください');
+        }
+    },
+    showWait: (msg) => {
+        C.hideAll(); show('c-wait');
+        $('c-wait').querySelector('p').innerText = msg;
+    },
+    showGuesserWait: () => {
+        C.hideAll(); show('c-guesser-wait');
+    },
+    startSelect: (imgUrl) => {
+        C.hideAll(); show('c-grid-select');
+        const grid = $('c-grid');
+        grid.style.backgroundImage = `url(${imgUrl})`;
+        grid.innerHTML = "";
+        C.gridState = Array(16).fill(0); // 0 = Show Image, 1 = Black
+        
+        for (let i = 0; i < 16; i++) {
+            const d = document.createElement('div');
+            d.className = 'grid-cell'; // Start visible (not black)
+            d.onclick = () => {
+                C.gridState[i] = C.gridState[i] === 0 ? 1 : 0;
+                if (C.gridState[i] === 1) d.classList.add('black');
+                else d.classList.remove('black');
+            };
+            grid.appendChild(d);
+        }
+    },
+    confirmSubmit: async () => {
+        if (await confirmModal('この選択で決定しますか？')) {
+            C.conn.send({ type: 'SUBMIT', grid: C.gridState });
+            C.hideAll(); show('c-locked');
+        }
+    },
+    hideAll: () => {
+        document.querySelectorAll('#client-app .screen').forEach(e => e.classList.add('hidden'));
+    }
+};
+
+// --- BOOTSTRAP ---
+const params = new URLSearchParams(location.search);
+if (params.get('host')) C.init(params.get('host'));
+else H.init();
+
+</script>
+</body>
+</html>
