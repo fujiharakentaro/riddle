@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V39 (Network Fix)</title>
+    <title>All-Star Quiz System V40</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
@@ -57,7 +57,7 @@
         #setup-view { background: #1a1a1a; color: #fff; position: relative; height: 100vh; } 
         .setup-container { width: 950px; max-width: 95%; height: 90vh; background: #2a2a2a; border-radius: 10px; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; } 
         .setup-header { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #555; padding-bottom: 10px; }
-        .setup-body { flex: 1; overflow-y: auto; padding-right: 5px; position: relative; } 
+        .setup-body { flex: 1; overflow-y: auto; padding-right: 5px; position: relative; display: flex; flex-direction: column; } 
         
         .setup-menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px; }
         .setup-menu-btn {
@@ -69,6 +69,16 @@
         .setup-menu-btn:hover { background: linear-gradient(to bottom, #666, #333); transform: scale(1.02); border-color: #fff; }
         .setup-menu-icon { font-size: 40px; margin-right: 20px; }
 
+        /* PERIOD TABS */
+        .period-tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; border-bottom: 1px solid #555; }
+        .p-tab { 
+            background: #222; border: 1px solid #555; color: #aaa; padding: 10px 15px; cursor: pointer; white-space: nowrap; border-radius: 5px 5px 0 0; 
+            display: flex; align-items: center; gap: 8px;
+        }
+        .p-tab.active { background: #444; color: #fff; border-bottom: 3px solid #0088ff; font-weight: bold; }
+        .p-tab-btn { font-size: 10px; padding: 2px 5px; background: #555; border: none; color: #fff; cursor: pointer; border-radius: 3px; }
+        .p-tab-btn:hover { background: #777; }
+
         .connect-info-box { background: #000; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .qr-area { background: #fff; padding: 5px; border-radius: 5px; min-width: 150px; min-height: 150px; display: flex; align-items: center; justify-content: center; }
         .url-area { flex: 1; margin-left: 20px; }
@@ -76,11 +86,9 @@
         
         input[type="text"], select { background: #111; color: #fff; border: 1px solid #555; padding: 5px; } 
         .p-card { background: #333; padding: 20px; margin-bottom: 30px; border: 2px solid #555; border-radius: 10px; position: relative; } 
-        .p-card::before { content: "PERIOD"; position: absolute; top: -12px; left: 20px; background: #555; padding: 0 10px; font-weight: bold; font-size: 14px; border-radius: 5px; }
         .q-card { background: #222; padding: 15px; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; } 
         .sort-card { background: linear-gradient(to bottom, #332200, #221100); border: 2px solid #ffd700; padding: 15px; margin-top: 15px; border-radius: 8px; }
         
-        /* Drag & Drop Area */
         .drop-area { 
             border: 2px dashed #666; background: #151515; padding: 10px; text-align: center; color: #aaa; cursor: pointer; transition: 0.2s; position: relative; height: 60px; display:flex; align-items:center; justify-content:center;
         }
@@ -97,96 +105,28 @@
         .period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; width: 90%; max-height: 70%; overflow-y: auto; padding: 20px; }
         .period-btn { background: linear-gradient(to bottom, #cc8800, #884400); border: 3px solid #ffcc00; border-radius: 15px; padding: 30px 20px; color: #fff; font-size: 28px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center; font-family: 'Anton'; letter-spacing: 2px; }
         
-        /* Game Layout */
         .layout-text { flex-direction: column; width: 100%; height: 100%; }
-        /* Q-Container height reduced to 12% */
         .q-container { width: 90%; height: 12%; margin: 20px auto 30px auto; position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); flex-shrink: 0; }
         .q-icon { font-family: 'Anton'; font-size: 80px; color: #00ffff; text-shadow: 3px 3px 0 #004444, 0 0 10px #00ffff; margin: 0 20px; transform: skewX(-10deg); }
         .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
         .q-text-content { color: #000066; font-size: 3.0vw; font-weight: 900; text-align: center; line-height: 1.2; }
         
-        /* Options Area (Shared Space) */
-        .options-area { 
-            flex: 1; 
-            width: 90%; margin: 0 auto 5vh auto;
-            position: relative;
-        }
-        
-        /* Layout: Text */
-        .layout-text .options-area {
-            display: flex; flex-direction: column; gap: 15px; justify-content: space-between;
-        }
-        .layout-text .option-panel { 
-            width: 100%; height: 80px; 
-            background: linear-gradient(to bottom, #222, #000); 
-            border-radius: 45px; border: 2px solid #555; 
-            display: flex; align-items: center; padding: 0 10px; position: relative; overflow: hidden; 
-        }
-        .layout-text .opt-num {
-            width: 60px; height: 60px; border-radius: 50%; 
-            display: flex; justify-content: center; align-items: center; 
-            font-family: 'Anton'; font-size: 36px; color: #fff; border: 3px solid #fff; 
-            margin-right: 20px; flex-shrink: 0; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
-            box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); 
-            z-index: 5; 
-        }
+        .options-area { flex: 1; width: 90%; margin: 0 auto 5vh auto; position: relative; }
+        .layout-text .options-area { display: flex; flex-direction: column; gap: 15px; justify-content: space-between; }
+        .layout-text .option-panel { width: 100%; height: 80px; background: linear-gradient(to bottom, #222, #000); border-radius: 45px; border: 2px solid #555; display: flex; align-items: center; padding: 0 10px; position: relative; overflow: hidden; }
+        .layout-text .opt-num { width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-family: 'Anton'; font-size: 36px; color: #fff; border: 3px solid #fff; margin-right: 20px; flex-shrink: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); z-index: 5; }
 
-        /* Layout: Image (2x2 Grid) */
-        .layout-image .options-area {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-            gap: 20px;
-            width: 53%; 
-            margin: 0 auto; 
-            justify-content: center;
-            align-content: center;
-        }
-        .layout-image .option-panel {
-            width: 100%; height: auto; padding: 0;
-            border-radius: 20px; background: #000; border: 4px solid #fff;
-            position: relative; overflow: hidden;
-            aspect-ratio: 3 / 2; /* 3:2 Ratio */
-        }
-        
-        .layout-image .opt-num { 
-            position: absolute; top: 10px; left: 10px; margin: 0; 
-            width: 60px; height: 60px; border-radius: 50%; border: 3px solid #fff; 
-            font-family: 'Anton'; font-size: 36px; color: #fff;
-            display: flex; justify-content: center; align-items: center;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-            z-index: 5;
-        }
+        .layout-image .options-area { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; gap: 20px; width: 53%; margin: 0 auto; justify-content: center; align-content: center; }
+        .layout-image .option-panel { width: 100%; height: auto; padding: 0; border-radius: 20px; background: #000; border: 4px solid #fff; position: relative; overflow: hidden; aspect-ratio: 3 / 2; }
+        .layout-image .opt-num { position: absolute; top: 10px; left: 10px; margin: 0; width: 60px; height: 60px; border-radius: 50%; border: 3px solid #fff; font-family: 'Anton'; font-size: 36px; color: #fff; display: flex; justify-content: center; align-items: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-shadow: 2px 2px 5px rgba(0,0,0,0.5); z-index: 5; }
 
-        /* Shared Option Content */
         .opt-val { color: #fff; font-size: 3vw; font-weight: 900; text-shadow: 0 0 5px #00f; flex: 1; position: relative; height: 100%; display: flex; align-items: center; }
-        
-        /* Image Styling - FORCE STRETCH */
-        .opt-img { 
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: fill; 
-            transform-origin: center center;
-            z-index: 1; 
-        }
-        
-        /* Zoom Effect */
+        .opt-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: fill; transform-origin: center center; z-index: 1; }
         .zoom-anim .opt-img { animation: zoomOut 10s linear forwards; }
         @keyframes zoomOut { from { transform: scale(5.0); } to { transform: scale(1.0); } }
 
-        /* Normal Vote Count */
         .vote-count { position: absolute; right: 30px; font-family: 'Anton'; font-size: 50px; color: #ffd700; text-shadow: 2px 2px 0 #000; opacity: 0; z-index: 10; }
-        
-        /* Image Layout Vote Count */
-        .layout-image .vote-count {
-            position: absolute;
-            bottom: 10px; right: 10px;
-            background: #0044aa; border: 3px solid #fff; border-radius: 15px;
-            padding: 0 20px; min-width: 60px; font-size: 40px; text-align: center;
-            opacity: 0; z-index: 20;
-        }
+        .layout-image .vote-count { position: absolute; bottom: 10px; right: 10px; background: #0044aa; border: 3px solid #fff; border-radius: 15px; padding: 0 20px; min-width: 60px; font-size: 40px; text-align: center; opacity: 0; z-index: 20; }
 
         .col-1 { background: radial-gradient(circle at 30% 30%, #44aaff, var(--col-1)); border-color: #fff; } .col-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); border-color: #fff; } .col-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); border-color: #fff; } .col-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); border-color: #fff; }
         .border-1 { border-color: var(--col-1)!important; } .border-2 { border-color: var(--col-2)!important; } .border-3 { border-color: var(--col-3)!important; } .border-4 { border-color: var(--col-4)!important; }
@@ -196,7 +136,6 @@
         #timer-display { position: absolute; bottom: 30px; right: 30px; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #555, #000); border: 6px solid #fff; box-shadow: 0 0 30px #f00; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #timer-text { font-family: 'Anton'; font-size: 70px; color: #ff0000; text-shadow: 0 0 10px #ff0000; }
 
-        /* Sort Result View */
         #sort-result-view { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index: 60; display:flex; align-items:center; justify-content:center; }
         .sort-compare-container { display:flex; gap: 50px; }
         .champ-ans-col { display: flex; flex-direction: column; gap: 20px; align-items: center; transition: 0.5s; }
@@ -207,12 +146,10 @@
         .sort-text-box { background: linear-gradient(to right, #003399, #0066ff); border: 2px solid #fff; border-radius: 40px; padding: 10px 30px; color: #fff; font-size: 28px; font-weight: 900; width: 400px; }
         .dimmed-all { filter: grayscale(100%) brightness(0.3); opacity: 0.5; }
 
-        /* Period End & Ranking */
         #period-end-view { background: rgba(0,0,0,0.95); z-index: 200; color: #fff; text-align: center; }
         .champ-box { background: linear-gradient(to right, #b8860b, #ffd700); padding: 30px 50px; border-radius: 20px; border: 5px solid #fff; box-shadow: 0 0 50px #ffd700; animation: popIn 1s; display:inline-block; }
         #ranking-modal { background: rgba(0,0,0,0.95); z-index: 200; } .ranking-board { display: flex; width: 95%; max-width: 1000px; height: 80%; background: linear-gradient(to right, #0033cc, #0066ff); border: 4px solid #4488ff; border-radius: 20px; padding: 20px; position: relative; } .ranking-sidebar { width: 100px; margin-right: 15px; background: linear-gradient(to bottom, #00eeff 0%, #0088ff 50%, #0044aa 100%); border-radius: 15px; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; } .side-text { writing-mode: vertical-rl; text-orientation: upright; font-weight: 900; font-size: 42px; color: #002266; letter-spacing: 5px; } .rank-list-area { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: hidden; justify-content: center; } .rank-row { height: 65px; background: linear-gradient(to bottom, #0055aa, #002288); border: 2px solid #66aaff; border-radius: 10px; display: flex; align-items: center; padding: 0 15px; color: #fff; font-size: 32px; font-weight: 800; animation: slideRank 0.5s ease-out forwards; } @keyframes slideRank { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } } .rank-num { width: 60px; text-align: right; margin-right: 20px; font-family: 'Anton'; } .rank-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .rank-score-box { background: #000033; border: 2px solid #4488ff; border-radius: 5px; padding: 0 15px; min-width: 100px; text-align: right; font-family: 'Anton'; font-size: 38px; color: #ffdd00; }
 
-        /* --- CLIENT --- */
         #client-view { background: #000; position: relative; height: 100vh; display: flex; flex-direction: column; }
         .tv-background-client { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #001133 0%, #000000 100%); }
         #client-score { 
@@ -221,26 +158,13 @@
             font-size: 24px; font-weight: 900; border-bottom: 2px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.3);
         }
         
-        #client-main-area {
-            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            position: relative; width: 100%;
-        }
-
-        #client-msg-area {
-            width: 100%; text-align: center; margin-bottom: 30px; min-height: 80px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
+        #client-main-area { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; width: 100%; }
+        #client-msg-area { width: 100%; text-align: center; margin-bottom: 30px; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .client-status-text { color: #fff; font-size: 28px; font-weight: bold; text-shadow: 0 0 5px #0af; }
-        
-        /* Static Result Text */
         .res-win { display:inline-block; font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ffd700; text-shadow: 0 0 20px #ff0000, 2px 2px 0 #000; border: 4px solid #fff; padding: 5px 30px; border-radius: 15px; background: rgba(200,0,0,0.9); transform: rotate(-5deg); }
         .res-lose { display:inline-block; font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ccc; text-shadow: 0 0 20px #000; border: 4px solid #888; padding: 5px 30px; border-radius: 15px; background: rgba(50,50,50,0.9); transform: rotate(5deg); }
 
-        /* Button Area */
-        #client-pad { 
-            display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px;
-            width: 100%;
-        }
+        #client-pad { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px; width: 100%; }
         .ans-btn { 
             width: 20vw; height: 20vw; max-width: 130px; max-height: 130px;
             border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; 
@@ -254,21 +178,14 @@
         .btn-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); } 
         .btn-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); } 
         .btn-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); }
-        
         .ans-btn.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
         .ans-btn.selected { border-color: #fff; box-shadow: 0 0 20px #fff; transform: scale(1.1); z-index: 10; filter: brightness(1.3); pointer-events: none; }
         .ans-btn.sort-selected::after { content: ""; } 
         .ans-btn.sort-selected { filter: brightness(0.6); pointer-events: none; position: relative; border-color: #aaa; box-shadow: inset 0 0 20px #000; }
 
-        /* Client Overlays */
         #client-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: rgba(0,0,0,0.9); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .client-msg-main { font-size: 32px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #0af; margin-bottom: 20px;}
-        
-        /* Static Result Text */
         #result-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg); font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 100px; white-space: nowrap; z-index: 200; pointer-events: none; text-shadow: 2px 2px 0 #000; padding: 20px; border-radius: 20px; border: 8px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .res-win { color: #ffd700; background: rgba(255, 0, 0, 0.9); border-color: #fff; text-shadow: 0 0 20px #ffff00; }
-        .res-lose { color: #ccc; background: rgba(50, 50, 50, 0.9); border-color: #888; transform: translate(-50%, -50%) rotate(5deg); }
-
     </style>
 </head>
 <body>
@@ -298,9 +215,15 @@
 
         <div id="setup-problems" class="setup-body hidden">
             <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
-            <h3 style="color:#fb0;">ピリオド構成 (自動保存)</h3>
-            <div id="p-list"></div>
-            <button class="btn btn-blue" onclick="addPeriod()" style="width:100%; margin-top:10px; padding:15px; font-size:18px;">＋ ピリオドを追加</button>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="color:#fb0; margin:0;">ピリオド構成 (自動保存)</h3>
+                <button class="btn btn-blue" onclick="addPeriod()" style="padding:8px 15px;">＋ 追加</button>
+            </div>
+            
+            <div class="period-tabs" id="p-tabs"></div>
+            
+            <div id="p-edit-area" style="flex:1; overflow-y:auto; padding:10px; border:1px solid #444; border-radius:5px; background:#222;">
+                </div>
         </div>
 
         <div id="setup-link" class="setup-body hidden">
@@ -400,146 +323,114 @@
 </div>
 
 <script>
-    // --- NETWORK CONFIG (FIX) ---
-    // Google's public STUN servers to improve connection success rate in restricted networks.
-    const PEER_CONFIG = {
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ]
-        }
-    };
+    const PEER_CONFIG = { config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun2.l.google.com:19302' }, { urls: 'stun:stun3.l.google.com:19302' }, { urls: 'stun:stun4.l.google.com:19302' } ] } };
+    const DB_NAME = 'AllStarQuizDB'; const DB_VER = 2;
+    function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME, DB_VER); r.onupgradeneeded=e=>{ const db=e.target.result; if(!db.objectStoreNames.contains('audios')) db.createObjectStore('audios'); if(!db.objectStoreNames.contains('data')) db.createObjectStore('data'); }; r.onsuccess=e=>res(e.target.result); r.onerror=e=>rej(e); }); }
+    async function saveToDB(store, k, val){ const db=await openDB(); const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val, k); }
+    async function loadFromDB(){ const db=await openDB(); const tx=db.transaction(['audios','data'],'readonly'); const as=tx.objectStore('audios'); ['q_open','thinking','votes','correct','sort_reveal','sort_thinking','period_end'].forEach(k=>{ const r=as.get(k); r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); }; }); const ds=tx.objectStore('data'); const r=ds.get('periods'); r.onsuccess=e=>{ if(r.result) { periods=r.result; } }; }
 
-    // --- IndexedDB ---
-    const DB_NAME = 'AllStarQuizDB'; const DB_VER = 2; // Version Bump
-    function openDB(){
-        return new Promise((res,rej)=>{
-            const r=indexedDB.open(DB_NAME, DB_VER);
-            r.onupgradeneeded=e=>{
-                const db=e.target.result;
-                if(!db.objectStoreNames.contains('audios')) db.createObjectStore('audios');
-                if(!db.objectStoreNames.contains('data')) db.createObjectStore('data');
-            };
-            r.onsuccess=e=>res(e.target.result);
-            r.onerror=e=>rej(e);
-        });
-    }
-    async function saveToDB(store, k, val){
-        const db=await openDB(); const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val, k);
-    }
-    async function loadFromDB(){
-        const db=await openDB(); 
-        const tx=db.transaction(['audios','data'],'readonly');
-        
-        // Load Audio
-        const as=tx.objectStore('audios');
-        ['q_open','thinking','votes','correct','sort_reveal','sort_thinking','period_end'].forEach(k=>{
-            const r=as.get(k);
-            r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); };
-        });
-        
-        // Load Data
-        const ds=tx.objectStore('data');
-        const r=ds.get('periods');
-        r.onsuccess=e=>{ if(r.result) { periods=r.result; } }; // Load saved periods but delay render until setup open
-    }
-
-    // --- Data & State ---
     let periods = [{ title: "第1ピリオド", questions: [{qType:'text', zoom:false, q:"日本一高い山は？",correct:"1",options:{1:{type:'text',val:'富士山'},2:{type:'text',val:'北岳'},3:{type:'text',val:'奥穂高岳'},4:{type:'text',val:'間ノ岳'}}}], sortingQ: {q:"次の出来事を古い順に並べよ", order:["2","4","1","3"], options:{1:{type:'text',val:'明治維新'},2:{type:'text',val:'関ヶ原の戦い'},3:{type:'text',val:'第二次世界大戦終結'},4:{type:'text',val:'ペリー来航'}}} }];
     let audioFiles={q_open:null,thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null, period_end:null};
-    
-    let peer, conn, conns={}, myId;
-    let currentPIdx=0, currentQIdx=0, hostState=0; 
-    
-    // ▼▼▼ State Variables ▼▼▼
-    let answers={}, participants={}, scores={}, periodScores={}, periodTimes={};
-    let clientStartTime=0, bgmAudio=null;
-    let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null;
-    let isLagTime = false;
-    let currentChampId = null; 
-    // ▲▲▲▲▲▲
+    let peer, conn, conns={}, myId, currentPIdx=0, currentQIdx=0, hostState=0; 
+    let answers={}, participants={}, scores={}, periodScores={}, periodTimes={}, clientStartTime=0, bgmAudio=null, isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null, isLagTime = false, currentChampId = null; 
+    let editingPIdx = 0; // Currently editing period index
 
-    // --- Init ---
-    window.onload = () => {
-        loadFromDB();
-        const u = new URLSearchParams(window.location.search);
-        if(u.get('host')) { showScreen('client-login'); setTimeout(()=>initClient(u.get('host')), 500); } 
-        else { showScreen('title-view'); setTimeout(initHost, 500); }
-        document.addEventListener('keydown', e => { 
-            if(e.code==='Escape') goTitle();
-            if(!document.getElementById('host-view').classList.contains('hidden') && e.code==='Space'){ e.preventDefault(); nextPhase(); }
-        });
-    };
+    window.onload = () => { loadFromDB(); const u = new URLSearchParams(window.location.search); if(u.get('host')) { showScreen('client-login'); setTimeout(()=>initClient(u.get('host')), 500); } else { showScreen('title-view'); setTimeout(initHost, 500); } document.addEventListener('keydown', e => { if(e.code==='Escape') goTitle(); if(!document.getElementById('host-view').classList.contains('hidden') && e.code==='Space'){ e.preventDefault(); nextPhase(); } }); };
     function showScreen(id){ document.querySelectorAll('.screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); if(['host-view','setup-view'].includes(id)) document.getElementById(id).style.display='flex'; }
     function goTitle(){ stopAudio(); showScreen('title-view'); resetHost(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); }
     function goPeriodSelect(){ showScreen('host-view'); hostState=0; nextPhase(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); }
     function resetHost(){ document.getElementById('period-select-view').classList.add('hidden'); document.getElementById('period-end-view').classList.add('hidden'); document.getElementById('ranking-modal').classList.add('hidden'); document.getElementById('sort-result-view').classList.add('hidden');}
 
-    // --- Setup Navigation ---
     function showSetupMenu() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-menu').classList.remove('hidden'); }
-    function showSetupProb() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-problems').classList.remove('hidden'); renderPList(); }
+    function showSetupProb() { 
+        document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); 
+        document.getElementById('setup-problems').classList.remove('hidden'); 
+        if(editingPIdx >= periods.length) editingPIdx = 0;
+        renderPTabs(); 
+        renderPEdit(); 
+    }
     function showSetupLink() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-link').classList.remove('hidden'); }
     function showSetupBgm() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-bgm').classList.remove('hidden'); }
 
-    // --- Functions ---
     function saveAudio(k, inp){ if(inp.files[0]){ audioFiles[k]=URL.createObjectURL(inp.files[0]); saveToDB('audios', k, inp.files[0]); } }
     function saveData(){ saveToDB('data', 'periods', periods); }
     function playAudio(k, loop=false){ if(!audioFiles[k])return; if(bgmAudio){bgmAudio.pause();bgmAudio=null;} const a=new Audio(audioFiles[k]); a.loop=loop; a.play().catch(()=>{}); if(loop)bgmAudio=a; }
     function stopAudio(){ if(bgmAudio){bgmAudio.pause();bgmAudio=null;} }
-
     function startSetup(){ showScreen('setup-view'); showSetupMenu(); }
     
-    // --- Host Network Init with FIX ---
     function initHost(){
         if(peer) return;
         document.getElementById("qrcode-setup").innerHTML="<div style='color:#000;font-size:12px;'>接続中...</div>";
-        
-        // Use Enhanced Config
         peer = new Peer(PEER_CONFIG);
-        
-        peer.on('open', id=>{
-            myId=id; const url = location.href.split('?')[0] + '?host=' + id;
-            document.getElementById('host-url').value = url;
-            document.getElementById("qrcode-setup").innerHTML="";
-            new QRCode(document.getElementById("qrcode-setup"), {text:url, width:150, height:150});
-        });
-        peer.on('connection',c=>{
-            c.on('open',()=>{ conns[c.peer]=c; c.on('data',d=>{
-                if(d.type==='LOGIN'){ 
-                    participants[c.peer]=d.name; 
-                    // Init scores safely
-                    if(scores[c.peer] === undefined) scores[c.peer]=0;
-                    if(periodScores[c.peer] === undefined) periodScores[c.peer]=0;
-                    if(periodTimes[c.peer] === undefined) periodTimes[c.peer]=0;
-                }
-                if(d.type==='ANSWER') {
-                    // Receive answer logic
-                    // ▼▼▼ 修正: hostState 90 (山分け中) も解答を許可する ▼▼▼
-                    const canAnswer = (hostState === 3 || hostState === 9 || hostState === 90) || isLagTime;
-                    if (canAnswer && !answers[c.peer]) {
-                        answers[c.peer] = d;
-                    }
-                }
-            }); c.on('close',()=>{delete conns[c.peer];}); });
+        peer.on('open', id=>{ myId=id; const url = location.href.split('?')[0] + '?host=' + id; document.getElementById('host-url').value = url; document.getElementById("qrcode-setup").innerHTML=""; new QRCode(document.getElementById("qrcode-setup"), {text:url, width:150, height:150}); });
+        peer.on('connection',c=>{ c.on('open',()=>{ conns[c.peer]=c; c.on('data',d=>{ if(d.type==='LOGIN'){ participants[c.peer]=d.name; if(scores[c.peer] === undefined) scores[c.peer]=0; if(periodScores[c.peer] === undefined) periodScores[c.peer]=0; if(periodTimes[c.peer] === undefined) periodTimes[c.peer]=0; } if(d.type==='ANSWER') { const canAnswer = (hostState === 3 || hostState === 9 || hostState === 90) || isLagTime; if (canAnswer && !answers[c.peer]) { answers[c.peer] = d; } } }); c.on('close',()=>{delete conns[c.peer];}); }); });
+    }
+
+    // --- Editor Logic (Improved) ---
+    function addPeriod(){
+        periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}}); 
+        saveData(); 
+        editingPIdx = periods.length - 1;
+        renderPTabs(); 
+        renderPEdit();
+    }
+    function switchPEdit(idx) { editingPIdx = idx; renderPTabs(); renderPEdit(); }
+    function movePeriod(idx, dir) {
+        if (idx+dir < 0 || idx+dir >= periods.length) return;
+        const temp = periods[idx]; periods[idx] = periods[idx+dir]; periods[idx+dir] = temp;
+        if(editingPIdx === idx) editingPIdx += dir;
+        else if(editingPIdx === idx+dir) editingPIdx -= dir;
+        saveData(); renderPTabs();
+    }
+    function delPeriod(idx) {
+        if(!confirm("このピリオドを削除しますか？")) return;
+        periods.splice(idx, 1);
+        if(editingPIdx >= periods.length) editingPIdx = periods.length - 1;
+        if(editingPIdx < 0) editingPIdx = 0;
+        saveData(); renderPTabs(); renderPEdit();
+    }
+
+    function renderPTabs() {
+        const t = document.getElementById('p-tabs'); t.innerHTML = "";
+        periods.forEach((p, i) => {
+            const isActive = (i === editingPIdx) ? 'active' : '';
+            t.innerHTML += `
+            <div class="p-tab ${isActive}" onclick="switchPEdit(${i})">
+                ${p.title}
+                <div style="display:flex; flex-direction:column; gap:2px; margin-left:5px;">
+                    <button class="p-tab-btn" onclick="event.stopPropagation();movePeriod(${i},-1)">◀</button>
+                    <button class="p-tab-btn" onclick="event.stopPropagation();movePeriod(${i},1)">▶</button>
+                </div>
+            </div>`;
         });
     }
 
-    // --- Editor Logic ---
-    function renderPList(){
-        const l=document.getElementById('p-list'); l.innerHTML="";
-        periods.forEach((p,pi)=>{
-            const pd=document.createElement('div'); pd.className='p-card';
-            pd.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:10px;"><input type="text" value="${p.title}" onchange="periods[${pi}].title=this.value;saveData();" style="font-size:20px;font-weight:bold;width:60%;"><button class="btn btn-red" onclick="delP(${pi})">ピリオド削除</button></div><div id="p-${pi}-qs"></div><button class="btn btn-green" onclick="addQ(${pi})">＋ 問題追加</button><div class="sort-card"><span class="sort-header">山分けクイズ設定</span><input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value;saveData();" placeholder="問題文" style="margin-bottom:10px;"><div class="opt-grid">${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}</div><div style="margin-top:10px; color:#ffd700;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',');saveData();" style="width:150px; background:#443300; color:#fff; font-weight:bold;"></div></div>`;
-            l.appendChild(pd); renderQList(pi);
-        });
+    function renderPEdit() {
+        const area = document.getElementById('p-edit-area');
+        if(periods.length === 0) { area.innerHTML = "<div style='text-align:center; color:#aaa; margin-top:20px;'>ピリオドがありません</div>"; return; }
+        
+        const pi = editingPIdx;
+        const p = periods[pi];
+        
+        area.innerHTML = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #555; padding-bottom:10px;">
+                <input type="text" value="${p.title}" onchange="periods[${pi}].title=this.value;saveData();renderPTabs();" style="font-size:20px; font-weight:bold; width:60%;">
+                <button class="btn btn-red" onclick="delPeriod(${pi})">ピリオド削除</button>
+            </div>
+            <div id="p-qs-list"></div>
+            <button class="btn btn-green" onclick="addQ(${pi})" style="margin:10px 0;">＋ 問題追加</button>
+            <div class="sort-card">
+                <span style="font-size:14px;color:#ffd700;font-weight:bold;">山分けクイズ設定</span>
+                <input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value;saveData();" placeholder="問題文" style="width:100%; margin-top:5px; margin-bottom:10px;">
+                <div class="opt-grid">${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}</div>
+                <div style="margin-top:10px; color:#ffd700;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',');saveData();" style="width:150px; background:#443300; color:#fff; font-weight:bold;"></div>
+            </div>
+        `;
+        renderQList(pi);
     }
     
     function renderQList(pi){
-        const ql=document.getElementById(`p-${pi}-qs`); ql.innerHTML="";
+        const ql=document.getElementById('p-qs-list'); ql.innerHTML="";
         periods[pi].questions.forEach((q,qi)=>{
             const isImg = q.qType === 'image';
             const qd=document.createElement('div'); qd.className='q-card';
@@ -553,7 +444,7 @@
                     </div>
                     <button class="btn btn-red" style="padding:5px;" onclick="delQ(${pi},${qi})">削除</button>
                 </div>
-                <input type="text" value="${q.q}" onchange="periods[${pi}].questions[${qi}].q=this.value;saveData();" placeholder="問題文" style="margin-bottom:5px;">
+                <input type="text" value="${q.q}" onchange="periods[${pi}].questions[${qi}].q=this.value;saveData();" placeholder="問題文" style="margin-bottom:5px; width:100%;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
                     ${[1,2,3,4].map(k=>renderOptionInput(pi, qi, k, q.options[k], isImg)).join('')}
                 </div>
@@ -564,254 +455,124 @@
     }
 
     function renderOptionInput(pi, qi, k, opt, isImg) {
-        if (!isImg) {
-            return `<div style="background:#333;padding:5px;"><span style="font-size:10px;color:#aaa;">${k}</span> <input type="text" value="${opt.val}" onchange="upOv(${pi},${qi},${k},this.value)"></div>`;
-        } else {
-            return `
-            <div style="background:#333;padding:5px;">
-                <span style="font-size:10px;color:#aaa;">${k}</span>
-                <label class="drop-area" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,${pi},${qi},${k})">
-                    ${opt.val ? `<img src="${opt.val}" class="drop-preview">` : 'Drag & Drop / Click'}
-                    <input type="file" accept="image/*" style="display:none;" onchange="upImg(this,${pi},${qi},${k})">
-                </label>
-            </div>`;
+        if (!isImg) { return `<div style="background:#333;padding:5px;"><span style="font-size:10px;color:#aaa;">${k}</span> <input type="text" value="${opt.val}" onchange="upOv(${pi},${qi},${k},this.value)" style="width:80%;"></div>`; } 
+        else {
+            return `<div style="background:#333;padding:5px;"><span style="font-size:10px;color:#aaa;">${k}</span><label class="drop-area" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,${pi},${qi},${k})">${opt.val ? `<img src="${opt.val}" class="drop-preview">` : 'Drag/Click'}<input type="file" accept="image/*" style="display:none;" onchange="upImg(this,${pi},${qi},${k})"></label></div>`;
         }
     }
+    function renderSortOpt(pi, k, opt) { return `<div class="opt-cell"><span style="font-size:12px;color:#aaa;">${k}</span> <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='text'?'checked':''} onchange="setSortType(${pi},${k},'text')">文</label><label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='image'?'checked':''} onchange="setSortType(${pi},${k},'image')">画</label> ${opt.type=='text'?`<input type="text" value="${opt.val}" onchange="upSortOv(${pi},${k},this.value)" style="width:60%;">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upSortImg(this,${pi},${k})">${opt.val?`<img src="${opt.val}" style="height:20px;">`:''}`}</div>`; }
 
-    function renderSortOpt(pi, k, opt) { 
-        return `<div class="opt-cell"><span style="font-size:12px;color:#aaa;">選択肢${k}</span> <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='text'?'checked':''} onchange="setSortType(${pi},${k},'text')">文</label><label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='image'?'checked':''} onchange="setSortType(${pi},${k},'image')">画</label> ${opt.type=='text'?`<input type="text" value="${opt.val}" onchange="upSortOv(${pi},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upSortImg(this,${pi},${k})">${opt.val?`<img src="${opt.val}" style="height:20px;">`:''}`}</div>`; 
-    }
-
-    // Data Helpers
-    function addPeriod(){periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}}); saveData(); renderPList();}
-    function delP(pi){periods.splice(pi,1); saveData(); renderPList();}
     function addQ(pi){periods[pi].questions.push({qType:'text', zoom:false, q:"",correct:"1",options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}); saveData(); renderQList(pi);}
     function delQ(pi,qi){periods[pi].questions.splice(qi,1); saveData(); renderQList(pi);}
-    
-    function setQType(pi,qi,type){
-        periods[pi].questions[qi].qType = type;
-        // Reset values to avoid confusion
-        for(let k=1; k<=4; k++) { periods[pi].questions[qi].options[k].val = ""; periods[pi].questions[qi].options[k].type = type; }
-        saveData(); renderQList(pi);
-    }
+    function setQType(pi,qi,type){ periods[pi].questions[qi].qType = type; for(let k=1; k<=4; k++) { periods[pi].questions[qi].options[k].val = ""; periods[pi].questions[qi].options[k].type = type; } saveData(); renderQList(pi); }
     function toggleZoom(pi, qi, checked) { periods[pi].questions[qi].zoom = checked; saveData(); }
     function upOv(pi,qi,k,v){periods[pi].questions[qi].options[k].val=v; saveData();}
-    
-    function handleDrop(e, pi, qi, k) {
-        const file = e.dataTransfer.files[0];
-        if(file && file.type.startsWith('image/')) {
-            const r=new FileReader(); r.onload=ev=>{ periods[pi].questions[qi].options[k].val=ev.target.result; saveData(); renderQList(pi); }; r.readAsDataURL(file);
-        }
-    }
+    function handleDrop(e, pi, qi, k) { const file = e.dataTransfer.files[0]; if(file && file.type.startsWith('image/')) { const r=new FileReader(); r.onload=ev=>{ periods[pi].questions[qi].options[k].val=ev.target.result; saveData(); renderQList(pi); }; r.readAsDataURL(file); } }
     function upImg(el,pi,qi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].questions[qi].options[k].val=e.target.result;saveData();renderQList(pi);};r.readAsDataURL(el.files[0]);}}
-
-    // Sort Helpers
-    function setSortType(pi,k,t){periods[pi].sortingQ.options[k].type=t;periods[pi].sortingQ.options[k].val="";saveData();renderPList();} 
+    function setSortType(pi,k,t){periods[pi].sortingQ.options[k].type=t;periods[pi].sortingQ.options[k].val="";saveData();renderPEdit();} 
     function upSortOv(pi,k,v){periods[pi].sortingQ.options[k].val=v;saveData();} 
-    function upSortImg(el,pi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].sortingQ.options[k].val=e.target.result;saveData();renderPList();};r.readAsDataURL(el.files[0]);}}
+    function upSortImg(el,pi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].sortingQ.options[k].val=e.target.result;saveData();renderPEdit();};r.readAsDataURL(el.files[0]);}}
 
     // --- Host Flow ---
     function renderPSel(){ const g=document.getElementById('period-grid'); g.innerHTML=""; periods.forEach((p,i)=>{ g.innerHTML+=`<div class="period-btn" onclick="selectP(${i})">${p.title}<br><span style="font-size:16px">${p.questions.length}問</span></div>`; }); document.getElementById('period-select-view').classList.remove('hidden'); }
-    function selectP(i){ 
-        currentPIdx=i; currentQIdx=-1; 
-        periodScores={}; scores={}; periodTimes={}; // 初期化
-        for(let id in participants) { periodScores[id]=0; scores[id]=0; periodTimes[id]=0; }
-        broadcastScores();
-        document.getElementById('period-select-view').classList.add('hidden'); 
-        hostState=1; nextPhase(); 
-    }
+    function selectP(i){ currentPIdx=i; currentQIdx=-1; periodScores={}; scores={}; periodTimes={}; for(let id in participants) { periodScores[id]=0; scores[id]=0; periodTimes[id]=0; } broadcastScores(); document.getElementById('period-select-view').classList.add('hidden'); hostState=1; nextPhase(); }
 
     function nextPhase(){
         const P=periods[currentPIdx]; const Q=P.questions[currentQIdx];
         try {
             switch(hostState){
-                case 0: renderPSel(); break; // P-Sel
+                case 0: renderPSel(); break;
                 case 1: 
                     currentQIdx++; isSorting=false;
                     if(currentQIdx>=P.questions.length){ hostState=7; nextPhase(); return; }
                     resetDisp(); hostState=2; broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
-                case 2: 
-                    displayQ(Q); playAudio('q_open'); playAudio('thinking',false); startTimer(10);
-                    broadcast({type:'START', sort:false}); hostState=3; break; 
+                case 2: displayQ(Q); playAudio('q_open'); playAudio('thinking',false); startTimer(10); broadcast({type:'START', sort:false}); hostState=3; break; 
                 case 3: stopTimer(); break;
                 case 4: stopTimer(); break; 
                 case 5: showVotes(); playAudio('votes'); hostState=6; break; 
-                case 6: // Correct
-                    showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
-                    broadcast({type:'RESULT', correct:Q.correct}); 
-                    
-                    // ピリオドラストの問題ならピリオド成績へ
-                    if(currentQIdx === P.questions.length - 1) hostState=135; 
-                    else hostState=130; 
+                case 6: 
+                    showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); broadcast({type:'RESULT', correct:Q.correct}); 
+                    if(currentQIdx === P.questions.length - 1) hostState=135; else hostState=130; 
                     break; 
                 case 130: showRank(Q.correct, 'speed'); hostState=140; break; 
-                case 135: showRank(null, 'period_rank'); hostState=140; break; // ピリオド成績
+                case 135: showRank(null, 'period_rank'); hostState=140; break; 
                 case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break;
                 
-                case 7: // P-End (ピリオド終了画面)
+                case 7: 
                     document.getElementById('period-end-view').classList.remove('hidden');
                     document.getElementById('champ-name').classList.add('hidden'); 
-                    
-                    // --- 修正箇所：チャンピオンを決定してIDを保存 ---
-                    let champId = "none"; 
-                    let candidates = Object.keys(participants).map(id => ({
-                        id: id,
-                        score: periodScores[id] || 0,
-                        time: periodTimes[id] || 0
-                    }));
-
-                    if (candidates.length > 0) {
-                        candidates.sort((a, b) => {
-                            if (b.score !== a.score) return b.score - a.score;
-                            return a.time - b.time;
-                        });
-                        champId = candidates[0].id;
-                    }
-                    currentChampId = champId; 
-                    
-                    document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
-                    champSortAns = null; hostState = 71; break; 
-                
-                case 71: // Reveal Champ
-                    document.getElementById('champ-name').classList.remove('hidden');
-                    // 正解BGM再生(playAudio('correct'))を削除
-                    hostState=8; break;
-                case 8: // Sort Prep
-                    document.getElementById('period-end-view').classList.add('hidden'); resetDisp(); isSorting=true;
-                    displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});
-                    broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'});
-                    hostState=9; break;
-                case 9: // Sort Open & Start
-                    displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',false); startTimer(20);
-                    broadcast({type:'START', sort:true}); hostState=90; break;
+                    let champId = "none"; let candidates = Object.keys(participants).map(id => ({ id: id, score: periodScores[id] || 0, time: periodTimes[id] || 0 }));
+                    if (candidates.length > 0) { candidates.sort((a, b) => { if (b.score !== a.score) return b.score - a.score; return a.time - b.time; }); champId = candidates[0].id; }
+                    currentChampId = champId; document.getElementById('champ-name').innerText = participants[champId] || "該当なし"; champSortAns = null; hostState = 71; break; 
+                case 71: document.getElementById('champ-name').classList.remove('hidden'); hostState=8; break;
+                case 8: document.getElementById('period-end-view').classList.add('hidden'); resetDisp(); isSorting=true; displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}); broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'}); hostState=9; break;
+                case 9: displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',false); startTimer(20); broadcast({type:'START', sort:true}); hostState=90; break;
                 case 90: stopTimer(); break;
                 case 10: stopTimer(); break; 
-                case 11: // Sort Reveal Prep (山分けクイズ結果表示準備)
-                    champSortAns = (answers[currentChampId] && answers[currentChampId].choice) ? answers[currentChampId].choice : ["?","?","?","?"];
-                    renderSortResultLayout(champSortAns, P.sortingQ); hostState = 12; break; 
-                case 12: case 13: case 14: case 15: // Reveal
-                    revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('sort_reveal'); hostState++;
-                    // case 15が終わったら(次が16)、そのまま待機する流れへ
-                    if(hostState > 15) {
-                        calcSortScores(P.sortingQ.order); 
-                        broadcast({type:'RESULT', correct:P.sortingQ.order});
-                        hostState = 16; // 新しい待機ステートへ
-                    }
-                    break;
-                
-                // 131(Ranking) はスキップ
-                case 16: // End Wait -> Title
-                    document.getElementById('sort-result-view').classList.add('hidden'); 
-                    hostState = 0; 
-                    nextPhase(); 
-                    broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); 
-                    break;
+                case 11: champSortAns = (answers[currentChampId] && answers[currentChampId].choice) ? answers[currentChampId].choice : ["?","?","?","?"]; renderSortResultLayout(champSortAns, P.sortingQ); hostState = 12; break; 
+                case 12: case 13: case 14: case 15: revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('sort_reveal'); hostState++; if(hostState > 15) { calcSortScores(P.sortingQ.order); broadcast({type:'RESULT', correct:P.sortingQ.order}); hostState = 16; } break;
+                case 16: document.getElementById('sort-result-view').classList.add('hidden'); hostState = 0; nextPhase(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
             }
-        } catch(e) { console.error(e); alert("エラーが発生しましたが続行します"); document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; }
+        } catch(e) { console.error(e); alert("エラー"); document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; }
     }
     function broadcast(m){for(let k in conns)conns[k].send(m);}
-    
     function resetDisp(){
         document.getElementById('q-text').innerText=""; document.getElementById('sort-result-view').classList.add('hidden');
-        for(let k=1;k<=4;k++){ 
-            const p=document.getElementById('opt-'+k); 
-            p.classList.remove('dimmed','highlighted', 'zoom-anim'); 
-            document.getElementById('val-'+k).innerHTML=""; 
-            document.getElementById('vote-'+k).style.opacity=0; 
-        }
+        for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); p.classList.remove('dimmed','highlighted', 'zoom-anim'); document.getElementById('val-'+k).innerHTML=""; document.getElementById('vote-'+k).style.opacity=0; }
         document.getElementById('timer-display').classList.add('hidden'); answers={}; stopAudio();
     }
     function displayQ(q){
-        document.getElementById('q-text').innerText=q.q;
-        
-        // Layout Switch
-        const gl = document.getElementById('game-layout');
-        if(q.qType === 'image' && !isSorting) {
-            gl.classList.remove('layout-text'); gl.classList.add('layout-image');
-        } else {
-            gl.classList.add('layout-text'); gl.classList.remove('layout-image');
-        }
-
-        for(let k=1;k<=4;k++){
-            const el=document.getElementById('val-'+k); el.className = 'opt-val';
-            if(q.qType==='image' && !isSorting) {
-                el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`; 
-                if(q.zoom) document.getElementById('opt-'+k).classList.add('zoom-anim');
-            }
-            else el.innerText=q.options[k].val;
-        }
+        document.getElementById('q-text').innerText=q.q; const gl = document.getElementById('game-layout');
+        if(q.qType === 'image' && !isSorting) { gl.classList.remove('layout-text'); gl.classList.add('layout-image'); } else { gl.classList.add('layout-text'); gl.classList.remove('layout-image'); }
+        for(let k=1;k<=4;k++){ const el=document.getElementById('val-'+k); el.className = 'opt-val'; if(q.qType==='image' && !isSorting) { el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`; if(q.zoom) document.getElementById('opt-'+k).classList.add('zoom-anim'); } else el.innerText=q.options[k].val; }
     }
-    let tId; function startTimer(sec){
-        const el=document.getElementById('timer-display'); el.classList.remove('hidden'); let t=sec; 
-        document.getElementById('timer-text').innerText=sec;
-        const s=Date.now();
-        tId=setInterval(()=>{ 
-            t=sec-(Date.now()-s)/1000; 
-            if(t<=0){t=0;stopTimer();} 
-            document.getElementById('timer-text').innerText=Math.ceil(t); 
-        },50);
-    }
-    function stopTimer(){ 
-        clearInterval(tId); 
-        broadcast({type:'TIMEUP'}); 
-        // BGM CONTINUES (Not Stopped)
-        
-        isLagTime = true;
-        setTimeout(() => { isLagTime = false; }, 5000);
-
-        const isPeriodLastQ = (currentQIdx === periods[currentPIdx].questions.length - 1);
-        if(isPeriodLastQ && (hostState === 3 || hostState === 4)) {
-            playAudio('period_end'); // 専用SE
-        }
-
-        // DIRECT TRANSITION LOGIC
-        if(hostState === 3 || hostState === 4) hostState = 5; // Normal: Thinking -> Pre-Vote
-        else if(hostState === 9 || hostState === 90 || hostState === 10) hostState = 11; // Sort: Thinking -> Pre-Reveal
-        else hostState++; 
-    }
-    
-    function showVotes(){ 
-        stopAudio(); // Stop BGM here (when vote sound plays)
-        document.getElementById('timer-display').classList.add('hidden'); 
-        for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; 
-        for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; 
-    }
+    let tId; function startTimer(sec){ const el=document.getElementById('timer-display'); el.classList.remove('hidden'); let t=sec; document.getElementById('timer-text').innerText=sec; const s=Date.now(); tId=setInterval(()=>{ t=sec-(Date.now()-s)/1000; if(t<=0){t=0;stopTimer();} document.getElementById('timer-text').innerText=Math.ceil(t); },50); }
+    function stopTimer(){ clearInterval(tId); broadcast({type:'TIMEUP'}); isLagTime = true; setTimeout(() => { isLagTime = false; }, 5000); const isPeriodLastQ = (currentQIdx === periods[currentPIdx].questions.length - 1); if(isPeriodLastQ && (hostState === 3 || hostState === 4)) { playAudio('period_end'); } if(hostState === 3 || hostState === 4) hostState = 5; else if(hostState === 9 || hostState === 90 || hostState === 10) hostState = 11; else hostState++; }
+    function showVotes(){ stopAudio(); document.getElementById('timer-display').classList.add('hidden'); for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; }
     function showCorrect(c){ for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); if(k==c) p.classList.add('highlighted'); else p.classList.add('dimmed'); } }
     
-    function renderSortResultLayout(champAns, q){
-        document.getElementById('sort-result-view').classList.remove('hidden');
-        const cCol = document.getElementById('champ-ans-col'); cCol.innerHTML='<div style="color:#ffd700; font-weight:bold; font-size:30px; margin-bottom:20px;">CHAMPION</div>'; cCol.className = 'champ-ans-col';
-        const rCol = document.getElementById('correct-ans-col'); rCol.innerHTML='<div style="color:#00ffff; font-weight:bold; font-size:30px; margin-bottom:20px;">ANSWER</div>';
-        champAns.forEach(k => { const color = k==1?'var(--col-1)':k==2?'var(--col-2)':k==3?'var(--col-3)':'var(--col-4)'; cCol.innerHTML += `<div class="sort-bubble" style="background:${color}">${k}</div>`; });
-        q.order.forEach((k, i) => {
-            const txt = q.options[k].type=='text' ? q.options[k].val : `選択肢${k}`;
-            const color = k==1?'var(--col-1)':k==2?'var(--col-2)':k==3?'var(--col-3)':'var(--col-4)';
-            rCol.innerHTML += `<div class="sort-row-correct" id="sort-row-${i}"><div class="sort-bubble" style="background:${color}">${k}</div><div class="sort-text-box">${txt}</div></div>`;
-        });
-    }
-    function revealSortRow(idx, correctOrder, champAns){
-        document.getElementById(`sort-row-${idx}`).classList.add('visible');
-        if(correctOrder[idx] !== champAns[idx]) document.getElementById('champ-ans-col').classList.add('dimmed-all');
-    }
+    function renderSortResultLayout(champAns, q){ document.getElementById('sort-result-view').classList.remove('hidden'); const cCol = document.getElementById('champ-ans-col'); cCol.innerHTML='<div style="color:#ffd700; font-weight:bold; font-size:30px; margin-bottom:20px;">CHAMPION</div>'; cCol.className = 'champ-ans-col'; const rCol = document.getElementById('correct-ans-col'); rCol.innerHTML='<div style="color:#00ffff; font-weight:bold; font-size:30px; margin-bottom:20px;">ANSWER</div>'; champAns.forEach(k => { const color = k==1?'var(--col-1)':k==2?'var(--col-2)':k==3?'var(--col-3)':'var(--col-4)'; cCol.innerHTML += `<div class="sort-bubble" style="background:${color}">${k}</div>`; }); q.order.forEach((k, i) => { const txt = q.options[k].type=='text' ? q.options[k].val : `選択肢${k}`; const color = k==1?'var(--col-1)':k==2?'var(--col-2)':k==3?'var(--col-3)':'var(--col-4)'; rCol.innerHTML += `<div class="sort-row-correct" id="sort-row-${i}"><div class="sort-bubble" style="background:${color}">${k}</div><div class="sort-text-box">${txt}</div></div>`; }); }
+    function revealSortRow(idx, correctOrder, champAns){ document.getElementById(`sort-row-${idx}`).classList.add('visible'); if(correctOrder[idx] !== champAns[idx]) document.getElementById('champ-ans-col').classList.add('dimmed-all'); }
 
+    // --- SCORING UPDATE (Fastest Bonus) ---
     function calcScores(c){ 
+        // 1. Identify correct users and find fastest time
+        let correctUsers = [];
+        let minTime = Infinity;
+
         for(let id in answers) {
-            if(answers[id].choice==c){ 
-                // NaN check
-                if(isNaN(scores[id])) scores[id] = 0;
-                if(isNaN(periodScores[id])) periodScores[id] = 0;
-                if(isNaN(periodTimes[id])) periodTimes[id] = 0;
-                
-                scores[id]++; 
-                periodScores[id]++; 
-                
-                // time
+            if(answers[id].choice == c) {
                 let t = parseFloat(answers[id].time || 0);
-                periodTimes[id] += t;
+                // PeerJS latency may cause time to be unreliable but we use client sent time
+                // Add tiny offset if time is 0 to avoid bugs
+                if(t <= 0) t = 0.001;
+                
+                correctUsers.push({ id: id, time: t });
+                if(t < minTime) minTime = t;
             }
-        } 
+        }
+
+        // 2. Award Points
+        correctUsers.forEach(u => {
+            let id = u.id;
+            // Init check
+            if(isNaN(scores[id])) scores[id] = 0;
+            if(isNaN(periodScores[id])) periodScores[id] = 0;
+            if(isNaN(periodTimes[id])) periodTimes[id] = 0;
+
+            // Base point
+            let pts = 1;
+            // Bonus point for fastest
+            if(u.time === minTime) pts = 2;
+
+            scores[id] += pts;
+            periodScores[id] += pts;
+            periodTimes[id] += u.time;
+        });
+
         broadcastScores(); 
     }
+    
     function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); } 
     function broadcastScores(){ for(let id in conns) conns[id].send({type:'SCORE', score:scores[id]}); }
     
@@ -823,19 +584,10 @@
                 w = Object.keys(scores).map(id=>({n:participants[id]||"Unknown", v:scores[id]})).sort((a,b)=>b.v-a.v);
                 document.querySelector('.side-text').innerText = "総合成績";
             } else if (type === 'period_rank') {
-                // ピリオド成績: 点数降順 -> 時間昇順
-                w = Object.keys(periodScores).map(id=>({
-                    n:participants[id]||"Unknown", 
-                    v:periodScores[id],
-                    t:periodTimes[id]||0
-                }));
-                w.sort((a,b) => {
-                    if(b.v !== a.v) return b.v - a.v; // 点数が多い順
-                    return a.t - b.t; // 時間が短い順
-                });
+                w = Object.keys(periodScores).map(id=>({ n:participants[id]||"Unknown", v:periodScores[id], t:periodTimes[id]||0 }));
+                w.sort((a,b) => { if(b.v !== a.v) return b.v - a.v; return a.t - b.t; });
                 document.querySelector('.side-text').innerText = "ピリオド成績";
             } else {
-                // スピード順
                 for(let id in answers) {
                     if(participants[id] && answers[id].choice == correctAnswer) { 
                         let t = 99.99; if(answers[id].time !== undefined) t = parseFloat(answers[id].time);
@@ -852,26 +604,20 @@
             const dispW = w.slice(0, 10);
             dispW.forEach((p,i)=>{ 
                 let val;
-                if(type === 'speed') val = `${p.v.toFixed(2)}s`;
-                else val = `${p.v}P`;
-
-                // アニメーション遅延: period_rankの場合は下位(リストの下)から表示
+                if(type === 'speed') {
+                    val = `${p.v.toFixed(2)}s`;
+                    // Mark fastest bonus visually in list (optional, simple text color change)
+                    if(i === 0) val = "★" + val; 
+                } else val = `${p.v}P`;
                 let delay = i * 0.1;
-                if(type === 'period_rank') {
-                    // 下（配列の後ろ）から順に delay を小さくするのではなく、
-                    // 下から順に表示させたい = 上の人の delay を大きくする
-                    delay = (dispW.length - 1 - i) * 0.5; 
-                }
-
+                if(type === 'period_rank') delay = (dispW.length - 1 - i) * 0.5; 
                 l.innerHTML+=`<div class="rank-row" style="animation-delay:${delay}s"><div class="rank-num">${i+1}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
             });
         }
         document.getElementById('ranking-modal').classList.remove('hidden');
     }
 
-    // --- Client Logic ---
     function initClient(hid){
-        // Use Enhanced Config
         peer = new Peer(PEER_CONFIG);
         peer.on('open',()=>{ 
             conn=peer.connect(hid); 
@@ -885,79 +631,43 @@
             });
         });
     }
-    function joinGame(){ 
-        const n=document.getElementById('user-name').value; if(!n)return; 
-        if(!conn || !conn.open) return alert("接続中...少々お待ちください");
-        conn.send({type:'LOGIN', name:n}); showScreen('client-view'); 
-    }
-    
+    function joinGame(){ const n=document.getElementById('user-name').value; if(!n)return; if(!conn || !conn.open) return alert("接続中...少々お待ちください"); conn.send({type:'LOGIN', name:n}); showScreen('client-view'); }
     function updateClientUI(state, msg="") {
         const pad = document.getElementById('client-pad');
         const main = document.getElementById('cli-status-text');
         const resBox = document.getElementById('client-result-box');
         resBox.innerHTML = ""; 
-        
         if (state === 'active') {
-            pad.classList.remove('hidden');
-            main.innerText = "解答してください";
-            document.getElementById('sort-ui').classList.add('hidden'); 
-            document.querySelectorAll('.ans-btn').forEach(b=>{
-                b.classList.remove('disabled', 'selected', 'sort-selected');
-                b.style.pointerEvents = 'auto';
-            });
+            pad.classList.remove('hidden'); main.innerText = "解答してください"; document.getElementById('sort-ui').classList.add('hidden'); 
+            document.querySelectorAll('.ans-btn').forEach(b=>{ b.classList.remove('disabled', 'selected', 'sort-selected'); b.style.pointerEvents = 'auto'; });
             lastChoice = null;
             if(isSorting) document.getElementById('sort-ui').classList.remove('hidden');
         } else if (state === 'standby') {
             pad.classList.add('hidden'); main.innerText = msg; document.getElementById('sort-ui').classList.add('hidden');
         } else if (state === 'locked') {
-            main.innerText = "正解発表をお待ちください";
-            // ボタンをグレーアウト
-            document.querySelectorAll('.ans-btn').forEach(b=>{
-                b.classList.add('disabled');
-                b.style.pointerEvents = 'none';
-            });
+            main.innerText = "正解発表をお待ちください"; document.querySelectorAll('.ans-btn').forEach(b=>{ b.classList.add('disabled'); b.style.pointerEvents = 'none'; });
         }
     }
-
     function sendAnswer(c){
         if(isSorting){
-            if(clientSortAns.includes(c)) return;
-            clientSortAns.push(c);
-            const btn = document.querySelector(`#cbtn-${c}`);
-            btn.classList.add('sort-selected');
-            btn.setAttribute('data-order', clientSortAns.length);
+            if(clientSortAns.includes(c)) return; clientSortAns.push(c);
+            const btn = document.querySelector(`#cbtn-${c}`); btn.classList.add('sort-selected'); btn.setAttribute('data-order', clientSortAns.length);
             document.getElementById('sort-sel').innerText = clientSortAns.join(' → ');
             if(clientSortAns.length===4) sendSortAnswer();
         } else {
             const t = (Date.now() - clientStartTime) / 1000;
-            conn.send({type:'ANSWER', choice:c, time:t});
-            lastChoice = c;
-            document.querySelectorAll('.ans-btn').forEach(b=>{
-                b.style.pointerEvents = 'none';
-                if(b.id === `cbtn-${c}`) b.classList.add('selected');
-                else b.classList.add('disabled');
-            });
+            conn.send({type:'ANSWER', choice:c, time:t}); lastChoice = c;
+            document.querySelectorAll('.ans-btn').forEach(b=>{ b.style.pointerEvents = 'none'; if(b.id === `cbtn-${c}`) b.classList.add('selected'); else b.classList.add('disabled'); });
             document.getElementById('cli-status-text').innerText = "解答を受信しました";
         }
     }
     function resetClientSort(){ clientSortAns=[]; document.querySelectorAll('.ans-btn').forEach(b=>{b.classList.remove('selected', 'sort-selected'); b.removeAttribute('data-order');}); document.getElementById('sort-sel').innerText=""; }
-    function sendSortAnswer(){ 
-        const t = (Date.now() - clientStartTime) / 1000;
-        conn.send({type:'ANSWER', choice:clientSortAns, time:t}); 
-        lastChoice = JSON.stringify(clientSortAns);
-        document.getElementById('cli-status-text').innerText = "解答を受信しました";
-    }
+    function sendSortAnswer(){ const t = (Date.now() - clientStartTime) / 1000; conn.send({type:'ANSWER', choice:clientSortAns, time:t}); lastChoice = JSON.stringify(clientSortAns); document.getElementById('cli-status-text').innerText = "解答を受信しました"; }
     function resetSort(){ resetClientSort(); }
-    
     function showClientResult(correct) {
-        const box = document.getElementById('client-result-box');
-        const status = document.getElementById('cli-status-text');
-        status.innerText = ""; 
-        let isCorrect = false;
-        if(isSorting) { if(JSON.stringify(clientSortAns) === JSON.stringify(correct)) isCorrect = true; } 
-        else { if(lastChoice === correct) isCorrect = true; }
-        if(isCorrect) box.innerHTML = `<div class="res-win">正解</div>`;
-        else box.innerHTML = `<div class="res-lose">不正解</div>`;
+        const box = document.getElementById('client-result-box'); const status = document.getElementById('cli-status-text'); status.innerText = ""; let isCorrect = false;
+        if(isSorting) { if(JSON.stringify(clientSortAns) === JSON.stringify(correct)) isCorrect = true; } else { if(lastChoice === correct) isCorrect = true; }
+        if(isCorrect) box.innerHTML = `<div class="res-win">正解</div>`; else box.innerHTML = `<div class="res-lose">不正解</div>`;
     }
 </script>
 </body>
