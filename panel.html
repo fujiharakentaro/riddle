@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Image Blackout Quiz</title>
+    <title>Image Blackout Quiz V2.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Orbitron:wght@700&display=swap" rel="stylesheet">
@@ -33,6 +33,7 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(100%); }
         .btn-lg { font-size: 24px; padding: 20px 40px; }
         .btn-red { border-color: #ff4444; color: #ffcccc; }
+        .btn-sm { padding: 5px 10px; font-size: 14px; min-width: auto; margin: 0 2px; }
         
         input { background: #333; border: 1px solid #666; color: #fff; padding: 10px; font-size: 16px; border-radius: 4px; text-align: center; }
 
@@ -72,8 +73,19 @@
         
         .timer-box { font-size: 80px; font-family: 'Orbitron'; color: #ff4444; margin: 20px; text-shadow: 0 0 20px #ff0000; }
 
+        /* Problem Edit List */
+        .prob-item { 
+            display:flex; align-items:center; gap:10px; 
+            background:#2a2a2a; border:1px solid #444; padding:10px; margin-bottom:10px; border-radius:5px; 
+        }
+        .prob-img-preview { width:50px; height:50px; object-fit:cover; border:1px solid #666; background:#000; }
+
         /* Client Specific */
         .guide-text { margin-bottom: 10px; color: #aaa; font-size: 14px; }
+        
+        /* URL Copy */
+        .url-box { background:#222; color:#aaa; font-size:12px; padding:5px; border:1px solid #444; cursor:pointer; margin-bottom:10px; word-break:break-all;}
+        .url-box:active { color:#fff; border-color:var(--accent); }
     </style>
 </head>
 <body>
@@ -97,43 +109,49 @@
 
         <div id="h-settings" class="screen hidden">
             <h2>問題設定</h2>
-            <div style="text-align:left; width:100%; max-width:500px;">
-                <p>画像を登録 (複数可)</p>
-                <input type="file" id="h-file-input" accept="image/*" multiple onchange="H.handleFiles(this)">
-                <div id="h-reg-list" style="margin-top:10px; max-height:300px; overflow-y:auto;"></div>
+            <div style="text-align:left; width:100%; max-width:600px; flex:1; overflow-y:auto;">
+                <div id="h-prob-list"></div>
+                <button class="btn btn-lg" style="width:100%; margin:0;" onclick="H.addEmptyProb()">＋ 問題追加</button>
             </div>
-            <button class="btn" onclick="H.goToTitle()">戻る</button>
+            <div style="margin-top:20px;">
+                <button class="btn" onclick="H.goToTitle()">戻る</button>
+            </div>
         </div>
 
         <div id="h-lobby" class="screen hidden">
             <h2>参加待機中</h2>
             <div style="background:#fff; padding:10px; margin:10px;" id="qrcode"></div>
-            <div id="h-url" style="font-size:12px; color:#aaa; margin-bottom:10px;"></div>
+            <div id="h-url" class="url-box" onclick="H.copyUrl()">URLをコピー</div>
             <div style="font-size:24px; font-weight:bold;">参加人数: <span id="h-p-count">0</span></div>
             <div id="h-p-list" class="player-list"></div>
             <button class="btn btn-lg" onclick="H.goToProbSelect()">問題選択へ</button>
+            <button class="btn" onclick="H.goToTitle()">タイトルへ戻る</button>
         </div>
 
         <div id="h-prob-select" class="screen hidden">
             <h2>問題選択</h2>
             <div id="h-prob-grid" style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center;"></div>
+            <button class="btn" style="margin-top:30px;" onclick="H.goToLobby()">戻る</button>
         </div>
 
         <div id="h-mode-select" class="screen hidden">
             <h2>モードを選択してください</h2>
             <button class="btn btn-lg" onclick="H.selectMode('MIN')">最小で当てさせる<br><span style="font-size:12px">黒い四角が多い人が出題者</span></button>
             <button class="btn btn-lg" onclick="H.selectMode('MAX')">最多で当てさせない<br><span style="font-size:12px">黒い四角が少ない人が出題者</span></button>
+            <button class="btn" style="margin-top:30px;" onclick="H.goToProbSelect()">戻る</button>
         </div>
 
         <div id="h-guesser-select" class="screen hidden">
             <h2>解答者を選んでください</h2>
             <div id="h-guesser-list" class="player-list"></div>
             <button id="h-btn-start-sel" class="btn" disabled onclick="H.startSelectionPhase()">決定</button>
+            <button class="btn" style="margin-top:20px;" onclick="H.goToModeSelect()">戻る</button>
         </div>
 
         <div id="h-selection-wait" class="screen hidden">
             <h2 style="color:#ff4444;">解答者は画面を見ないでください</h2>
             <button class="btn btn-lg" onclick="H.showGridToHost()">問題を表示する</button>
+            <button class="btn" style="margin-top:20px;" onclick="H.goToGuesserSelect()">戻る</button>
         </div>
 
         <div id="h-monitoring" class="screen hidden">
@@ -263,49 +281,13 @@ const H = {
             c.on('close', () => { delete Data.players[c.peer]; H.updateLobby(); });
         });
         show('host-app');
+        H.loadProblems();
     },
 
-    // Navigation & Logic
+    // Navigation
     goToTitle: () => H.switchScreen('h-title'),
-    goToSettings: () => { H.switchScreen('h-settings'); H.renderRegList(); },
+    goToSettings: () => { H.switchScreen('h-settings'); H.renderProbList(); },
     goToLobby: () => H.switchScreen('h-lobby'),
-    
-    switchScreen: (id) => {
-        document.querySelectorAll('#host-app .screen').forEach(e => e.classList.add('hidden'));
-        show(id);
-    },
-
-    // Settings
-    handleFiles: (input) => {
-        Array.from(input.files).forEach(f => {
-            const r = new FileReader();
-            r.onload = e => {
-                const ans = prompt(`画像「${f.name}」の正解を入力してください`, "");
-                if (ans) {
-                    Data.problems.push({ img: e.target.result, ans: ans });
-                    H.renderRegList();
-                }
-            };
-            r.readAsDataURL(f);
-        });
-        input.value = "";
-    },
-    renderRegList: () => {
-        $('h-reg-list').innerHTML = Data.problems.map((p, i) => 
-            `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #444; padding:5px;">
-                <span>第${i+1}問: ${p.ans}</span>
-                <button class="btn btn-red" style="padding:2px 10px; min-width:auto; margin:0;" onclick="Data.problems.splice(${i},1);H.renderRegList()">削除</button>
-            </div>`
-        ).join('');
-    },
-
-    // Lobby
-    updateLobby: () => {
-        $('h-p-count').innerText = Object.keys(Data.players).length;
-        $('h-p-list').innerHTML = Object.values(Data.players).map(n => `<span class="player-badge" style="cursor:default">${n}</span>`).join('');
-    },
-
-    // Problem Select
     goToProbSelect: () => {
         H.switchScreen('h-prob-select');
         $('h-prob-grid').innerHTML = Data.problems.map((p, i) => 
@@ -313,19 +295,108 @@ const H = {
         ).join('');
         H.broadcast({ type: 'WAIT', msg: '問題選択中...' });
     },
+    goToModeSelect: () => H.switchScreen('h-mode-select'),
+    goToGuesserSelect: () => H.switchScreen('h-guesser-select'),
+    
+    switchScreen: (id) => {
+        document.querySelectorAll('#host-app .screen').forEach(e => e.classList.add('hidden'));
+        show(id);
+    },
+
+    // --- Problem Management (New Logic) ---
+    loadProblems: () => {
+        const saved = localStorage.getItem('ib_problems');
+        if(saved) Data.problems = JSON.parse(saved);
+    },
+    saveProblems: () => {
+        localStorage.setItem('ib_problems', JSON.stringify(Data.problems));
+    },
+    renderProbList: () => {
+        const list = $('h-prob-list');
+        list.innerHTML = "";
+        Data.problems.forEach((p, i) => {
+            const div = document.createElement('div');
+            div.className = 'prob-item';
+            div.innerHTML = `
+                <div style="flex:1; display:flex; align-items:center; gap:10px;">
+                    <span style="font-weight:bold; color:#aaa;">Q${i+1}</span>
+                    <img src="${p.img || ''}" class="prob-img-preview">
+                    <input type="text" placeholder="正解を入力" value="${p.ans}" onchange="H.updateProbAns(${i}, this.value)" style="flex:1; text-align:left;">
+                    <label class="btn btn-sm" style="margin:0; width:auto; cursor:pointer;">
+                        画像変更 <input type="file" accept="image/*" style="display:none;" onchange="H.updateProbImg(${i}, this)">
+                    </label>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <button class="btn btn-sm" onclick="H.moveProb(${i}, -1)">▲</button>
+                    <button class="btn btn-sm" onclick="H.moveProb(${i}, 1)">▼</button>
+                </div>
+                <button class="btn btn-sm btn-red" onclick="H.delProb(${i})">×</button>
+            `;
+            list.appendChild(div);
+        });
+    },
+    addEmptyProb: () => {
+        Data.problems.push({ img: "", ans: "" });
+        H.renderProbList();
+        H.saveProblems();
+    },
+    updateProbAns: (i, val) => {
+        Data.problems[i].ans = val;
+        H.saveProblems();
+    },
+    updateProbImg: (i, input) => {
+        if(input.files[0]) {
+            const r = new FileReader();
+            r.onload = e => {
+                Data.problems[i].img = e.target.result;
+                H.renderProbList();
+                H.saveProblems();
+            };
+            r.readAsDataURL(input.files[0]);
+        }
+    },
+    moveProb: (i, dir) => {
+        if (i+dir < 0 || i+dir >= Data.problems.length) return;
+        const temp = Data.problems[i];
+        Data.problems[i] = Data.problems[i+dir];
+        Data.problems[i+dir] = temp;
+        H.renderProbList();
+        H.saveProblems();
+    },
+    delProb: (i) => {
+        if(confirm("削除しますか？")) {
+            Data.problems.splice(i, 1);
+            H.renderProbList();
+            H.saveProblems();
+        }
+    },
+
+    // Lobby
+    updateLobby: () => {
+        $('h-p-count').innerText = Object.keys(Data.players).length;
+        $('h-p-list').innerHTML = Object.values(Data.players).map(n => `<span class="player-badge" style="cursor:default">${n}</span>`).join('');
+    },
+    copyUrl: () => {
+        const t = $('h-url');
+        const range = document.createRange();
+        range.selectNode(t);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        alert("URLをコピーしました");
+    },
+
+    // Game Logic
     selectProb: (idx) => {
+        if(!Data.problems[idx].img) return alert("画像が設定されていません");
         Data.currentProbIdx = idx;
         H.switchScreen('h-mode-select');
     },
-
-    // Mode Select
     selectMode: (m) => {
         Data.mode = m;
         H.switchScreen('h-guesser-select');
         H.renderGuesserSelect();
     },
-
-    // Guesser Select
     renderGuesserSelect: () => {
         $('h-guesser-list').innerHTML = Object.keys(Data.players).map(id => 
             `<span class="player-badge" id="g-sel-${id}" onclick="H.toggleGuesser('${id}')">${Data.players[id]}</span>`
@@ -341,9 +412,7 @@ const H = {
     },
     startSelectionPhase: () => {
         H.switchScreen('h-selection-wait');
-        // Notify Guesser to wait, others to select
         const prob = Data.problems[Data.currentProbIdx];
-        
         for (let id in H.conns) {
             if (id === Data.guesserId) {
                 H.conns[id].send({ type: 'GUESSER_WAIT' });
@@ -358,7 +427,6 @@ const H = {
     // Monitoring
     showGridToHost: () => {
         H.switchScreen('h-monitoring');
-        // Host also sees the grid (just for visual context, not interactive)
         const prob = Data.problems[Data.currentProbIdx];
         const grid = $('h-monitor-grid');
         grid.style.backgroundImage = `url(${prob.img})`;
@@ -368,7 +436,7 @@ const H = {
             d.className = 'grid-cell';
             grid.appendChild(d);
         }
-        H.checkSubmissions(); // Update count
+        H.checkSubmissions();
     },
     checkSubmissions: () => {
         const total = Object.keys(Data.players).length - 1; // Exclude guesser
@@ -382,46 +450,35 @@ const H = {
         }
     },
 
-    // Reveal Selections & Determine Questioner
+    // Reveal Selections
     showSelections: () => {
         H.switchScreen('h-show-selections');
         const list = $('h-selection-list');
         list.innerHTML = "";
         const prob = Data.problems[Data.currentProbIdx];
-        
-        // Calculate Questioner
         let candidates = [];
         
         Object.keys(Data.selections).forEach(id => {
             const grid = Data.selections[id];
-            // 1=Black, 0=Visible.
-            // "Number not replaced by black" = Count of 0.
             const visibleCount = grid.filter(v => v === 0).length;
             const blackCount = 16 - visibleCount;
-            
             candidates.push({ id, visible: visibleCount, black: blackCount, time: Data.timestamps[id] });
 
-            // Render Preview
             const card = document.createElement('div');
             card.className = 'preview-card';
             let gridHtml = `<div class="preview-grid-mini" style="background-image:url(${prob.img})">`;
-            grid.forEach(v => {
-                gridHtml += `<div class="mini-cell ${v===1?'black':''}"></div>`;
-            });
+            grid.forEach(v => { gridHtml += `<div class="mini-cell ${v===1?'black':''}"></div>`; });
             gridHtml += `</div>`;
             card.innerHTML = `${gridHtml}<div>${Data.players[id]}<br>${visibleCount}枚</div>`;
             list.appendChild(card);
         });
 
-        // Sort candidates based on mode
         candidates.sort((a, b) => {
             if (Data.mode === 'MIN') {
-                // Min clues = Most Black squares wins (Hide most)
-                if (b.black !== a.black) return b.black - a.black; // Descending Black
-                return a.time - b.time; // Ascending Time
+                if (b.black !== a.black) return b.black - a.black; 
+                return a.time - b.time;
             } else {
-                // Max clues = Least Black squares wins (Show most)
-                if (a.black !== b.black) return a.black - b.black; // Ascending Black
+                if (a.black !== b.black) return a.black - b.black;
                 return a.time - b.time;
             }
         });
@@ -437,14 +494,12 @@ const H = {
         H.switchScreen('h-question-phase');
         const grid = $('h-game-grid');
         grid.innerHTML = "";
-        // Show All Black Initially
         for(let i=0; i<16; i++) {
             const d = document.createElement('div');
             d.className = 'grid-cell black';
             d.id = `q-cell-${i}`;
             grid.appendChild(d);
         }
-        // Image is hidden behind
         grid.style.backgroundImage = `url(${Data.problems[Data.currentProbIdx].img})`;
         
         show('h-btn-exec-q');
@@ -454,16 +509,11 @@ const H = {
     },
     executeQuestion: () => {
         hide('h-btn-exec-q');
-        
-        // Reveal Questioner's Grid
         const pattern = Data.selections[Data.questionerId];
         pattern.forEach((val, i) => {
-            if (val === 0) { // 0 = Show Image
-                $(`q-cell-${i}`).classList.remove('black');
-            }
+            if (val === 0) $(`q-cell-${i}`).classList.remove('black');
         });
 
-        // Start Timer
         show('h-timer');
         let t = 60;
         $('h-timer').innerText = t;
@@ -478,11 +528,9 @@ const H = {
     },
     finishQuestion: () => {
         hide('h-timer');
-        // Hide image (All black) + Show "Finish"
         const grid = $('h-game-grid');
         grid.style.backgroundImage = 'none';
         Array.from(grid.children).forEach(c => c.classList.add('black'));
-        
         show('h-finish-msg');
         show('h-btn-show-ans');
     },
@@ -492,18 +540,15 @@ const H = {
         H.switchScreen('h-answer-phase');
         const prob = Data.problems[Data.currentProbIdx];
         $('h-ans-text').innerText = prob.ans;
-        
-        // Show same visual pattern as question but static
         const grid = $('h-ans-grid');
         grid.style.backgroundImage = `url(${prob.img})`;
         grid.innerHTML = "";
         const pattern = Data.selections[Data.questionerId];
         pattern.forEach(val => {
             const d = document.createElement('div');
-            d.className = `grid-cell ${val===1?'black':''}`; // 1 is Black
+            d.className = `grid-cell ${val===1?'black':''}`;
             grid.appendChild(d);
         });
-        
         H.broadcast({ type: 'WAIT', msg: '次の問題を待機中...' });
     },
 
@@ -547,11 +592,11 @@ const C = {
         const grid = $('c-grid');
         grid.style.backgroundImage = `url(${imgUrl})`;
         grid.innerHTML = "";
-        C.gridState = Array(16).fill(0); // 0 = Show Image, 1 = Black
+        C.gridState = Array(16).fill(0);
         
         for (let i = 0; i < 16; i++) {
             const d = document.createElement('div');
-            d.className = 'grid-cell'; // Start visible (not black)
+            d.className = 'grid-cell';
             d.onclick = () => {
                 C.gridState[i] = C.gridState[i] === 0 ? 1 : 0;
                 if (C.gridState[i] === 1) d.classList.add('black');
