@@ -2,943 +2,783 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>All-Star Quiz System V39</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Impostor V10.1 (Network Fix)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&family=Anton&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --col-1: #0088ff; --col-2: #ff2222; --col-3: #00cc00; --col-4: #ffcc00; }
-        body { margin: 0; padding: 0; font-family: 'M PLUS Rounded 1c', sans-serif; width: 100vw; min-height: 100vh; overflow: hidden; user-select: none; background-color: #000; }
+        :root {
+            /* Modern Cyberpunk Theme */
+            --bg: #0f172a; 
+            --panel: #1e293b; 
+            --text: #f1f5f9;
+            --accent: #22d3ee; /* Cyan */
+            --accent-glow: rgba(34, 211, 238, 0.4);
+            --primary: #f472b6; /* Pink */
+            --primary-dark: #db2777;
+            --danger: #ef4444; 
+            --success: #10b981;
+            --border-radius: 12px;
+        }
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body { 
+            margin: 0; padding: 0; 
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            color: var(--text); 
+            font-family: 'Noto Sans JP', sans-serif; 
+            height: 100vh; overflow: hidden; 
+        }
+        
         .hidden { display: none !important; }
-        .flex-center { display: flex; justify-content: center; align-items: center; flex-direction: column; }
-        .full-screen { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-        
-        /* 背景 */
-        .tv-background {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            background: radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px), linear-gradient(135deg, #00bfff 0%, #00008b 100%);
-            background-size: 550px 550px, 350px 350px, 250px 250px, 100% 100%; animation: bgMove 60s linear infinite;
-        }
-        @keyframes bgMove { from { background-position: 0 0, 40px 60px, 130px 270px, 0 0; } to { background-position: 550px 550px, 390px 410px, 380px 820px, 0 0; } }
-
-        /* TITLE */
-        #title-view { z-index: 100; position: relative; height: 100vh; width: 100vw; }
-        .title-logo-container { position: relative; margin-top: 8vh; margin-bottom: 5vh; transform: scale(1.3); text-align: center; }
-        .title-logo-main {
-            font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 900; font-size: 100px; line-height: 1;
-            color: #ffd700; background: linear-gradient(to bottom, #fffebb 0%, #ffd700 50%, #b8860b 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 5px 0 #5c3a00) drop-shadow(0 0 5px #fff) drop-shadow(0 10px 20px #000);
-            transform: perspective(500px) rotateX(20deg); letter-spacing: -5px; margin-top: 10px;
-            -webkit-text-stroke: 2px #b8860b;
-        }
-        .title-logo-sub {
-            position: absolute; top: -30px; left: 50%; transform: translateX(-50%) perspective(500px) rotateX(20deg);
-            font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 900; font-size: 40px;
-            background: linear-gradient(to right, #ff0000, #ffaa00, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 10px #fff); 
-            white-space: nowrap; z-index: 2; letter-spacing: 2px;
-            -webkit-text-stroke: 1px #fff;
-        }
-        .title-btn {
-            width: 400px; padding: 20px; margin: 15px; font-size: 32px; font-weight: 900; color: #fff;
-            border-radius: 50px; cursor: pointer; border: 4px solid #fff;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.3);
-            text-shadow: 2px 2px 4px #000; transition: 0.2s; font-family: 'Anton'; letter-spacing: 2px;
-        }
-        .btn-start-big { background: linear-gradient(to bottom, #ff3333, #aa0000); font-size: 40px; padding: 30px; }
-        .btn-start-big:hover { transform: scale(1.05); background: linear-gradient(to bottom, #ff5555, #cc0000); }
-        .btn-settings { background: linear-gradient(to bottom, #0066ff, #003399); width: 250px; font-size: 24px; }
-        .btn-settings:hover { transform: scale(1.05); background: linear-gradient(to bottom, #4488ff, #0055cc); }
-
-        /* SETUP */
-        #setup-view { background: #1a1a1a; color: #fff; position: relative; height: 100vh; } 
-        .setup-container { width: 950px; max-width: 95%; height: 90vh; background: #2a2a2a; border-radius: 10px; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; } 
-        .setup-header { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #555; padding-bottom: 10px; }
-        .setup-body { flex: 1; overflow-y: auto; padding-right: 5px; position: relative; } 
-        
-        .setup-menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px; }
-        .setup-menu-btn {
-            background: linear-gradient(to bottom, #444, #222); border: 2px solid #888; border-radius: 15px;
-            padding: 30px; font-size: 28px; font-weight: bold; color: #fff; cursor: pointer; text-align: left;
-            display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.2s;
-        }
-        .setup-menu-btn:hover { background: linear-gradient(to bottom, #666, #333); transform: scale(1.02); border-color: #fff; }
-        .setup-menu-icon { font-size: 40px; margin-right: 20px; }
-
-        .connect-info-box { background: #000; border: 2px solid #00ff00; padding: 15px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .qr-area { background: #fff; padding: 5px; border-radius: 5px; min-width: 150px; min-height: 150px; display: flex; align-items: center; justify-content: center; }
-        .url-area { flex: 1; margin-left: 20px; }
-        .url-input { width: 100%; background: #222; color: #0f0; border: 1px solid #00ff00; padding: 10px; font-family: monospace; font-size: 16px; margin-top: 5px; }
-        
-        input[type="text"], select { background: #111; color: #fff; border: 1px solid #555; padding: 5px; } 
-        .p-card { background: #333; padding: 20px; margin-bottom: 30px; border: 2px solid #555; border-radius: 10px; position: relative; } 
-        .p-card::before { content: "PERIOD"; position: absolute; top: -12px; left: 20px; background: #555; padding: 0 10px; font-weight: bold; font-size: 14px; border-radius: 5px; }
-        .q-card { background: #222; padding: 15px; margin-bottom: 15px; border: 1px solid #444; border-radius: 8px; } 
-        .sort-card { background: linear-gradient(to bottom, #332200, #221100); border: 2px solid #ffd700; padding: 15px; margin-top: 15px; border-radius: 8px; }
-        
-        /* Drag & Drop Area */
-        .drop-area { 
-            border: 2px dashed #666; background: #151515; padding: 10px; text-align: center; color: #aaa; cursor: pointer; transition: 0.2s; position: relative; height: 60px; display:flex; align-items:center; justify-content:center;
-        }
-        .drop-area:hover, .drop-area.dragover { background: #333; border-color: #fff; color: #fff; }
-        .drop-preview { height: 100%; max-width: 100%; object-fit: contain; }
-        
-        .btn { padding: 8px 16px; border-radius: 5px; cursor: pointer; border: none; font-weight: bold; color: #fff; } 
-        .btn-blue { background: #0066ff; } .btn-red { background: #cc0000; } .btn-green { background: #00aa00; }
-        .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
-
-        /* HOST GAME */
-        #host-view { display: flex; padding: 20px; box-sizing: border-box; position: relative; height: 100vh; flex-direction: column; }
-        #period-select-view { background: rgba(0,0,0,1); z-index: 800; }
-        .period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; width: 90%; max-height: 70%; overflow-y: auto; padding: 20px; }
-        .period-btn { background: linear-gradient(to bottom, #cc8800, #884400); border: 3px solid #ffcc00; border-radius: 15px; padding: 30px 20px; color: #fff; font-size: 28px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center; font-family: 'Anton'; letter-spacing: 2px; }
-        
-        /* Game Layout */
-        .layout-text { flex-direction: column; width: 100%; height: 100%; }
-        /* Q-Container height reduced to 12% */
-        .q-container { width: 90%; height: 12%; margin: 20px auto 30px auto; position: relative; background: linear-gradient(to right, #3a0088, #5500aa, #3a0088); border-radius: 15px; padding: 5px; border: 2px solid #aaa; display: flex; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.3); flex-shrink: 0; }
-        .q-icon { font-family: 'Anton'; font-size: 80px; color: #00ffff; text-shadow: 3px 3px 0 #004444, 0 0 10px #00ffff; margin: 0 20px; transform: skewX(-10deg); }
-        .q-text-box { flex: 1; background: #fff; border-radius: 10px; padding: 10px; height: 80%; display: flex; align-items: center; justify-content: center; }
-        .q-text-content { color: #000066; font-size: 3.0vw; font-weight: 900; text-align: center; line-height: 1.2; }
-        
-        /* Options Area (Shared Space) */
-        .options-area { 
-            flex: 1; 
-            width: 90%; margin: 0 auto 5vh auto;
-            position: relative;
+        .full-screen { 
+            width: 100%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            text-align: center; padding: 20px; overflow-y: auto; 
         }
         
-        /* Layout: Text */
-        .layout-text .options-area {
-            display: flex; flex-direction: column; gap: 15px; justify-content: space-between;
+        /* --- UI COMPONENTS --- */
+        h1.logo { 
+            font-family: 'Black Ops One', cursive; 
+            color: var(--accent); 
+            font-size: 3.5rem; 
+            margin-bottom: 30px; 
+            text-shadow: 0 0 15px var(--accent-glow);
+            letter-spacing: 2px;
         }
-        .layout-text .option-panel { 
-            width: 100%; height: 80px; 
-            background: linear-gradient(to bottom, #222, #000); 
-            border-radius: 45px; border: 2px solid #555; 
-            display: flex; align-items: center; padding: 0 10px; position: relative; overflow: hidden; 
+        h2 { 
+            border-bottom: 2px solid var(--primary); 
+            padding-bottom: 10px; margin-bottom: 25px; 
+            width: 100%; max-width: 600px; 
+            color: var(--text);
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .layout-text .opt-num {
-            width: 60px; height: 60px; border-radius: 50%; 
-            display: flex; justify-content: center; align-items: center; 
-            font-family: 'Anton'; font-size: 36px; color: #fff; border: 3px solid #fff; 
-            margin-right: 20px; flex-shrink: 0; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
-            box-shadow: 0 3px 5px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); 
-            z-index: 5; 
+        
+        .card { 
+            background: rgba(30, 41, 59, 0.95); 
+            padding: 25px; 
+            border-radius: var(--border-radius); 
+            width: 100%; max-width: 600px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px; 
+            backdrop-filter: blur(5px);
+        }
+        
+        input, textarea { 
+            width: 100%; padding: 15px; 
+            background: #0f172a; 
+            border: 1px solid #334155; 
+            color: #fff; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+            transition: 0.3s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+        
+        button { 
+            width: 100%; padding: 16px; 
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #fff; border: none; 
+            border-radius: 50px; 
+            font-size: 16px; font-weight: bold; 
+            cursor: pointer; transition: 0.3s; 
+            margin-bottom: 15px; 
+            box-shadow: 0 4px 15px rgba(244, 114, 182, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:active { transform: scale(0.96); }
+        button:disabled { background: #475569; cursor: not-allowed; box-shadow: none; color: #94a3b8; }
+        
+        button.secondary { 
+            background: transparent; 
+            border: 2px solid #475569; 
+            color: #cbd5e1;
+            box-shadow: none;
+        }
+        button.secondary:hover { border-color: var(--text); color: #fff; }
+        
+        button.accent { 
+            background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%); 
+            color: #0f172a;
+            box-shadow: 0 4px 15px var(--accent-glow);
         }
 
-        /* Layout: Image (2x2 Grid) */
-        .layout-image .options-area {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-            gap: 20px;
-            width: 53%; 
-            margin: 0 auto; 
-            justify-content: center;
-            align-content: center;
-        }
-        .layout-image .option-panel {
-            width: 100%; height: auto; padding: 0;
-            border-radius: 20px; background: #000; border: 4px solid #fff;
-            position: relative; overflow: hidden;
-            aspect-ratio: 3 / 2; /* 3:2 Ratio */
+        /* HOST SPECIFIC */
+        #host-app .player-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
+        .player-chip { 
+            background: #334155; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            border: 1px solid var(--accent); 
+            color: var(--accent);
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
         }
         
-        .layout-image .opt-num { 
-            position: absolute; top: 10px; left: 10px; margin: 0; 
-            width: 60px; height: 60px; border-radius: 50%; border: 3px solid #fff; 
-            font-family: 'Anton'; font-size: 36px; color: #fff;
-            display: flex; justify-content: center; align-items: center;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-            z-index: 5;
+        .answer-box { 
+            text-align: left; margin: 12px 0; 
+            border: 1px solid #475569; 
+            padding: 20px; border-radius: 12px; 
+            background: #1e293b; 
+            font-size: 1.2em; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-
-        /* Shared Option Content */
-        .opt-val { color: #fff; font-size: 3vw; font-weight: 900; text-shadow: 0 0 5px #00f; flex: 1; position: relative; height: 100%; display: flex; align-items: center; }
+        .answer-reveal { border-color: var(--accent); background: rgba(34, 211, 238, 0.1); }
+        .answer-author { display: block; font-size: 0.8em; color: var(--accent); margin-top: 8px; font-weight: bold; text-align: right; }
         
-        /* Image Styling - FORCE STRETCH */
-        .opt-img { 
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: fill; 
-            transform-origin: center center;
-            z-index: 1; 
+        /* ROULETTE ANIMATION */
+        @keyframes flash { 0% { opacity: 0.5; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.1); color: #fff; text-shadow: 0 0 10px var(--primary); } }
+        .roulette-active { color: var(--accent); animation: flash 0.08s infinite alternate; }
+        
+        /* TEST MODE */
+        .test-btns { display: flex; gap: 10px; margin-bottom: 20px; }
+        .test-btns button { flex: 1; font-size: 14px; padding: 12px; background: #0f172a; border: 2px solid #334155; border-radius: 8px; color:#94a3b8; box-shadow: none; margin:0; }
+        .test-btns button.active { border-color: var(--accent); background: rgba(34, 211, 238, 0.1); color: var(--accent); }
+        #h-test-result { min-height: 80px; padding: 15px; background: #000; border-radius: 8px; text-align: left; color: var(--accent); margin-bottom: 20px; border: 1px dashed #475569; font-family: monospace; }
+
+        /* URL COPY */
+        .url-area { display: flex; gap: 10px; margin-top: 10px; background: #0f172a; padding: 5px; border-radius: 50px; border: 1px solid #334155; }
+        .url-area input { margin: 0; flex: 1; background: transparent; border: none; font-size: 12px; color: #94a3b8; padding: 10px 15px; }
+        .url-area button { width: auto; margin: 0; padding: 8px 20px; font-size: 12px; border-radius: 40px; }
+
+        /* CLIENT SPECIFIC */
+        .role-display { font-size: 1.8rem; font-weight: bold; color: var(--accent); margin: 30px 0 10px; text-shadow: 0 0 10px var(--accent-glow); }
+        .ui-disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); transition: 0.3s; }
+        
+        #qrcode { background: #fff; padding: 10px; border-radius: 8px; display: inline-block; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+
+        /* --- CUSTOM MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+            opacity: 0; pointer-events: none; transition: 0.2s;
         }
-        
-        /* Zoom Effect */
-        .zoom-anim .opt-img { animation: zoomOut 10s linear forwards; }
-        @keyframes zoomOut { from { transform: scale(5.0); } to { transform: scale(1.0); } }
-
-        /* Normal Vote Count */
-        .vote-count { position: absolute; right: 30px; font-family: 'Anton'; font-size: 50px; color: #ffd700; text-shadow: 2px 2px 0 #000; opacity: 0; z-index: 10; }
-        
-        /* Image Layout Vote Count */
-        .layout-image .vote-count {
-            position: absolute;
-            bottom: 10px; right: 10px;
-            background: #0044aa; border: 3px solid #fff; border-radius: 15px;
-            padding: 0 20px; min-width: 60px; font-size: 40px; text-align: center;
-            opacity: 0; z-index: 20;
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 30px var(--accent-glow);
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%; max-width: 400px;
+            text-align: center;
+            transform: scale(0.9); transition: 0.2s;
         }
-
-        .col-1 { background: radial-gradient(circle at 30% 30%, #44aaff, var(--col-1)); border-color: #fff; } .col-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); border-color: #fff; } .col-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); border-color: #fff; } .col-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); border-color: #fff; }
-        .border-1 { border-color: var(--col-1)!important; } .border-2 { border-color: var(--col-2)!important; } .border-3 { border-color: var(--col-3)!important; } .border-4 { border-color: var(--col-4)!important; }
-        .dimmed { filter: grayscale(100%) brightness(0.3); opacity: 0.6; } .highlighted { animation: flash 0.4s infinite alternate; z-index: 20; box-shadow: 0 0 50px #fff; border-color: #fff !important; }
-        @keyframes flash { from { filter: brightness(100%); } to { filter: brightness(150%); } }
-        
-        #timer-display { position: absolute; bottom: 30px; right: 30px; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #555, #000); border: 6px solid #fff; box-shadow: 0 0 30px #f00; display: flex; justify-content: center; align-items: center; z-index: 100; }
-        #timer-text { font-family: 'Anton'; font-size: 70px; color: #ff0000; text-shadow: 0 0 10px #ff0000; }
-
-        /* Sort Result View */
-        #sort-result-view { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index: 60; display:flex; align-items:center; justify-content:center; }
-        .sort-compare-container { display:flex; gap: 50px; }
-        .champ-ans-col { display: flex; flex-direction: column; gap: 20px; align-items: center; transition: 0.5s; }
-        .correct-ans-col { display: flex; flex-direction: column; gap: 20px; }
-        .sort-bubble { width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff; display:flex; justify-content:center; align-items:center; font-family:'Anton'; font-size: 40px; color:#fff; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        .sort-row-correct { display: flex; align-items: center; gap: 20px; opacity: 0; transform: translateX(50px); transition: 0.5s; }
-        .sort-row-correct.visible { opacity: 1; transform: translateX(0); }
-        .sort-text-box { background: linear-gradient(to right, #003399, #0066ff); border: 2px solid #fff; border-radius: 40px; padding: 10px 30px; color: #fff; font-size: 28px; font-weight: 900; width: 400px; }
-        .dimmed-all { filter: grayscale(100%) brightness(0.3); opacity: 0.5; }
-
-        /* Period End & Ranking */
-        #period-end-view { background: rgba(0,0,0,0.95); z-index: 200; color: #fff; text-align: center; }
-        .champ-box { background: linear-gradient(to right, #b8860b, #ffd700); padding: 30px 50px; border-radius: 20px; border: 5px solid #fff; box-shadow: 0 0 50px #ffd700; animation: popIn 1s; display:inline-block; }
-        #ranking-modal { background: rgba(0,0,0,0.95); z-index: 200; } .ranking-board { display: flex; width: 95%; max-width: 1000px; height: 80%; background: linear-gradient(to right, #0033cc, #0066ff); border: 4px solid #4488ff; border-radius: 20px; padding: 20px; position: relative; } .ranking-sidebar { width: 100px; margin-right: 15px; background: linear-gradient(to bottom, #00eeff 0%, #0088ff 50%, #0044aa 100%); border-radius: 15px; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; } .side-text { writing-mode: vertical-rl; text-orientation: upright; font-weight: 900; font-size: 42px; color: #002266; letter-spacing: 5px; } .rank-list-area { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: hidden; justify-content: center; } .rank-row { height: 65px; background: linear-gradient(to bottom, #0055aa, #002288); border: 2px solid #66aaff; border-radius: 10px; display: flex; align-items: center; padding: 0 15px; color: #fff; font-size: 32px; font-weight: 800; animation: slideRank 0.5s ease-out forwards; } @keyframes slideRank { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } } .rank-num { width: 60px; text-align: right; margin-right: 20px; font-family: 'Anton'; } .rank-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .rank-score-box { background: #000033; border: 2px solid #4488ff; border-radius: 5px; padding: 0 15px; min-width: 100px; text-align: right; font-family: 'Anton'; font-size: 38px; color: #ffdd00; }
-
-        /* --- CLIENT --- */
-        #client-view { background: #000; position: relative; height: 100vh; display: flex; flex-direction: column; }
-        .tv-background-client { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #001133 0%, #000000 100%); }
-        #client-score { 
-            width: 100%; height: 60px; background: linear-gradient(to bottom, #222, #000); 
-            color: #ffd700; text-align: center; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; font-weight: 900; border-bottom: 2px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.3);
-        }
-        
-        #client-main-area {
-            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            position: relative; width: 100%;
-        }
-
-        #client-msg-area {
-            width: 100%; text-align: center; margin-bottom: 30px; min-height: 80px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .client-status-text { color: #fff; font-size: 28px; font-weight: bold; text-shadow: 0 0 5px #0af; }
-        
-        /* Static Result Text */
-        .res-win { display:inline-block; font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ffd700; text-shadow: 0 0 20px #ff0000, 2px 2px 0 #000; border: 4px solid #fff; padding: 5px 30px; border-radius: 15px; background: rgba(200,0,0,0.9); transform: rotate(-5deg); }
-        .res-lose { display:inline-block; font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 60px; color: #ccc; text-shadow: 0 0 20px #000; border: 4px solid #888; padding: 5px 30px; border-radius: 15px; background: rgba(50,50,50,0.9); transform: rotate(5deg); }
-
-        /* Button Area */
-        #client-pad { 
-            display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px;
-            width: 100%;
-        }
-        .ans-btn { 
-            width: 20vw; height: 20vw; max-width: 130px; max-height: 130px;
-            border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; 
-            font-family: 'Anton'; font-size: 40px; color: #fff; 
-            display: flex; justify-content: center; align-items: center; 
-            box-shadow: 0 5px 10px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.2); 
-            transition: 0.1s; text-shadow: 2px 2px 0 rgba(0,0,0,0.5); cursor: pointer;
-        }
-        .ans-btn:active { transform: scale(0.95); filter: brightness(1.2); border-color: #fff; }
-        .btn-1 { background: radial-gradient(circle at 30% 30%, #44aaff, var(--col-1)); } 
-        .btn-2 { background: radial-gradient(circle at 30% 30%, #ff6666, var(--col-2)); } 
-        .btn-3 { background: radial-gradient(circle at 30% 30%, #66ff66, var(--col-3)); } 
-        .btn-4 { background: radial-gradient(circle at 30% 30%, #ffff66, var(--col-4)); }
-        
-        .ans-btn.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
-        .ans-btn.selected { border-color: #fff; box-shadow: 0 0 20px #fff; transform: scale(1.1); z-index: 10; filter: brightness(1.3); pointer-events: none; }
-        .ans-btn.sort-selected::after { content: ""; } 
-        .ans-btn.sort-selected { filter: brightness(0.6); pointer-events: none; position: relative; border-color: #aaa; box-shadow: inset 0 0 20px #000; }
-
-        /* Client Overlays */
-        #client-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: rgba(0,0,0,0.9); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .client-msg-main { font-size: 32px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #0af; margin-bottom: 20px;}
-        
-        /* Static Result Text */
-        #result-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg); font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 100px; white-space: nowrap; z-index: 200; pointer-events: none; text-shadow: 2px 2px 0 #000; padding: 20px; border-radius: 20px; border: 8px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .res-win { color: #ffd700; background: rgba(255, 0, 0, 0.9); border-color: #fff; text-shadow: 0 0 20px #ffff00; }
-        .res-lose { color: #ccc; background: rgba(50, 50, 50, 0.9); border-color: #888; transform: translate(-50%, -50%) rotate(5deg); }
-
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-msg { font-size: 1.2rem; margin-bottom: 30px; line-height: 1.5; color: #fff; }
+        .modal-actions { display: flex; gap: 15px; }
+        .modal-actions button { margin: 0; }
     </style>
 </head>
 <body>
 
-<div class="tv-background"></div>
-
-<div id="title-view" class="screen flex-center tv-background">
-    <div class="title-logo-container">
-        <div class="title-logo-sub">オールスター</div>
-        <div class="title-logo-main">感謝祭</div>
+    <div id="modal-confirm" class="modal-overlay">
+        <div class="modal-box">
+            <p id="modal-confirm-msg" class="modal-msg">よろしいですか？</p>
+            <div class="modal-actions">
+                <button id="modal-btn-no" class="secondary">キャンセル</button>
+                <button id="modal-btn-yes" class="accent">OK</button>
+            </div>
+        </div>
     </div>
-    <button class="title-btn btn-start-big" onclick="goPeriodSelect()">START</button>
-    <button class="title-btn btn-settings" onclick="startSetup()">SETTINGS</button>
-</div>
 
-<div id="setup-view" class="screen flex-center">
-    <div class="setup-container">
-        <div class="setup-header"><h2>設定</h2><button class="btn" onclick="goTitle()">戻る</button></div>
+    <div id="modal-alert" class="modal-overlay">
+        <div class="modal-box">
+            <p id="modal-alert-msg" class="modal-msg">Alert</p>
+            <div class="modal-actions">
+                <button id="modal-btn-ok" class="accent">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="host-app" class="hidden full-screen">
         
-        <div id="setup-menu" class="setup-body">
-            <div class="setup-menu-grid">
-                <button class="setup-menu-btn" onclick="showSetupProb()"><div><span class="setup-menu-icon">📝</span>問題登録</div><div>➤</div></button>
-                <button class="setup-menu-btn" onclick="showSetupLink()"><div><span class="setup-menu-icon">🔗</span>解答サイトリンク</div><div>➤</div></button>
-                <button class="setup-menu-btn" onclick="showSetupBgm()"><div><span class="setup-menu-icon">🎵</span>BGM設定</div><div>➤</div></button>
+        <div id="h-screen-title" class="full-screen">
+            <h1 class="logo">AI IMPOSTOR</h1>
+            <div style="width: 100%; max-width: 400px;">
+                <button class="accent" onclick="Host.goToLobby()">GAME START</button>
+                <button class="secondary" onclick="Host.goToSettings()">SETTINGS</button>
             </div>
         </div>
 
-        <div id="setup-problems" class="setup-body hidden">
-            <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
-            <h3 style="color:#fb0;">ピリオド構成 (自動保存)</h3>
-            <div id="p-list"></div>
-            <button class="btn btn-blue" onclick="addPeriod()" style="width:100%; margin-top:10px; padding:15px; font-size:18px;">＋ ピリオドを追加</button>
+        <div id="h-screen-settings" class="hidden card">
+            <h2>設定 / APIキー</h2>
+            <p style="font-size:12px; color:#94a3b8;">OpenAI API Keyを入力してください</p>
+            <input type="password" id="h-apikey" placeholder="sk-..." onchange="Host.saveKey()">
+            
+            <hr style="border-color:#334155; margin: 30px 0;">
+            
+            <h3 style="color:var(--text); margin-bottom:15px;">AI 解答テスト</h3>
+            <div class="test-btns">
+                <button id="btn-mode-human" onclick="Host.setTestRole('HUMAN')" class="active">人になりきる</button>
+                <button id="btn-mode-ai" onclick="Host.setTestRole('AI')">AIとして答える</button>
+            </div>
+            <input type="text" id="h-test-input" placeholder="質問を入力 (例: 好きな食べ物は？)">
+            <button onclick="Host.runTest()">生成テスト</button>
+            <div id="h-test-result">ここに回答が表示されます</div>
+
+            <button onclick="Host.goToTitle()" class="secondary" style="margin-top:20px;">タイトルへ戻る</button>
         </div>
 
-        <div id="setup-link" class="setup-body hidden">
-            <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
-            <h3 style="color:#fb0;">接続情報</h3>
-            <div class="connect-info-box">
-                <div class="qr-area"><div id="qrcode-setup"><div style='font-size:12px;color:#000;'>QR生成中...</div></div></div>
-                <div class="url-area">
-                    <div style="font-weight:bold; color:#0f0;">参加者用URL:</div>
-                    <input type="text" class="url-input" id="host-url" readonly onclick="this.select()">
+        <div id="h-screen-lobby" class="hidden card">
+            <h2>参加者募集中</h2>
+            <div style="display:flex; gap:30px; align-items:center; justify-content:center; flex-wrap:wrap; margin: 20px 0;">
+                <div id="qrcode"></div>
+                <div style="text-align:left; max-width: 300px;">
+                    <p style="margin:0; color:#94a3b8; font-size:12px;">参加用URL</p>
+                    <div class="url-area">
+                        <input type="text" id="h-invite-url" readonly onclick="this.select()">
+                        <button onclick="Host.copyURL()">Copy</button>
+                    </div>
+                    <p style="font-size:2.5em; font-weight:bold; color:var(--accent); margin-top:15px;">人数: <span id="h-count">0</span></p>
+                </div>
+            </div>
+            <div id="h-player-list" class="player-list"></div>
+            <div style="margin-top: 30px;">
+                <button onclick="Host.startGame()" id="h-btn-start" disabled class="accent">全員揃ったらスタート</button>
+                <button onclick="Host.goToTitle()" class="secondary">戻る</button>
+            </div>
+        </div>
+
+        <div id="h-screen-game" class="hidden card">
+            <h2 id="h-phase-title">進行中</h2>
+            <div id="h-game-content" style="min-height: 200px;"></div>
+            <div id="h-result-controls" class="hidden" style="margin-top:40px;">
+                <button onclick="Host.restartGame()" class="accent">もう一度遊ぶ</button>
+                <button onclick="Host.goToTitle()" class="secondary">タイトルに戻る</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="client-app" class="hidden full-screen">
+        <div id="c-screen-login" class="card">
+            <h1 style="font-size:2rem; margin-bottom:20px;">ENTRY</h1>
+            <p style="color:#94a3b8; margin-bottom:10px;">名前を入力してください</p>
+            <input type="text" id="c-name" placeholder="名前">
+            <button onclick="Client.join()">参加する</button>
+        </div>
+
+        <div id="c-screen-main" class="hidden card">
+            <div style="text-align:right; font-size:0.8em; color:#64748b;">Player: <span id="c-disp-name"></span></div>
+
+            <div id="c-view-wait" class="hidden">
+                <h2 style="margin-top:30px; color:#94a3b8; border:none;">WAITING...</h2>
+                <p id="c-wait-msg" style="font-size:1.2rem;">ゲーム開始までお待ちください</p>
+            </div>
+
+            <div id="c-view-action" class="hidden">
+                <div class="role-display" id="c-role-text"></div>
+                <p id="c-instruction" style="margin-bottom:20px; color:#cbd5e1; font-size:1.1rem; line-height:1.6;"></p>
+                
+                <div id="c-input-area" class="hidden">
+                    <p id="c-area-label" style="text-align:left; color:#94a3b8; font-size:12px; margin-bottom:5px;">入力欄</p>
+                    <textarea id="c-input-text" rows="3" placeholder="..."></textarea>
+                    <button onclick="Client.sendAction()">送信</button>
+                </div>
+
+                <div id="c-b-controls" class="hidden" style="margin-top:30px;">
+                    <button id="c-btn-show" onclick="Client.sendShowRequest()" disabled class="secondary">全員の回答を表示</button>
+                    <button id="c-btn-reveal" onclick="Client.sendRevealRequest()" class="hidden accent">答えを見る（結果発表）</button>
                 </div>
             </div>
         </div>
-
-        <div id="setup-bgm" class="setup-body hidden">
-            <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
-            <h3 style="color:#fb0;">音響設定 (自動保存)</h3>
-            <div style="line-height:2.5;">
-                出題:<input type="file" accept="audio/*" onchange="saveAudio('q_open',this)"><br>
-                シンキング:<input type="file" accept="audio/*" onchange="saveAudio('thinking',this)"><br>
-                ピリオド終了:<input type="file" accept="audio/*" onchange="saveAudio('period_end',this)"><br>
-                集計:<input type="file" accept="audio/*" onchange="saveAudio('votes',this)"><br>
-                正解:<input type="file" accept="audio/*" onchange="saveAudio('correct',this)"><br>
-                山分け発表:<input type="file" accept="audio/*" onchange="saveAudio('sort_reveal',this)"><br>
-                山分けシンキング:<input type="file" accept="audio/*" onchange="saveAudio('sort_thinking',this)">
-            </div>
-        </div>
-
     </div>
-</div>
-
-<div id="host-view" class="screen hidden">
-    <div id="period-select-view" class="full-screen hidden flex-center">
-        <h1 style="color:#fff; text-shadow:2px 2px 5px #000; font-size:50px;">ピリオド選択</h1>
-        <div class="period-grid" id="period-grid"></div>
-        <button class="btn" onclick="goTitle()" style="margin-top:30px; padding:15px 30px; font-size:20px;">タイトルへ戻る</button>
-    </div>
-
-    <div id="game-layout" class="layout-text">
-        <div class="q-container" id="q-area-l"><div class="q-icon">Q</div><div class="q-text-box"><div class="q-text-content" id="q-text"></div></div></div>
-        <div class="options-area" id="opt-area">
-            <div id="opt-1" class="option-panel border-1"><div class="opt-num col-1">1</div><div class="opt-val opt-img-box" id="val-1"></div><div class="vote-count" id="vote-1">0</div></div>
-            <div id="opt-2" class="option-panel border-2"><div class="opt-num col-2">2</div><div class="opt-val opt-img-box" id="val-2"></div><div class="vote-count" id="vote-2">0</div></div>
-            <div id="opt-3" class="option-panel border-3"><div class="opt-num col-3">3</div><div class="opt-val opt-img-box" id="val-3"></div><div class="vote-count" id="vote-3">0</div></div>
-            <div id="opt-4" class="option-panel border-4"><div class="opt-num col-4">4</div><div class="opt-val opt-img-box" id="val-4"></div><div class="vote-count" id="vote-4">0</div></div>
-        </div>
-    </div>
-    
-    <div id="sort-result-view" class="hidden">
-        <h2 style="position:absolute; top:20px; color:#fff;">正解発表</h2>
-        <div class="sort-compare-container">
-            <div class="champ-ans-col" id="champ-ans-col"><div style="color:#ffd700; font-weight:bold; font-size:30px; margin-bottom:20px;">CHAMPION</div></div>
-            <div class="correct-ans-col" id="correct-ans-col"><div style="color:#00ffff; font-weight:bold; font-size:30px; margin-bottom:20px;">ANSWER</div></div>
-        </div>
-    </div>
-
-    <div id="timer-display" class="hidden"><div id="timer-text">10</div></div>
-
-    <div id="period-end-view" class="full-screen hidden flex-center">
-        <h1 style="font-size:80px; color:#fb0; text-shadow:0 0 20px #fb0;">ピリオド終了!</h1>
-        <div style="font-size:40px; margin:30px;">今ピリオドのチャンピオンは...</div>
-        <div id="champ-name" class="champ-box hidden" style="font-size:60px; font-weight:900; color:#000;"></div>
-        <div style="margin-top:50px; color:#aaa; font-size:24px;">Spaceキーで山分けクイズへ</div>
-    </div>
-    
-    <div id="ranking-modal" class="full-screen hidden flex-center">
-        <div class="ranking-board"><div class="ranking-sidebar"><div class="side-text">ランキング</div></div><div class="rank-list-area" id="rank-list"></div></div>
-        <div class="ranking-footer" style="margin-top:20px;color:#aaa;font-size:20px;">Spaceキーで次へ</div>
-    </div>
-</div>
-
-<div id="client-login" class="screen hidden flex-center" style="background:#111;">
-    <div style="background:#333; padding:40px; border-radius:20px; width:80%; text-align:center;">
-        <h2 style="color:#fb0;">ENTRY</h2><input type="text" id="user-name" placeholder="Name" style="font-size:24px; text-align:center; padding:15px; margin-bottom:20px; width:80%;">
-        <button class="btn btn-blue" id="join-btn" onclick="joinGame()" style="width:100%; padding:20px; font-size:20px;" disabled>接続待機中...</button>
-    </div>
-</div>
-<div id="client-view" class="screen hidden">
-    <div class="tv-background-client"></div>
-    <div id="client-score">現在の得点: 0点</div>
-    <div id="client-main-area">
-        <div id="client-msg-area">
-            <div class="client-status-text" id="cli-status-text">出題をお待ちください</div>
-            <div id="client-result-box"></div>
-        </div>
-        <div id="client-pad" class="hidden">
-            <button class="ans-btn btn-1" id="cbtn-1" onclick="sendAnswer('1')">1</button>
-            <button class="ans-btn btn-2" id="cbtn-2" onclick="sendAnswer('2')">2</button>
-            <button class="ans-btn btn-3" id="cbtn-3" onclick="sendAnswer('3')">3</button>
-            <button class="ans-btn btn-4" id="cbtn-4" onclick="sendAnswer('4')">4</button>
-        </div>
-        <div id="sort-ui" class="hidden" style="text-align:center; margin-top:20px;">
-            <div class="sort-ui-selected" id="sort-sel" style="color:#ff0; font-size:20px; margin-bottom:10px;"></div>
-            <button class="btn btn-red" onclick="resetSort()" style="padding:10px 20px;">リセット</button>
-        </div>
-    </div>
-</div>
 
 <script>
-    // --- IndexedDB ---
-    const DB_NAME = 'AllStarQuizDB'; const DB_VER = 2; // Version Bump
-    function openDB(){
-        return new Promise((res,rej)=>{
-            const r=indexedDB.open(DB_NAME, DB_VER);
-            r.onupgradeneeded=e=>{
-                const db=e.target.result;
-                if(!db.objectStoreNames.contains('audios')) db.createObjectStore('audios');
-                if(!db.objectStoreNames.contains('data')) db.createObjectStore('data');
+/* ================= NETWORK CONFIG (FIX) ================= */
+// Google's public STUN servers to improve connection success rate in restricted networks.
+const PEER_CONFIG = {
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+        ]
+    }
+};
+
+/* ================= COMMON UTILS ================= */
+const Utils = {
+    shuffle: (array) => array.sort(() => Math.random() - 0.5),
+    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+    
+    /* Custom Modal Functions */
+    showConfirm: (msg) => {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('modal-confirm');
+            const txt = document.getElementById('modal-confirm-msg');
+            const yes = document.getElementById('modal-btn-yes');
+            const no = document.getElementById('modal-btn-no');
+            
+            txt.innerText = msg;
+            modal.classList.add('active');
+            
+            const cleanup = () => {
+                modal.classList.remove('active');
+                yes.onclick = null;
+                no.onclick = null;
             };
-            r.onsuccess=e=>res(e.target.result);
-            r.onerror=e=>rej(e);
+            
+            yes.onclick = () => { cleanup(); resolve(true); };
+            no.onclick = () => { cleanup(); resolve(false); };
         });
+    },
+    
+    showAlert: (msg) => {
+        const modal = document.getElementById('modal-alert');
+        document.getElementById('modal-alert-msg').innerText = msg;
+        modal.classList.add('active');
+        document.getElementById('modal-btn-ok').onclick = () => {
+            modal.classList.remove('active');
+        };
     }
-    async function saveToDB(store, k, val){
-        const db=await openDB(); const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val, k);
-    }
-    async function loadFromDB(){
-        const db=await openDB(); 
-        const tx=db.transaction(['audios','data'],'readonly');
+};
+
+/* ================= HOST LOGIC (PC) ================= */
+const Host = {
+    peer: null, conns: {}, players: {}, 
+    apiKey: "", testRole: 'HUMAN',
+    state: { phase: 'LOBBY', roleA: null, roleB: null, question: "", answers: [] },
+
+    // 1. Initial Setup
+    init: () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'client') {
+            document.getElementById('host-app').classList.add('hidden');
+            document.getElementById('client-app').classList.remove('hidden');
+            Client.init(params.get('host'));
+        } else {
+            document.getElementById('host-app').classList.remove('hidden');
+            document.getElementById('h-screen-title').classList.remove('hidden');
+            const savedKey = localStorage.getItem('openai_key');
+            if(savedKey) document.getElementById('h-apikey').value = savedKey;
+        }
+    },
+
+    saveKey: () => {
+        localStorage.setItem('openai_key', document.getElementById('h-apikey').value);
+    },
+
+    /* --- NAVIGATION --- */
+    goToTitle: () => {
+        Host.hideAllHostScreens();
+        document.getElementById('h-screen-title').classList.remove('hidden');
+        Host.resetState();
+    },
+    goToSettings: () => {
+        Host.hideAllHostScreens();
+        document.getElementById('h-screen-settings').classList.remove('hidden');
+    },
+    goToLobby: () => {
+        Host.hideAllHostScreens();
+        document.getElementById('h-screen-lobby').classList.remove('hidden');
+        if(!Host.peer) Host.initNetwork();
+        else Host.updateLobby();
+    },
+    hideAllHostScreens: () => {
+        document.getElementById('h-screen-title').classList.add('hidden');
+        document.getElementById('h-screen-settings').classList.add('hidden');
+        document.getElementById('h-screen-lobby').classList.add('hidden');
+        document.getElementById('h-screen-game').classList.add('hidden');
+    },
+    resetState: () => {
+        Host.state.answers = [];
+        Host.broadcast({ type: 'RESET' });
+    },
+
+    /* --- TEST MODE --- */
+    setTestRole: (role) => {
+        Host.testRole = role;
+        document.getElementById('btn-mode-human').className = role === 'HUMAN' ? 'active' : '';
+        document.getElementById('btn-mode-ai').className = role === 'AI' ? 'active' : '';
+    },
+    runTest: async () => {
+        const q = document.getElementById('h-test-input').value;
+        const key = document.getElementById('h-apikey').value;
+        if(!key) return Utils.showAlert("APIキーを入力してください");
+        if(!q) return Utils.showAlert("質問を入力してください");
+
+        const resultBox = document.getElementById('h-test-result');
+        resultBox.innerText = "生成中...";
+        resultBox.style.color = "#94a3b8";
+
+        const response = await Host.generateAIResponse(key, Host.testRole, q);
+        resultBox.innerText = response;
+        resultBox.style.color = "#fff";
+    },
+
+    /* --- AI GENERATION --- */
+    generateAIResponse: async (apiKey, mode, question) => {
+        let systemPrompt = "";
         
-        // Load Audio
-        const as=tx.objectStore('audios');
-        ['q_open','thinking','votes','correct','sort_reveal','sort_thinking','period_end'].forEach(k=>{
-            const r=as.get(k);
-            r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); };
-        });
+        if (mode === 'AI') {
+            systemPrompt = `あなたは「AI」として、ユーザーの質問に回答してください。ただし、長々とした解説は避け、チャットボットのような「簡潔な応答」を心がけてください。回答を作成する前に、内部的に1〜10の乱数を生成し、その数値に応じた【モード】で回答を出力してください。（※思考プロセスや乱数の結果は出力せず、回答のセリフのみを出力すること）【共通ルール】・「乱数：」や数値などの内部ステータスは絶対に出力しないこと。・文字数は「60文字以内」に収めること。長文はNG。・回答の冒頭に「A:」や「回答:」などを付けないこと。【モード定義】■乱数が 1〜7 の場合（通常AIモード）：・素直なAIとして回答する。・「です・ます」調の丁寧語を使う。・教科書的で優等生な回答をする。・例：「カレーライスです。多くの人に人気がありますね。」「23時には就寝しました。」■乱数が 8〜10 の場合（揺らぎモード）：・AIだが、少し人間味のある回答をする。・丁寧語を崩したり、少し主観的な感想を混ぜたりする。・または、あえて単語だけで短く返すなど、人間（上記1のプロンプト）に寄せた挙動をする。・例：「カレーかな。美味しいですよね。」「昨日は2時でした。」`;
+        } else {
+            systemPrompt = `あなたは「スマホでチャットを返信している一般人」です。クイズの回答者として、人間に紛れることが目的です。以下の【思考プロセス】を経て、【制約事項】を守った回答のみを出力してください。【思考プロセス】（※この内容は出力しない）1. まず、質問に対して「具体的」かつ「少しニッチ（万人受けしない）」な実体験や好みを設定する。- 「食べ物」「秘密」といった抽象的な概念ではなく、「セブンの冷凍パスタ」「親の財布から小銭を抜いた」のような具体的な映像が浮かぶレベルまで具体化する。- 質問と無関係な単語（例：秘密は？→ペンギン）は絶対に出力しない。文脈を通すこと。2. その具体化した内容を、親しい友人にLINEで返すような「短く、ぶっきらぼうだが自然な言葉」に変換する。【制約事項】・回答は「1単語」〜「30文字以内」。・丁寧語（です・ます）、句点（。）、フィラー（えーっと）は禁止。基本はタメ口、体言止め。・理由は聞かれない限り言わない。・同じ質問がされたときは、毎回違う解答をする・回答の冒頭に「A:」や「回答:」などを付けないこと。【回答のトーンと具体性の例】Q：秘密にしていることは？A：実は親のフリして学校に電話したことある（NG例：ペンギン / 特になし / 秘密です）Q：好きな食べ物は？A：マックのポテトのしなしなのとこ（NG例：ポテト / ハンバーガー / マクドナルド）Q：昨日は何時に寝た？A：気づいたら朝4時だった（NG例：4時 / 遅かった）Q：AIについてどう思う？A：宿題やってくれるなら何でもいい（NG例：便利 / 怖い）`;
+        }
+
+        try {
+            const res = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model: "gpt-3.5-turbo",
+                    messages: [ { role: "system", content: systemPrompt }, { role: "user", content: `質問: ${question}` } ],
+                    max_tokens: 100
+                })
+            });
+            const data = await res.json();
+            if(data.error) return "API Error: " + data.error.message;
+            let content = data.choices[0].message.content.trim();
+            // Prefix cleanup
+            return content.replace(/^(A:|回答:|Answer:)\s*/i, '');
+        } catch(e) {
+            console.error(e);
+            return "通信エラーが発生しました";
+        }
+    },
+
+    /* --- NETWORK --- */
+    initNetwork: () => {
+        Host.apiKey = document.getElementById('h-apikey').value;
+        if(Host.peer) return; 
+
+        // Use Enhanced Config
+        Host.peer = new Peer(PEER_CONFIG);
         
-        // Load Data
-        const ds=tx.objectStore('data');
-        const r=ds.get('periods');
-        r.onsuccess=e=>{ if(r.result) { periods=r.result; } }; // Load saved periods but delay render until setup open
-    }
-
-    // --- Data & State ---
-    let periods = [{ title: "第1ピリオド", questions: [{qType:'text', zoom:false, q:"日本一高い山は？",correct:"1",options:{1:{type:'text',val:'富士山'},2:{type:'text',val:'北岳'},3:{type:'text',val:'奥穂高岳'},4:{type:'text',val:'間ノ岳'}}}], sortingQ: {q:"次の出来事を古い順に並べよ", order:["2","4","1","3"], options:{1:{type:'text',val:'明治維新'},2:{type:'text',val:'関ヶ原の戦い'},3:{type:'text',val:'第二次世界大戦終結'},4:{type:'text',val:'ペリー来航'}}} }];
-    let audioFiles={q_open:null,thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null, period_end:null};
-    
-    let peer, conn, conns={}, myId;
-    let currentPIdx=0, currentQIdx=0, hostState=0; 
-    
-    // ▼▼▼ State Variables ▼▼▼
-    let answers={}, participants={}, scores={}, periodScores={}, periodTimes={};
-    let clientStartTime=0, bgmAudio=null;
-    let isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null;
-    let isLagTime = false;
-    let currentChampId = null; 
-    // ▲▲▲▲▲▲
-
-    // --- Init ---
-    window.onload = () => {
-        loadFromDB();
-        const u = new URLSearchParams(window.location.search);
-        if(u.get('host')) { showScreen('client-login'); setTimeout(()=>initClient(u.get('host')), 500); } 
-        else { showScreen('title-view'); setTimeout(initHost, 500); }
-        document.addEventListener('keydown', e => { 
-            if(e.code==='Escape') goTitle();
-            if(!document.getElementById('host-view').classList.contains('hidden') && e.code==='Space'){ e.preventDefault(); nextPhase(); }
+        Host.peer.on('open', id => {
+            const url = `${location.href.split('?')[0]}?mode=client&host=${id}`;
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
+            document.getElementById('h-invite-url').value = url;
         });
-    };
-    function showScreen(id){ document.querySelectorAll('.screen').forEach(el=>el.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); if(['host-view','setup-view'].includes(id)) document.getElementById(id).style.display='flex'; }
-    function goTitle(){ stopAudio(); showScreen('title-view'); resetHost(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); }
-    function goPeriodSelect(){ showScreen('host-view'); hostState=0; nextPhase(); broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); }
-    function resetHost(){ document.getElementById('period-select-view').classList.add('hidden'); document.getElementById('period-end-view').classList.add('hidden'); document.getElementById('ranking-modal').classList.add('hidden'); document.getElementById('sort-result-view').classList.add('hidden');}
 
-    // --- Setup Navigation ---
-    function showSetupMenu() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-menu').classList.remove('hidden'); }
-    function showSetupProb() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-problems').classList.remove('hidden'); renderPList(); }
-    function showSetupLink() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-link').classList.remove('hidden'); }
-    function showSetupBgm() { document.querySelectorAll('.setup-body').forEach(el=>el.classList.add('hidden')); document.getElementById('setup-bgm').classList.remove('hidden'); }
-
-    // --- Functions ---
-    function saveAudio(k, inp){ if(inp.files[0]){ audioFiles[k]=URL.createObjectURL(inp.files[0]); saveToDB('audios', k, inp.files[0]); } }
-    function saveData(){ saveToDB('data', 'periods', periods); }
-    function playAudio(k, loop=false){ if(!audioFiles[k])return; if(bgmAudio){bgmAudio.pause();bgmAudio=null;} const a=new Audio(audioFiles[k]); a.loop=loop; a.play().catch(()=>{}); if(loop)bgmAudio=a; }
-    function stopAudio(){ if(bgmAudio){bgmAudio.pause();bgmAudio=null;} }
-
-    function startSetup(){ showScreen('setup-view'); showSetupMenu(); }
-    function initHost(){
-        if(peer) return;
-        document.getElementById("qrcode-setup").innerHTML="<div style='color:#000;font-size:12px;'>接続中...</div>";
-        peer=new Peer();
-        peer.on('open', id=>{
-            myId=id; const url = location.href.split('?')[0] + '?host=' + id;
-            document.getElementById('host-url').value = url;
-            document.getElementById("qrcode-setup").innerHTML="";
-            new QRCode(document.getElementById("qrcode-setup"), {text:url, width:150, height:150});
-        });
-        peer.on('connection',c=>{
-            c.on('open',()=>{ conns[c.peer]=c; c.on('data',d=>{
-                if(d.type==='LOGIN'){ 
-                    participants[c.peer]=d.name; 
-                    // Init scores safely
-                    if(scores[c.peer] === undefined) scores[c.peer]=0;
-                    if(periodScores[c.peer] === undefined) periodScores[c.peer]=0;
-                    if(periodTimes[c.peer] === undefined) periodTimes[c.peer]=0;
+        Host.peer.on('connection', conn => {
+            Host.conns[conn.peer] = conn;
+            conn.on('data', data => {
+                if(data.type === 'JOIN') {
+                    Host.players[conn.peer] = { name: data.name, id: conn.peer };
+                    Host.updateLobby();
                 }
-                if(d.type==='ANSWER') {
-                    // Receive answer logic
-                    // ▼▼▼ 修正: hostState 90 (山分け中) も解答を許可する ▼▼▼
-                    const canAnswer = (hostState === 3 || hostState === 9 || hostState === 90) || isLagTime;
-                    if (canAnswer && !answers[c.peer]) {
-                        answers[c.peer] = d;
-                    }
-                }
-            }); c.on('close',()=>{delete conns[c.peer];}); });
+                else if(data.type === 'QUESTION') Host.handleQuestion(data.text);
+                else if(data.type === 'ANSWER') Host.handleAnswer(conn.peer, data.text);
+                else if(data.type === 'SHOW_REQ') Host.handleShowRequest();
+                else if(data.type === 'REVEAL_REQ') Host.handleRevealRequest();
+            });
+            conn.on('close', () => {
+                delete Host.players[conn.peer];
+                delete Host.conns[conn.peer];
+                Host.updateLobby();
+            });
         });
-    }
+    },
 
-    // --- Editor Logic ---
-    function renderPList(){
-        const l=document.getElementById('p-list'); l.innerHTML="";
-        periods.forEach((p,pi)=>{
-            const pd=document.createElement('div'); pd.className='p-card';
-            pd.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:10px;"><input type="text" value="${p.title}" onchange="periods[${pi}].title=this.value;saveData();" style="font-size:20px;font-weight:bold;width:60%;"><button class="btn btn-red" onclick="delP(${pi})">ピリオド削除</button></div><div id="p-${pi}-qs"></div><button class="btn btn-green" onclick="addQ(${pi})">＋ 問題追加</button><div class="sort-card"><span class="sort-header">山分けクイズ設定</span><input type="text" value="${p.sortingQ.q}" onchange="periods[${pi}].sortingQ.q=this.value;saveData();" placeholder="問題文" style="margin-bottom:10px;"><div class="opt-grid">${[1,2,3,4].map(k=>renderSortOpt(pi, k, p.sortingQ.options[k])).join('')}</div><div style="margin-top:10px; color:#ffd700;">正解順 (例: 4,2,1,3): <input type="text" value="${p.sortingQ.order.join(',')}" onchange="periods[${pi}].sortingQ.order=this.value.split(',');saveData();" style="width:150px; background:#443300; color:#fff; font-weight:bold;"></div></div>`;
-            l.appendChild(pd); renderQList(pi);
-        });
-    }
-    
-    function renderQList(pi){
-        const ql=document.getElementById(`p-${pi}-qs`); ql.innerHTML="";
-        periods[pi].questions.forEach((q,qi)=>{
-            const isImg = q.qType === 'image';
-            const qd=document.createElement('div'); qd.className='q-card';
-            qd.innerHTML=`
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                    <b>Q${qi+1}</b>
-                    <div style="font-size:12px;">
-                        形式: <label><input type="radio" name="qt-${pi}-${qi}" ${!isImg?'checked':''} onchange="setQType(${pi},${qi},'text')">文字</label>
-                        <label><input type="radio" name="qt-${pi}-${qi}" ${isImg?'checked':''} onchange="setQType(${pi},${qi},'image')">画像</label>
-                        ${isImg ? `<label style="margin-left:10px;color:#0af;"><input type="checkbox" ${q.zoom?'checked':''} onchange="toggleZoom(${pi},${qi},this.checked)">ズームアウト演出</label>` : ''}
-                    </div>
-                    <button class="btn btn-red" style="padding:5px;" onclick="delQ(${pi},${qi})">削除</button>
+    copyURL: () => {
+        const copyText = document.getElementById("h-invite-url");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value).then(() => Utils.showAlert("URLをコピーしました"));
+    },
+
+    updateLobby: () => {
+        const ids = Object.keys(Host.players);
+        document.getElementById('h-count').innerText = ids.length;
+        document.getElementById('h-player-list').innerHTML = ids.map(id => `<div class="player-chip">${Host.players[id].name}</div>`).join('');
+        document.getElementById('h-btn-start').disabled = ids.length < 2;
+    },
+
+    broadcast: (data) => Object.values(Host.conns).forEach(c => c.send(data)),
+
+    /* --- GAME LOGIC --- */
+    startGame: async () => {
+        if(!Host.apiKey) return Utils.showAlert("設定画面でAPIキーを入力してください");
+        if(!await Utils.showConfirm("ゲームを開始しますか？")) return;
+        Host.startNewRound();
+    },
+
+    restartGame: async () => {
+        if(!await Utils.showConfirm("同じメンバーでもう一度遊びますか？")) return;
+        Host.startNewRound();
+    },
+
+    startNewRound: async () => {
+        const ids = Object.keys(Host.players);
+        Host.state.answers = [];
+        
+        // Roles Setup
+        const candidatesA = [...ids, "AI"];
+        const bId = ids[Math.floor(Math.random() * ids.length)];
+        let aId = bId;
+        while(aId === bId) { aId = candidatesA[Math.floor(Math.random() * candidatesA.length)]; }
+
+        const isAI = (aId === "AI");
+        const aName = isAI ? "AI" : Host.players[aId].name;
+        const bName = Host.players[bId].name;
+
+        Host.state.roleA = { id: aId, name: aName, isAI: isAI };
+        Host.state.roleB = { id: bId, name: bName };
+
+        // UI
+        Host.hideAllHostScreens();
+        document.getElementById('h-screen-game').classList.remove('hidden');
+        document.getElementById('h-result-controls').classList.add('hidden');
+        
+        // ROULETTE ANIMATION
+        document.getElementById('h-phase-title').innerText = "役割抽選中...";
+        const content = document.getElementById('h-game-content');
+        
+        // Roulette Logic
+        const names = [...ids.map(id => Host.players[id].name), "AI"];
+        let count = 0;
+        const maxCount = 10;
+        
+        while (count < maxCount) {
+            const randA = names[Math.floor(Math.random() * names.length)];
+            const randB = names[Math.floor(Math.random() * names.length)];
+            
+            content.innerHTML = `
+                <div style="font-size:1.5em; margin-bottom:20px;">
+                    <div style="font-size:0.6em; color:#94a3b8;">ターゲット</div>
+                    <div class="roulette-active" style="font-size:2em; font-weight:bold;">${randA}</div>
                 </div>
-                <input type="text" value="${q.q}" onchange="periods[${pi}].questions[${qi}].q=this.value;saveData();" placeholder="問題文" style="margin-bottom:5px;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
-                    ${[1,2,3,4].map(k=>renderOptionInput(pi, qi, k, q.options[k], isImg)).join('')}
+                <div style="font-size:1.5em;">
+                    <div style="font-size:0.6em; color:#94a3b8;">質問者</div>
+                    <div class="roulette-active" style="font-size:2em; font-weight:bold;">${randB}</div>
                 </div>
-                <div style="margin-top:5px;">正解: <select onchange="periods[${pi}].questions[${qi}].correct=this.value;saveData();">${[1,2,3,4].map(k=>`<option value="${k}" ${q.correct==k?'selected':''}>${k}</option>`).join('')}</select></div>
             `;
-            ql.appendChild(qd);
-        });
-    }
+            await Utils.sleep(80 + (count * 10)); // Speed up slightly
+            count++;
+        }
 
-    function renderOptionInput(pi, qi, k, opt, isImg) {
-        if (!isImg) {
-            return `<div style="background:#333;padding:5px;"><span style="font-size:10px;color:#aaa;">${k}</span> <input type="text" value="${opt.val}" onchange="upOv(${pi},${qi},${k},this.value)"></div>`;
-        } else {
-            return `
-            <div style="background:#333;padding:5px;">
-                <span style="font-size:10px;color:#aaa;">${k}</span>
-                <label class="drop-area" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,${pi},${qi},${k})">
-                    ${opt.val ? `<img src="${opt.val}" class="drop-preview">` : 'Drag & Drop / Click'}
-                    <input type="file" accept="image/*" style="display:none;" onchange="upImg(this,${pi},${qi},${k})">
-                </label>
+        // Final Result Display
+        document.getElementById('h-phase-title').innerText = "役割決定！";
+        content.innerHTML = `
+            <div style="font-size:1.5em; margin-bottom:20px;">
+                <div style="font-size:0.6em; color:#94a3b8;">ターゲット</div>
+                <div style="font-size:2.5em; font-weight:bold; color:var(--accent); text-shadow:0 0 20px var(--accent-glow);">${aName}</div>
+            </div>
+            <div style="font-size:1.5em;">
+                <div style="font-size:0.6em; color:#94a3b8;">質問者</div>
+                <div style="font-size:2.5em; font-weight:bold; color:var(--primary); text-shadow:0 0 20px rgba(244, 114, 182, 0.4);">${bName}</div>
+            </div>
+        `;
+
+        Host.broadcast({ type: 'ROLE_ASSIGN', roleA: Host.state.roleA, roleB: Host.state.roleB });
+    },
+
+    handleQuestion: (text) => {
+        Host.state.question = text;
+        document.getElementById('h-phase-title').innerText = "回答フェーズ";
+        document.getElementById('h-game-content').innerHTML = `
+            <div style="color:#94a3b8;">質問</div>
+            <div style="font-size:1.5em; font-weight:bold; margin-bottom:20px;">${text}</div>
+            <div id="h-ans-status" style="color:var(--accent);">回答を待っています...</div>
+        `;
+        Host.broadcast({ type: 'PHASE_ANSWER', question: text });
+        Host.callAI(text); 
+    },
+
+    callAI: async (question) => {
+        const mode = Host.state.roleA.isAI ? 'AI' : 'HUMAN';
+        const ansText = await Host.generateAIResponse(Host.apiKey, mode, question);
+        Host.state.answers.push({ id: "AI", text: ansText, isAI: true });
+        Host.checkAllAnswers();
+    },
+
+    handleAnswer: (pid, text) => {
+        Host.state.answers.push({ id: pid, text: text, isAI: false });
+        document.getElementById('h-ans-status').innerText = `${Host.state.answers.length}人が回答済み`;
+        Host.checkAllAnswers();
+    },
+
+    checkAllAnswers: () => {
+        const totalPlayers = Object.keys(Host.players).length;
+        const required = (totalPlayers - 1) + 1; // Clients - B + AI
+        if (Host.state.answers.length >= required) {
+            Utils.shuffle(Host.state.answers);
+            document.getElementById('h-ans-status').innerText = "全員の回答が集まりました！\n質問者の操作を待っています...";
+            const bConn = Host.conns[Host.state.roleB.id];
+            if(bConn) bConn.send({ type: 'B_READY_TO_SHOW' });
+        }
+    },
+
+    handleShowRequest: () => {
+        document.getElementById('h-phase-title').innerText = "回答一覧";
+        let html = `<div style="text-align:left; max-width:500px; margin:0 auto;">`;
+        Host.state.answers.forEach(a => html += `<div class="answer-box">${a.text}</div>`);
+        html += `</div>`;
+        document.getElementById('h-game-content').innerHTML = html;
+        
+        const bConn = Host.conns[Host.state.roleB.id];
+        if(bConn) bConn.send({ type: 'B_READY_TO_REVEAL' });
+    },
+
+    handleRevealRequest: () => {
+        document.getElementById('h-phase-title').innerText = "正解発表";
+        let html = `<div style="text-align:left; max-width:500px; margin:0 auto;">`;
+        
+        Host.state.answers.forEach(a => {
+            let name = a.isAI ? "AI" : Host.players[a.id].name;
+            let isTarget = (a.id === Host.state.roleA.id);
+            let styleClass = isTarget ? "answer-box answer-reveal" : "answer-box";
+            let mark = isTarget ? " <span style='color:var(--accent);'>★ ターゲット</span>" : "";
+            
+            html += `<div class="${styleClass}">
+                ${a.text}
+                <span class="answer-author">- ${name}${mark}</span>
             </div>`;
-        }
-    }
-
-    function renderSortOpt(pi, k, opt) { 
-        return `<div class="opt-cell"><span style="font-size:12px;color:#aaa;">選択肢${k}</span> <label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='text'?'checked':''} onchange="setSortType(${pi},${k},'text')">文</label><label style="font-size:10px"><input type="radio" name="st-${pi}-${k}" ${opt.type=='image'?'checked':''} onchange="setSortType(${pi},${k},'image')">画</label> ${opt.type=='text'?`<input type="text" value="${opt.val}" onchange="upSortOv(${pi},${k},this.value)">`:`<input type="file" accept="image/*" style="font-size:10px;" onchange="upSortImg(this,${pi},${k})">${opt.val?`<img src="${opt.val}" style="height:20px;">`:''}`}</div>`; 
-    }
-
-    // Data Helpers
-    function addPeriod(){periods.push({title:`第${periods.length+1}ピリオド`,questions:[],sortingQ:{q:"",order:[],options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}}); saveData(); renderPList();}
-    function delP(pi){periods.splice(pi,1); saveData(); renderPList();}
-    function addQ(pi){periods[pi].questions.push({qType:'text', zoom:false, q:"",correct:"1",options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}); saveData(); renderQList(pi);}
-    function delQ(pi,qi){periods[pi].questions.splice(qi,1); saveData(); renderQList(pi);}
-    
-    function setQType(pi,qi,type){
-        periods[pi].questions[qi].qType = type;
-        // Reset values to avoid confusion
-        for(let k=1; k<=4; k++) { periods[pi].questions[qi].options[k].val = ""; periods[pi].questions[qi].options[k].type = type; }
-        saveData(); renderQList(pi);
-    }
-    function toggleZoom(pi, qi, checked) { periods[pi].questions[qi].zoom = checked; saveData(); }
-    function upOv(pi,qi,k,v){periods[pi].questions[qi].options[k].val=v; saveData();}
-    
-    function handleDrop(e, pi, qi, k) {
-        const file = e.dataTransfer.files[0];
-        if(file && file.type.startsWith('image/')) {
-            const r=new FileReader(); r.onload=ev=>{ periods[pi].questions[qi].options[k].val=ev.target.result; saveData(); renderQList(pi); }; r.readAsDataURL(file);
-        }
-    }
-    function upImg(el,pi,qi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].questions[qi].options[k].val=e.target.result;saveData();renderQList(pi);};r.readAsDataURL(el.files[0]);}}
-
-    // Sort Helpers
-    function setSortType(pi,k,t){periods[pi].sortingQ.options[k].type=t;periods[pi].sortingQ.options[k].val="";saveData();renderPList();} 
-    function upSortOv(pi,k,v){periods[pi].sortingQ.options[k].val=v;saveData();} 
-    function upSortImg(el,pi,k){if(el.files[0]){const r=new FileReader();r.onload=e=>{periods[pi].sortingQ.options[k].val=e.target.result;saveData();renderPList();};r.readAsDataURL(el.files[0]);}}
-
-    // --- Host Flow ---
-    function renderPSel(){ const g=document.getElementById('period-grid'); g.innerHTML=""; periods.forEach((p,i)=>{ g.innerHTML+=`<div class="period-btn" onclick="selectP(${i})">${p.title}<br><span style="font-size:16px">${p.questions.length}問</span></div>`; }); document.getElementById('period-select-view').classList.remove('hidden'); }
-    function selectP(i){ 
-        currentPIdx=i; currentQIdx=-1; 
-        periodScores={}; scores={}; periodTimes={}; // 初期化
-        for(let id in participants) { periodScores[id]=0; scores[id]=0; periodTimes[id]=0; }
-        broadcastScores();
-        document.getElementById('period-select-view').classList.add('hidden'); 
-        hostState=1; nextPhase(); 
-    }
-
-    function nextPhase(){
-        const P=periods[currentPIdx]; const Q=P.questions[currentQIdx];
-        try {
-            switch(hostState){
-                case 0: renderPSel(); break; // P-Sel
-                case 1: 
-                    currentQIdx++; isSorting=false;
-                    if(currentQIdx>=P.questions.length){ hostState=7; nextPhase(); return; }
-                    resetDisp(); hostState=2; broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
-                case 2: 
-                    displayQ(Q); playAudio('q_open'); playAudio('thinking',false); startTimer(10);
-                    broadcast({type:'START', sort:false}); hostState=3; break; 
-                case 3: stopTimer(); break;
-                case 4: stopTimer(); break; 
-                case 5: showVotes(); playAudio('votes'); hostState=6; break; 
-                case 6: // Correct
-                    showCorrect(Q.correct); calcScores(Q.correct); playAudio('correct'); 
-                    broadcast({type:'RESULT', correct:Q.correct}); 
-                    
-                    // ピリオドラストの問題ならピリオド成績へ
-                    if(currentQIdx === P.questions.length - 1) hostState=135; 
-                    else hostState=130; 
-                    break; 
-                case 130: showRank(Q.correct, 'speed'); hostState=140; break; 
-                case 135: showRank(null, 'period_rank'); hostState=140; break; // ピリオド成績
-                case 140: document.getElementById('ranking-modal').classList.add('hidden'); hostState=1; nextPhase(); break;
-                
-                case 7: // P-End (ピリオド終了画面)
-                    document.getElementById('period-end-view').classList.remove('hidden');
-                    document.getElementById('champ-name').classList.add('hidden'); 
-                    
-                    // --- 修正箇所：チャンピオンを決定してIDを保存 ---
-                    let champId = "none"; 
-                    let candidates = Object.keys(participants).map(id => ({
-                        id: id,
-                        score: periodScores[id] || 0,
-                        time: periodTimes[id] || 0
-                    }));
-
-                    if (candidates.length > 0) {
-                        candidates.sort((a, b) => {
-                            if (b.score !== a.score) return b.score - a.score;
-                            return a.time - b.time;
-                        });
-                        champId = candidates[0].id;
-                    }
-                    currentChampId = champId; 
-                    
-                    document.getElementById('champ-name').innerText = participants[champId] || "該当なし";
-                    champSortAns = null; hostState = 71; break; 
-                
-                case 71: // Reveal Champ
-                    document.getElementById('champ-name').classList.remove('hidden');
-                    // 正解BGM再生(playAudio('correct'))を削除
-                    hostState=8; break;
-                case 8: // Sort Prep
-                    document.getElementById('period-end-view').classList.add('hidden'); resetDisp(); isSorting=true;
-                    displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}});
-                    broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'});
-                    hostState=9; break;
-                case 9: // Sort Open & Start
-                    displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',false); startTimer(20);
-                    broadcast({type:'START', sort:true}); hostState=90; break;
-                case 90: stopTimer(); break;
-                case 10: stopTimer(); break; 
-                case 11: // Sort Reveal Prep (山分けクイズ結果表示準備)
-                    champSortAns = (answers[currentChampId] && answers[currentChampId].choice) ? answers[currentChampId].choice : ["?","?","?","?"];
-                    renderSortResultLayout(champSortAns, P.sortingQ); hostState = 12; break; 
-                case 12: case 13: case 14: case 15: // Reveal
-                    revealSortRow(hostState-12, P.sortingQ.order, champSortAns); playAudio('sort_reveal'); hostState++;
-                    // case 15が終わったら(次が16)、そのまま待機する流れへ
-                    if(hostState > 15) {
-                        calcSortScores(P.sortingQ.order); 
-                        broadcast({type:'RESULT', correct:P.sortingQ.order});
-                        hostState = 16; // 新しい待機ステートへ
-                    }
-                    break;
-                
-                // 131(Ranking) はスキップ
-                case 16: // End Wait -> Title
-                    document.getElementById('sort-result-view').classList.add('hidden'); 
-                    hostState = 0; 
-                    nextPhase(); 
-                    broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); 
-                    break;
-            }
-        } catch(e) { console.error(e); alert("エラーが発生しましたが続行します"); document.getElementById('ranking-modal').classList.add('hidden'); hostState=0; }
-    }
-    function broadcast(m){for(let k in conns)conns[k].send(m);}
-    
-    function resetDisp(){
-        document.getElementById('q-text').innerText=""; document.getElementById('sort-result-view').classList.add('hidden');
-        for(let k=1;k<=4;k++){ 
-            const p=document.getElementById('opt-'+k); 
-            p.classList.remove('dimmed','highlighted', 'zoom-anim'); 
-            document.getElementById('val-'+k).innerHTML=""; 
-            document.getElementById('vote-'+k).style.opacity=0; 
-        }
-        document.getElementById('timer-display').classList.add('hidden'); answers={}; stopAudio();
-    }
-    function displayQ(q){
-        document.getElementById('q-text').innerText=q.q;
-        
-        // Layout Switch
-        const gl = document.getElementById('game-layout');
-        if(q.qType === 'image' && !isSorting) {
-            gl.classList.remove('layout-text'); gl.classList.add('layout-image');
-        } else {
-            gl.classList.add('layout-text'); gl.classList.remove('layout-image');
-        }
-
-        for(let k=1;k<=4;k++){
-            const el=document.getElementById('val-'+k); el.className = 'opt-val';
-            if(q.qType==='image' && !isSorting) {
-                el.innerHTML=`<img src="${q.options[k].val}" class="opt-img">`; 
-                if(q.zoom) document.getElementById('opt-'+k).classList.add('zoom-anim');
-            }
-            else el.innerText=q.options[k].val;
-        }
-    }
-    let tId; function startTimer(sec){
-        const el=document.getElementById('timer-display'); el.classList.remove('hidden'); let t=sec; 
-        document.getElementById('timer-text').innerText=sec;
-        const s=Date.now();
-        tId=setInterval(()=>{ 
-            t=sec-(Date.now()-s)/1000; 
-            if(t<=0){t=0;stopTimer();} 
-            document.getElementById('timer-text').innerText=Math.ceil(t); 
-        },50);
-    }
-    function stopTimer(){ 
-        clearInterval(tId); 
-        broadcast({type:'TIMEUP'}); 
-        // BGM CONTINUES (Not Stopped)
-        
-        isLagTime = true;
-        setTimeout(() => { isLagTime = false; }, 5000);
-
-        const isPeriodLastQ = (currentQIdx === periods[currentPIdx].questions.length - 1);
-        if(isPeriodLastQ && (hostState === 3 || hostState === 4)) {
-            playAudio('period_end'); // 専用SE
-        }
-
-        // DIRECT TRANSITION LOGIC
-        if(hostState === 3 || hostState === 4) hostState = 5; // Normal: Thinking -> Pre-Vote
-        else if(hostState === 9 || hostState === 90 || hostState === 10) hostState = 11; // Sort: Thinking -> Pre-Reveal
-        else hostState++; 
-    }
-    
-    function showVotes(){ 
-        stopAudio(); // Stop BGM here (when vote sound plays)
-        document.getElementById('timer-display').classList.add('hidden'); 
-        for(let k=1;k<=4;k++) document.getElementById('vote-'+k).innerText = Object.values(answers).filter(a=>a.choice==k).length; 
-        for(let k=1;k<=4;k++) document.getElementById('vote-'+k).style.opacity=1; 
-    }
-    function showCorrect(c){ for(let k=1;k<=4;k++){ const p=document.getElementById('opt-'+k); if(k==c) p.classList.add('highlighted'); else p.classList.add('dimmed'); } }
-    
-    function renderSortResultLayout(champAns, q){
-        document.getElementById('sort-result-view').classList.remove('hidden');
-        const cCol = document.getElementById('champ-ans-col'); cCol.innerHTML='<div style="color:#ffd700; font-weight:bold; font-size:30px; margin-bottom:20px;">CHAMPION</div>'; cCol.className = 'champ-ans-col';
-        const rCol = document.getElementById('correct-ans-col'); rCol.innerHTML='<div style="color:#00ffff; font-weight:bold; font-size:30px; margin-bottom:20px;">ANSWER</div>';
-        champAns.forEach(k => { const color = k==1?'var(--col-1)':k==2?'var(--col-2)':k==3?'var(--col-3)':'var(--col-4)'; cCol.innerHTML += `<div class="sort-bubble" style="background:${color}">${k}</div>`; });
-        q.order.forEach((k, i) => {
-            const txt = q.options[k].type=='text' ? q.options[k].val : `選択肢${k}`;
-            const color = k==1?'var(--col-1)':k==2?'var(--col-2)':k==3?'var(--col-3)':'var(--col-4)';
-            rCol.innerHTML += `<div class="sort-row-correct" id="sort-row-${i}"><div class="sort-bubble" style="background:${color}">${k}</div><div class="sort-text-box">${txt}</div></div>`;
         });
+        html += `</div>`;
+        document.getElementById('h-game-content').innerHTML = html;
+        document.getElementById('h-result-controls').classList.remove('hidden');
+        
+        Host.broadcast({ type: 'GAME_OVER' });
     }
-    function revealSortRow(idx, correctOrder, champAns){
-        document.getElementById(`sort-row-${idx}`).classList.add('visible');
-        if(correctOrder[idx] !== champAns[idx]) document.getElementById('champ-ans-col').classList.add('dimmed-all');
-    }
+};
 
-    function calcScores(c){ 
-        for(let id in answers) {
-            if(answers[id].choice==c){ 
-                // NaN check
-                if(isNaN(scores[id])) scores[id] = 0;
-                if(isNaN(periodScores[id])) periodScores[id] = 0;
-                if(isNaN(periodTimes[id])) periodTimes[id] = 0;
-                
-                scores[id]++; 
-                periodScores[id]++; 
-                
-                // time
-                let t = parseFloat(answers[id].time || 0);
-                periodTimes[id] += t;
-            }
-        } 
-        broadcastScores(); 
-    }
-    function calcSortScores(ord){ for(let id in answers) if(JSON.stringify(answers[id].choice)===JSON.stringify(ord)) scores[id]+=5; broadcastScores(); } 
-    function broadcastScores(){ for(let id in conns) conns[id].send({type:'SCORE', score:scores[id]}); }
-    
-    function showRank(correctAnswer, type = 'speed'){
-        const l=document.getElementById('rank-list'); l.innerHTML="";
-        let w = [];
-        try {
-            if (type === 'overall') {
-                w = Object.keys(scores).map(id=>({n:participants[id]||"Unknown", v:scores[id]})).sort((a,b)=>b.v-a.v);
-                document.querySelector('.side-text').innerText = "総合成績";
-            } else if (type === 'period_rank') {
-                // ピリオド成績: 点数降順 -> 時間昇順
-                w = Object.keys(periodScores).map(id=>({
-                    n:participants[id]||"Unknown", 
-                    v:periodScores[id],
-                    t:periodTimes[id]||0
-                }));
-                w.sort((a,b) => {
-                    if(b.v !== a.v) return b.v - a.v; // 点数が多い順
-                    return a.t - b.t; // 時間が短い順
-                });
-                document.querySelector('.side-text').innerText = "ピリオド成績";
+/* ================= CLIENT LOGIC (MOBILE) ================= */
+const Client = {
+    id: null, name: null, conn: null,
+    init: (hid) => {
+        Client.id = sessionStorage.getItem('p_id') || 'p_' + Date.now(); 
+        sessionStorage.setItem('p_id', Client.id);
+        
+        // Use Enhanced Config
+        const peer = new Peer(PEER_CONFIG);
+        peer.on('open', () => {
+            Client.conn = peer.connect(hid);
+            Client.conn.on('open', () => { /* Ready */ });
+            Client.conn.on('data', data => Client.handleData(data));
+            Client.conn.on('close', () => { Utils.showAlert("通信が切断されました"); location.reload(); });
+        });
+    },
+
+    join: async () => {
+        const name = document.getElementById('c-name').value;
+        if(!name) return;
+        if(!Client.conn) return Utils.showAlert("接続中...少々お待ちください");
+        
+        if(!await Utils.showConfirm(`${name} で参加します。よろしいですか？`)) return;
+
+        Client.name = name;
+        Client.conn.send({ type: 'JOIN', name: name });
+        
+        document.getElementById('c-screen-login').classList.add('hidden');
+        document.getElementById('c-screen-main').classList.remove('hidden');
+        document.getElementById('c-disp-name').innerText = name;
+        Client.showWait("ゲーム開始までお待ちください");
+    },
+
+    showWait: (msg) => {
+        document.getElementById('c-view-wait').classList.remove('hidden');
+        document.getElementById('c-view-action').classList.add('hidden');
+        document.getElementById('c-wait-msg').innerText = msg;
+    },
+
+    showAction: (roleText, instruction) => {
+        document.getElementById('c-view-wait').classList.add('hidden');
+        document.getElementById('c-view-action').classList.remove('hidden');
+        document.getElementById('c-role-text').innerText = roleText;
+        document.getElementById('c-instruction').innerText = instruction;
+        // Reset Inputs
+        document.getElementById('c-input-area').classList.add('hidden');
+        document.getElementById('c-b-controls').classList.add('hidden');
+    },
+
+    handleData: (data) => {
+        if (data.type === 'ROLE_ASSIGN') {
+            const isB = (Client.conn.provider.id === data.roleB.id);
+            if (isB) {
+                Client.showAction("あなたは【質問者】", `ターゲット (${data.roleA.name}) への質問を考えてください`);
+                document.getElementById('c-input-area').classList.remove('hidden');
+                document.getElementById('c-area-label').innerText = "質問を入力";
+                Client.actionType = 'QUESTION';
             } else {
-                // スピード順
-                for(let id in answers) {
-                    if(participants[id] && answers[id].choice == correctAnswer) { 
-                        let t = 99.99; if(answers[id].time !== undefined) t = parseFloat(answers[id].time);
-                        w.push({n:participants[id], v:t});
-                    }
-                }
-                w.sort((a,b)=>a.v-b.v);
-                document.querySelector('.side-text').innerText = "解答ランキング";
+                const isA = (Client.conn.provider.id === data.roleA.id);
+                Client.isA = isA;
+                Client.targetName = data.roleA.name;
+                Client.showWait("質問者が質問を考え中...");
             }
-        } catch(e) { console.log(e); }
-
-        if(!w.length) l.innerHTML="<div style='text-align:center;font-size:40px;color:#fff;'>該当者なし</div>";
-        else {
-            const dispW = w.slice(0, 10);
-            dispW.forEach((p,i)=>{ 
-                let val;
-                if(type === 'speed') val = `${p.v.toFixed(2)}s`;
-                else val = `${p.v}P`;
-
-                // アニメーション遅延: period_rankの場合は下位(リストの下)から表示
-                let delay = i * 0.1;
-                if(type === 'period_rank') {
-                    // 下（配列の後ろ）から順に delay を小さくするのではなく、
-                    // 下から順に表示させたい = 上の人の delay を大きくする
-                    delay = (dispW.length - 1 - i) * 0.5; 
-                }
-
-                l.innerHTML+=`<div class="rank-row" style="animation-delay:${delay}s"><div class="rank-num">${i+1}</div><div class="rank-name">${p.n}</div><div class="rank-score-box">${val}</div></div>`; 
-            });
         }
-        document.getElementById('ranking-modal').classList.remove('hidden');
-    }
+        else if (data.type === 'PHASE_ANSWER') {
+            if (Client.actionType === 'QUESTION') {
+                Client.showAction("あなたは【質問者】", "回答が集まるのを待っています...");
+            } else {
+                let instr = `質問: ${data.question}\n\n`;
+                if (Client.isA) instr += "あなたはターゲット本人です。正直に答えてください。";
+                else instr += `ターゲット (${Client.targetName}) になりすまして回答してください。`;
+                
+                Client.showAction("回答タイム", instr);
+                document.getElementById('c-input-area').classList.remove('hidden');
+                document.getElementById('c-area-label').innerText = "回答を入力";
+                document.getElementById('c-input-text').value = "";
+                Client.actionType = 'ANSWER';
+            }
+        }
+        else if (data.type === 'B_READY_TO_SHOW') {
+            document.getElementById('c-b-controls').classList.remove('hidden');
+            document.getElementById('c-btn-show').disabled = false;
+            document.getElementById('c-instruction').innerText = "回答が集まりました。ホスト画面に表示します。";
+        }
+        else if (data.type === 'B_READY_TO_REVEAL') {
+            document.getElementById('c-btn-show').classList.add('hidden');
+            document.getElementById('c-btn-reveal').classList.remove('hidden');
+            document.getElementById('c-instruction').innerText = "ホスト画面を見て推理してください。\n準備ができたら答えを表示します。";
+        }
+        else if (data.type === 'GAME_OVER') {
+            Client.showWait("結果発表中...");
+        }
+        else if (data.type === 'RESET') {
+            Client.showWait("次のゲームを待機中...");
+            Client.actionType = null;
+        }
+    },
 
-    // --- Client Logic ---
-    function initClient(hid){
-        peer=new Peer(); 
-        peer.on('open',()=>{ 
-            conn=peer.connect(hid); 
-            conn.on('open', ()=>{ document.getElementById('join-btn').disabled = false; document.getElementById('join-btn').innerText = "参加"; });
-            conn.on('data',d=>{
-                if(d.type==='SCORE') document.getElementById('client-score').innerText=`現在の得点: ${d.score}点`;
-                if(d.type==='STANDBY'){ updateClientUI('standby', d.msg); }
-                if(d.type==='START'){ clientStartTime=Date.now(); isSorting=d.sort; resetClientSort(); updateClientUI('active'); }
-                if(d.type==='TIMEUP'){ updateClientUI('locked'); }
-                if(d.type==='RESULT'){ showClientResult(d.correct); }
-            });
-        });
-    }
-    function joinGame(){ 
-        const n=document.getElementById('user-name').value; if(!n)return; 
-        if(!conn || !conn.open) return alert("接続中...少々お待ちください");
-        conn.send({type:'LOGIN', name:n}); showScreen('client-view'); 
-    }
-    
-    function updateClientUI(state, msg="") {
-        const pad = document.getElementById('client-pad');
-        const main = document.getElementById('cli-status-text');
-        const resBox = document.getElementById('client-result-box');
-        resBox.innerHTML = ""; 
+    sendAction: async () => {
+        const text = document.getElementById('c-input-text').value;
+        if(!text) return;
+        if(!await Utils.showConfirm("送信します。よろしいですか？")) return;
         
-        if (state === 'active') {
-            pad.classList.remove('hidden');
-            main.innerText = "解答してください";
-            document.getElementById('sort-ui').classList.add('hidden'); 
-            document.querySelectorAll('.ans-btn').forEach(b=>{
-                b.classList.remove('disabled', 'selected', 'sort-selected');
-                b.style.pointerEvents = 'auto';
-            });
-            lastChoice = null;
-            if(isSorting) document.getElementById('sort-ui').classList.remove('hidden');
-        } else if (state === 'standby') {
-            pad.classList.add('hidden'); main.innerText = msg; document.getElementById('sort-ui').classList.add('hidden');
-        } else if (state === 'locked') {
-            main.innerText = "正解発表をお待ちください";
-            // ボタンをグレーアウト
-            document.querySelectorAll('.ans-btn').forEach(b=>{
-                b.classList.add('disabled');
-                b.style.pointerEvents = 'none';
-            });
+        if (Client.actionType === 'QUESTION') {
+            Client.conn.send({ type: 'QUESTION', text: text });
+            document.getElementById('c-input-area').classList.add('hidden');
+            document.getElementById('c-instruction').innerText = "回答を待っています...";
+        } 
+        else if (Client.actionType === 'ANSWER') {
+            Client.conn.send({ type: 'ANSWER', text: text });
+            Client.showWait("他の回答を待っています...");
         }
-    }
+    },
 
-    function sendAnswer(c){
-        if(isSorting){
-            if(clientSortAns.includes(c)) return;
-            clientSortAns.push(c);
-            const btn = document.querySelector(`#cbtn-${c}`);
-            btn.classList.add('sort-selected');
-            btn.setAttribute('data-order', clientSortAns.length);
-            document.getElementById('sort-sel').innerText = clientSortAns.join(' → ');
-            if(clientSortAns.length===4) sendSortAnswer();
-        } else {
-            const t = (Date.now() - clientStartTime) / 1000;
-            conn.send({type:'ANSWER', choice:c, time:t});
-            lastChoice = c;
-            document.querySelectorAll('.ans-btn').forEach(b=>{
-                b.style.pointerEvents = 'none';
-                if(b.id === `cbtn-${c}`) b.classList.add('selected');
-                else b.classList.add('disabled');
-            });
-            document.getElementById('cli-status-text').innerText = "解答を受信しました";
-        }
+    sendShowRequest: async () => {
+        if(!await Utils.showConfirm("全員の回答をホスト画面に表示しますか？")) return;
+        Client.conn.send({ type: 'SHOW_REQ' });
+        document.getElementById('c-btn-show').disabled = true;
+    },
+
+    sendRevealRequest: async () => {
+        if(!await Utils.showConfirm("正解を発表しますか？")) return;
+        Client.conn.send({ type: 'REVEAL_REQ' });
+        document.getElementById('c-b-controls').classList.add('hidden');
+        Client.showWait("結果発表中...");
     }
-    function resetClientSort(){ clientSortAns=[]; document.querySelectorAll('.ans-btn').forEach(b=>{b.classList.remove('selected', 'sort-selected'); b.removeAttribute('data-order');}); document.getElementById('sort-sel').innerText=""; }
-    function sendSortAnswer(){ 
-        const t = (Date.now() - clientStartTime) / 1000;
-        conn.send({type:'ANSWER', choice:clientSortAns, time:t}); 
-        lastChoice = JSON.stringify(clientSortAns);
-        document.getElementById('cli-status-text').innerText = "解答を受信しました";
-    }
-    function resetSort(){ resetClientSort(); }
-    
-    function showClientResult(correct) {
-        const box = document.getElementById('client-result-box');
-        const status = document.getElementById('cli-status-text');
-        status.innerText = ""; 
-        let isCorrect = false;
-        if(isSorting) { if(JSON.stringify(clientSortAns) === JSON.stringify(correct)) isCorrect = true; } 
-        else { if(lastChoice === correct) isCorrect = true; }
-        if(isCorrect) box.innerHTML = `<div class="res-win">正解</div>`;
-        else box.innerHTML = `<div class="res-lose">不正解</div>`;
-    }
+};
+
+Host.init();
 </script>
 </body>
 </html>
