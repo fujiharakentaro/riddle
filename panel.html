@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Image Blackout Quiz V2.3</title>
+    <title>Image Blackout Quiz V2.4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Orbitron:wght@700&display=swap" rel="stylesheet">
@@ -43,21 +43,34 @@
             width: 90vmin; height: 90vmin; max-width: 500px; max-height: 500px;
             border: 2px solid #fff; position: relative; background-size: cover; background-position: center;
         }
+        /* Fix for Answer Reveal Grid (Contain Image) */
+        #h-ans-grid {
+            background-size: contain; background-repeat: no-repeat; border: none;
+        }
+
         .grid-cell { border: 1px solid rgba(255,255,255,0.3); cursor: pointer; transition: background 0.1s; }
         .grid-cell.black { background-color: #000; }
         
-        /* Modal */
+        /* Modal - Adjusted for mobile fit */
         .modal-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 1000;
             display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:0.3s;
         }
         .modal-overlay.active { opacity:1; pointer-events:auto; }
-        .modal-box { background: #222; border: 2px solid var(--accent); padding: 30px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
-        .modal-msg { font-size: 20px; margin-bottom: 20px; line-height: 1.5; }
-        .modal-btns { display:flex; justify-content:center; gap:10px; }
+        .modal-box { 
+            background: #222; border: 2px solid var(--accent); padding: 20px; border-radius: 15px; 
+            text-align: center; width: 90%; max-width: 350px; 
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .modal-msg { font-size: 18px; margin-bottom: 20px; line-height: 1.5; word-break: break-all; }
+        .modal-btns { 
+            display:flex; justify-content:center; gap:10px; flex-wrap: wrap; width: 100%;
+        }
+        .modal-btns .btn {
+            min-width: 120px; margin: 5px; padding: 10px 20px; font-size: 16px;
+        }
 
         /* HOST Specific */
-        /* Enlarged Preview for Selection Result */
         .preview-list { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; overflow-y: auto; max-height: 60vh; padding: 10px; }
         .preview-card { background: #222; border: 1px solid #555; padding: 10px; width: 220px; text-align: center; border-radius: 8px; }
         .preview-grid-mini { 
@@ -197,7 +210,8 @@
         </div>
 
         <div id="h-question-phase" class="screen hidden">
-            <div class="grid-container" id="h-game-grid"></div> <div id="h-timer" class="timer-box hidden">60</div>
+            <div class="grid-container" id="h-game-grid"></div>
+            <div id="h-timer" class="timer-box hidden">60</div>
             <div id="h-finish-msg" class="hidden" style="font-size:60px; color:#fff; font-weight:bold;">終了</div>
             
             <button id="h-btn-exec-q" class="btn btn-lg" onclick="H.executeQuestion()">出題する</button>
@@ -206,7 +220,7 @@
 
         <div id="h-answer-phase" class="screen hidden">
             <h2>正解</h2>
-            <div class="grid-container" id="h-ans-grid" style="border:none;"></div>
+            <div class="grid-container" id="h-ans-grid"></div>
             <div id="h-ans-text" style="font-size:32px; margin:20px 0; font-weight:bold;"></div>
             <button class="btn" onclick="H.goToProbSelect()">問題選択画面に戻る</button>
         </div>
@@ -221,7 +235,7 @@
 
         <div id="c-wait" class="screen hidden">
             <h2>WAITING...</h2>
-            <p>ゲーム開始までしばらくお待ちください</p>
+            <p id="c-wait-msg">ゲーム開始までしばらくお待ちください</p>
         </div>
 
         <div id="c-guesser-wait" class="screen hidden">
@@ -320,7 +334,6 @@ const H = {
     goToProbSelect: () => {
         H.switchScreen('h-prob-select');
         hide('mode-badge');
-        // Simple Button (No Image Background)
         $('h-prob-grid').innerHTML = Data.problems.map((p, i) => 
             `<button class="btn" style="width:120px; height:100px; color:#fff;" onclick="H.selectProb(${i})">第${i+1}問</button>`
         ).join('');
@@ -422,11 +435,9 @@ const H = {
     },
     selectMode: (m) => {
         Data.mode = m;
-        // Show Mode Badge
         const badge = $('mode-badge');
         badge.innerText = `MODE: ${m === 'MIN' ? '最小で当てる' : '最多で当てさせない'}`;
         show('mode-badge');
-        
         H.switchScreen('h-guesser-select');
         H.renderGuesserSelect();
     },
@@ -445,12 +456,13 @@ const H = {
     },
     startSelectionPhase: () => {
         H.switchScreen('h-selection-wait');
-        const prob = Data.problems[Data.currentProbIdx];
+        
+        // Notify Guesser ONLY to wait here. Others wait for "Show Problem" trigger.
         for (let id in H.conns) {
             if (id === Data.guesserId) {
                 H.conns[id].send({ type: 'GUESSER_WAIT' });
             } else {
-                H.conns[id].send({ type: 'START_SELECT', img: prob.img });
+                H.conns[id].send({ type: 'WAIT', msg: 'ホストが準備中です...' });
             }
         }
         Data.selections = {};
@@ -463,7 +475,6 @@ const H = {
         const prob = Data.problems[Data.currentProbIdx];
         const grid = $('h-monitor-grid');
         grid.style.backgroundImage = `url(${prob.img})`;
-        grid.style.opacity = "1"; // No opacity overlay
         grid.innerHTML = "";
         for(let i=0; i<16; i++) {
             const d = document.createElement('div');
@@ -471,6 +482,13 @@ const H = {
             grid.appendChild(d);
         }
         H.checkSubmissions();
+        
+        // Trigger Client Display HERE
+        for (let id in H.conns) {
+            if (id !== Data.guesserId) {
+                H.conns[id].send({ type: 'START_SELECT', img: prob.img });
+            }
+        }
     },
     checkSubmissions: () => {
         const total = Object.keys(Data.players).length - 1; // Exclude guesser
@@ -500,7 +518,6 @@ const H = {
 
             const card = document.createElement('div');
             card.className = 'preview-card';
-            // Large Preview
             let gridHtml = `<div class="preview-grid-mini" style="background-image:url(${prob.img})">`;
             grid.forEach(v => { gridHtml += `<div class="mini-cell ${v===1?'black':''}"></div>`; });
             gridHtml += `</div>`;
@@ -575,11 +592,9 @@ const H = {
         H.switchScreen('h-answer-phase');
         const prob = Data.problems[Data.currentProbIdx];
         $('h-ans-text').innerText = prob.ans;
-        
-        // Just Image, No Overlay
         const grid = $('h-ans-grid');
         grid.style.backgroundImage = `url(${prob.img})`;
-        grid.innerHTML = ""; // Empty
+        grid.innerHTML = "";
         
         H.broadcast({ type: 'WAIT', msg: '次の問題を待機中...' });
     },
@@ -614,7 +629,7 @@ const C = {
     },
     showWait: (msg) => {
         C.hideAll(); show('c-wait');
-        $('c-wait').querySelector('p').innerText = msg;
+        $('c-wait-msg').innerText = msg;
     },
     showGuesserWait: () => {
         C.hideAll(); show('c-guesser-wait');
