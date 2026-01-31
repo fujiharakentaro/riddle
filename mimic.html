@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Impostor V10.1 (Network Fix)</title>
+    <title>AI Impostor V10.2 (Fix Restart)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -444,7 +444,6 @@ const Host = {
             const data = await res.json();
             if(data.error) return "API Error: " + data.error.message;
             let content = data.choices[0].message.content.trim();
-            // Prefix cleanup
             return content.replace(/^(A:|回答:|Answer:)\s*/i, '');
         } catch(e) {
             console.error(e);
@@ -457,9 +456,7 @@ const Host = {
         Host.apiKey = document.getElementById('h-apikey').value;
         if(Host.peer) return; 
 
-        // Use Enhanced Config
         Host.peer = new Peer(PEER_CONFIG);
-        
         Host.peer.on('open', id => {
             const url = `${location.href.split('?')[0]}?mode=client&host=${id}`;
             document.getElementById('qrcode').innerHTML = "";
@@ -512,6 +509,9 @@ const Host = {
 
     restartGame: async () => {
         if(!await Utils.showConfirm("同じメンバーでもう一度遊びますか？")) return;
+        // Fix: Reset Clients First
+        Host.broadcast({ type: 'RESET' });
+        await Utils.sleep(500); // Wait for clients to reset
         Host.startNewRound();
     },
 
@@ -653,11 +653,13 @@ const Host = {
 /* ================= CLIENT LOGIC (MOBILE) ================= */
 const Client = {
     id: null, name: null, conn: null,
+    // Add reset vars
+    isA: false, targetName: "",
+    
     init: (hid) => {
         Client.id = sessionStorage.getItem('p_id') || 'p_' + Date.now(); 
         sessionStorage.setItem('p_id', Client.id);
         
-        // Use Enhanced Config
         const peer = new Peer(PEER_CONFIG);
         peer.on('open', () => {
             Client.conn = peer.connect(hid);
@@ -701,6 +703,9 @@ const Client = {
 
     handleData: (data) => {
         if (data.type === 'ROLE_ASSIGN') {
+            // Fix: Clear previous roles
+            Client.isA = false;
+            
             const isB = (Client.conn.provider.id === data.roleB.id);
             if (isB) {
                 Client.showAction("あなたは【質問者】", `ターゲット (${data.roleA.name}) への質問を考えてください`);
@@ -745,6 +750,7 @@ const Client = {
         else if (data.type === 'RESET') {
             Client.showWait("次のゲームを待機中...");
             Client.actionType = null;
+            Client.isA = false;
         }
     },
 
