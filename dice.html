@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15.3</title>
+    <title>POLYHEDRON QUIZ V15.5</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -69,12 +69,23 @@
         #timer-display { position: absolute; top: 20px; right: 20px; font-size: 60px; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px var(--accent); }
         #back-btn { position: absolute; top: 20px; left: 20px; pointer-events: auto; z-index: 20; }
         
+        #countdown-display {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 150px; font-weight: 900; color: #fff;
+            text-shadow: 0 0 20px var(--accent); display: none; z-index: 30;
+        }
+
         /* --- 3. HOST: Result Screen --- */
-        #result-screen { display: flex; flex-direction: row; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 20; background: rgba(0,0,0,0.9); }
-        #res-left { flex: 3; position: relative; border-right: 2px solid #444; } /* 3D View */
-        #res-right { flex: 2; padding: 20px; overflow-y: hidden; display: flex; flex-direction: column; }
+        #result-screen { 
+            display: flex; flex-direction: row; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 20; 
+            /* Left side transparent to show 3D BG */
+            background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.95) 50%, rgba(0,0,0,0.95) 100%);
+            pointer-events: none; 
+        }
+        #res-left { flex: 1; position: relative; } 
+        #res-right { flex: 1; padding: 20px; overflow-y: hidden; display: flex; flex-direction: column; pointer-events: auto; border-left: 2px solid #444; background: rgba(0,0,0,0.8); }
         
-        #seek-bar-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 10px; background: #333; }
+        #seek-bar-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 10px; background: #333; z-index: 25; pointer-events: auto;}
         #seek-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
         
         .rank-row {
@@ -162,18 +173,19 @@
         <div id="game-ui">
             <button id="back-btn" class="btn" onclick="Host.backToTitle()">タイトルへ</button>
             <div id="timer-display"></div>
+            <div id="countdown-display">3</div>
         </div>
         <div id="canvas-container"></div>
 
         <div id="result-screen" class="hidden">
             <div id="res-left">
-                <div id="seek-bar-container"><div id="seek-bar"></div></div>
-            </div>
+                </div>
             <div id="res-right">
                 <h2 style="text-align:center; color:#fff; border-bottom:1px solid #555;">RANKING</h2>
                 <div id="ranking-list"></div>
                 <button class="btn" style="margin-top:auto;" onclick="Host.backToTitle()">終了</button>
             </div>
+            <div id="seek-bar-container"><div id="seek-bar"></div></div>
         </div>
     </div>
 
@@ -192,7 +204,6 @@
 
     <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <script>
 /* ================= COMMON UTILS ================= */
-// STUN Server Config for better connectivity
 const PEER_CONFIG = {
     config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
 };
@@ -212,7 +223,10 @@ function playTone(freq, type, dur) {
 }
 function playCorrectSE() { playTone(880, 'sine', 0.1); setTimeout(()=>playTone(1760, 'sine', 0.4), 100); }
 function playWrongSE() { playTone(150, 'sawtooth', 0.4); }
-
+function playCountSE(final=false) { 
+    if(final) playTone(880, 'triangle', 0.6); 
+    else playTone(440, 'triangle', 0.2); 
+}
 
 /* ================= HOST LOGIC ================= */
 const Host = {
@@ -241,7 +255,7 @@ const Host = {
             });
         });
 
-        document.getElementById('host-app').classList.remove('hidden'); // Show Host UI
+        document.getElementById('host-app').classList.remove('hidden'); 
         Host.renderProbList();
         Host.showTitle();
     },
@@ -304,13 +318,46 @@ const Host = {
     startGame: (idx) => {
         Host.currentProblem = Host.problems[idx];
         Host.answers = [];
+        
         document.getElementById('screen-prob-select').classList.remove('active');
         document.getElementById('game-ui').style.display = 'block';
+        document.getElementById('timer-display').innerText = "";
+        
+        // Setup 3D but hide objects initially if needed, or just show them
+        // Requirement: "Countdown before question".
+        // Let's show empty scene first, then countdown, then objects.
+        Three.stop(); // Clear
+        
+        // Countdown
+        let count = 3;
+        const cdEl = document.getElementById('countdown-display');
+        cdEl.style.display = 'block';
+        cdEl.innerText = count;
+        playCountSE();
+
+        const cdTimer = setInterval(() => {
+            count--;
+            if (count > 0) {
+                cdEl.innerText = count;
+                playCountSE();
+            } else {
+                clearInterval(cdTimer);
+                cdEl.style.display = 'none';
+                playCountSE(true);
+                Host.startActualGame();
+            }
+        }, 1000);
+    },
+    
+    startActualGame: () => {
         Three.init(Host.currentProblem, Host.config.speed / 100);
+        
         let timeLeft = parseInt(document.getElementById('time-limit').value);
         document.getElementById('timer-display').innerText = timeLeft;
+        
         Host.broadcast({ type: 'START' });
         Host.startTime = Date.now();
+        
         Host.timerId = setInterval(() => {
             timeLeft--;
             document.getElementById('timer-display').innerText = timeLeft;
@@ -334,6 +381,10 @@ const Host = {
     showResult: () => {
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('ranking-list').innerHTML = "";
+        
+        // Replay Setup
+        Three.setupReplay(); // Reset rotation and adjust camera
+
         const validWords = Host.currentProblem.trim().toUpperCase().split(/\s+/);
         
         Host.answers.forEach(a => {
@@ -431,15 +482,10 @@ const Host = {
 const Client = {
     peer: null, conn: null, name: "",
     init: (hostId) => {
-        // Hide Host UI
         document.getElementById('host-app').classList.add('hidden');
-        
-        // Show Client UI Container & Remove hidden
         const cApp = document.getElementById('client-app');
         cApp.classList.remove('hidden');
-        cApp.style.display = 'flex'; // Force flex display
-
-        // Show Login Screen active
+        cApp.style.display = 'flex';
         document.getElementById('c-login').classList.add('active');
         document.getElementById('c-game').classList.remove('active');
         
@@ -456,13 +502,10 @@ const Client = {
         if(!n) return;
         Client.name = n;
         Client.conn.send({ type: 'JOIN', name: n });
-        
-        // Switch screens manually by manipulating classes
         document.getElementById('c-login').classList.remove('active');
-        document.getElementById('c-login').style.display = 'none'; // Ensure hide
-        
+        document.getElementById('c-login').style.display = 'none';
         document.getElementById('c-game').classList.add('active');
-        document.getElementById('c-game').style.display = 'flex'; // Ensure show
+        document.getElementById('c-game').style.display = 'flex';
         document.getElementById('c-game').classList.remove('hidden');
     },
 
@@ -496,13 +539,14 @@ const Client = {
 
 /* ================= THREE.JS LOGIC ================= */
 const Three = {
-    scene: null, camera: null, renderer: null, reqId: null, meshes: [], speed: 1.0,
+    scene: null, camera: null, renderer: null, reqId: null, meshes: [], speed: 1.0, currentZ: 15,
     init: (text, speed) => {
         Three.stop();
         Three.speed = speed;
         const container = document.getElementById('canvas-container');
         Three.scene = new THREE.Scene(); Three.scene.background = new THREE.Color(0x222222);
-        Three.camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000); Three.camera.position.z = 15;
+        Three.camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000); 
+        Three.camera.position.z = 15; Three.currentZ = 15;
         Three.renderer = new THREE.WebGLRenderer({ antialias: true }); Three.renderer.setSize(window.innerWidth, window.innerHeight); container.appendChild(Three.renderer.domElement);
         const light = new THREE.DirectionalLight(0xffffff, 1); light.position.set(5, 10, 7); Three.scene.add(light); Three.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
         
@@ -516,8 +560,19 @@ const Three = {
             mesh.userData = { rx: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1), ry: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1) };
             Three.scene.add(mesh); Three.meshes.push(mesh);
         });
-        if(words.length > 2) Three.camera.position.z = 15 + (words.length-2)*5;
+        if(words.length > 2) { Three.currentZ = 15 + (words.length-2)*5; Three.camera.position.z = Three.currentZ; }
         Three.animate();
+    },
+    
+    // Setup for Replay: Reset rotations and adjust camera
+    setupReplay: () => {
+        // Reset rotation
+        Three.meshes.forEach(m => { m.rotation.set(0,0,0); });
+        // Adjust camera: Shift right to show objects on left, zoom out
+        if(Three.camera) {
+            Three.camera.position.x = 5; 
+            Three.camera.position.z = Three.currentZ * 1.4; 
+        }
     },
     
     createPoly: (word) => {
