@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15.2</title>
+    <title>POLYHEDRON QUIZ V15.3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -192,6 +192,7 @@
 
     <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <script>
 /* ================= COMMON UTILS ================= */
+// STUN Server Config for better connectivity
 const PEER_CONFIG = {
     config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
 };
@@ -277,7 +278,7 @@ const Host = {
         document.getElementById('result-screen').classList.add('hidden');
         document.getElementById('canvas-container').style.zIndex = 1;
         Three.stop();
-        Host.broadcast({ type: 'STATUS', text: '問題出題までお待ちください' });
+        Host.broadcast({ type: 'STATUS', text: '待機中...' });
     },
     
     showLobby: () => {
@@ -430,8 +431,17 @@ const Host = {
 const Client = {
     peer: null, conn: null, name: "",
     init: (hostId) => {
-        document.getElementById('host-app').style.display = 'none';
-        document.getElementById('client-app').style.display = 'flex'; // Show Client UI
+        // Hide Host UI
+        document.getElementById('host-app').classList.add('hidden');
+        
+        // Show Client UI Container & Remove hidden
+        const cApp = document.getElementById('client-app');
+        cApp.classList.remove('hidden');
+        cApp.style.display = 'flex'; // Force flex display
+
+        // Show Login Screen active
+        document.getElementById('c-login').classList.add('active');
+        document.getElementById('c-game').classList.remove('active');
         
         Client.peer = new Peer(PEER_CONFIG);
         Client.peer.on('open', () => {
@@ -447,11 +457,13 @@ const Client = {
         Client.name = n;
         Client.conn.send({ type: 'JOIN', name: n });
         
-        // Show wait screen
+        // Switch screens manually by manipulating classes
         document.getElementById('c-login').classList.remove('active');
-        document.getElementById('c-login').classList.add('hidden');
-        document.getElementById('c-game').classList.remove('hidden');
+        document.getElementById('c-login').style.display = 'none'; // Ensure hide
+        
         document.getElementById('c-game').classList.add('active');
+        document.getElementById('c-game').style.display = 'flex'; // Ensure show
+        document.getElementById('c-game').classList.remove('hidden');
     },
 
     handleData: (data) => {
