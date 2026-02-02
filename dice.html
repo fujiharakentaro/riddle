@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15.5</title>
+    <title>POLYHEDRON QUIZ V15.7</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -325,8 +325,7 @@ const Host = {
         
         // Setup 3D but hide objects initially if needed, or just show them
         // Requirement: "Countdown before question".
-        // Let's show empty scene first, then countdown, then objects.
-        Three.stop(); // Clear
+        Three.stop(); 
         
         // Countdown
         let count = 3;
@@ -352,6 +351,9 @@ const Host = {
     startActualGame: () => {
         Three.init(Host.currentProblem, Host.config.speed / 100);
         
+        // Capture initial state for replay
+        Three.captureState();
+
         let timeLeft = parseInt(document.getElementById('time-limit').value);
         document.getElementById('timer-display').innerText = timeLeft;
         
@@ -383,10 +385,19 @@ const Host = {
         document.getElementById('ranking-list').innerHTML = "";
         
         // Replay Setup
-        Three.setupReplay(); // Reset rotation and adjust camera
+        Three.setupReplay(); // Reset rotation to captured state and adjust camera
 
-        const validWords = Host.currentProblem.trim().toUpperCase().split(/\s+/);
+        const limit = parseInt(document.getElementById('time-limit').value);
         
+        // --- Speed Adjustment Logic ---
+        const REPLAY_TIME = 30; // Fixed duration
+        const speedFactor = limit / REPLAY_TIME;
+        
+        // Adjust 3D Speed for Replay
+        Three.speed = (Host.config.speed / 100) * speedFactor;
+
+        // Grading Logic (Same as before)
+        const validWords = Host.currentProblem.trim().toUpperCase().split(/\s+/);
         Host.answers.forEach(a => {
             const userAns = a.ans.trim().toUpperCase();
             a.isCorrect = validWords.includes(userAns);
@@ -405,21 +416,27 @@ const Host = {
             } else { a.points = 0; }
         });
 
-        const limit = parseInt(document.getElementById('time-limit').value);
         const bar = document.getElementById('seek-bar');
         const list = document.getElementById('ranking-list');
         
-        let startTime = Date.now();
+        let replayStartTime = Date.now();
         let answerIndex = 0;
 
         const replayTimer = setInterval(() => {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const progress = Math.min((elapsed / limit) * 100, 100);
+            // Real elapsed time in replay (0s -> 30s)
+            const realElapsed = (Date.now() - replayStartTime) / 1000;
+            
+            // Virtual game time (0s -> limit)
+            const virtualElapsed = realElapsed * speedFactor;
+
+            // Bar Progress based on Replay Time (0 -> 100% in 30s)
+            const progress = Math.min((realElapsed / REPLAY_TIME) * 100, 100);
             bar.style.width = progress + "%";
 
+            // Check if any answer should appear based on Virtual Time
             while(answerIndex < Host.answers.length) {
                 const ans = Host.answers[answerIndex];
-                if(elapsed >= ans.timeOffset) {
+                if(virtualElapsed >= ans.timeOffset) {
                     const div = document.createElement('div');
                     div.className = `rank-row ${ans.isCorrect ? 'correct' : 'incorrect'}`;
                     div.innerHTML = `<span class="r-name">${ans.name}</span><span class="r-ans">${ans.ans}</span><span class="r-score">+${ans.points}pt</span>`;
@@ -429,7 +446,7 @@ const Host = {
                     answerIndex++;
                 } else { break; }
             }
-            if(elapsed >= limit + 1) clearInterval(replayTimer);
+            if(realElapsed >= REPLAY_TIME + 1) clearInterval(replayTimer);
         }, 50);
     },
 
@@ -540,6 +557,8 @@ const Client = {
 /* ================= THREE.JS LOGIC ================= */
 const Three = {
     scene: null, camera: null, renderer: null, reqId: null, meshes: [], speed: 1.0, currentZ: 15,
+    initialStates: [], // Store {x,y,z}
+    
     init: (text, speed) => {
         Three.stop();
         Three.speed = speed;
@@ -563,12 +582,18 @@ const Three = {
         if(words.length > 2) { Three.currentZ = 15 + (words.length-2)*5; Three.camera.position.z = Three.currentZ; }
         Three.animate();
     },
+
+    captureState: () => {
+        Three.initialStates = Three.meshes.map(m => ({ x: m.rotation.x, y: m.rotation.y, z: m.rotation.z }));
+    },
     
-    // Setup for Replay: Reset rotations and adjust camera
+    // Setup for Replay: Reset rotations to captured state and adjust camera
     setupReplay: () => {
-        // Reset rotation
-        Three.meshes.forEach(m => { m.rotation.set(0,0,0); });
-        // Adjust camera: Shift right to show objects on left, zoom out
+        Three.meshes.forEach((m, i) => {
+            if(Three.initialStates[i]) {
+                m.rotation.set(Three.initialStates[i].x, Three.initialStates[i].y, Three.initialStates[i].z);
+            }
+        });
         if(Three.camera) {
             Three.camera.position.x = 5; 
             Three.camera.position.z = Three.currentZ * 1.4; 
@@ -611,6 +636,7 @@ const Three = {
         const el = document.getElementById('canvas-container');
         while(el.firstChild) el.removeChild(el.firstChild);
         Three.meshes = [];
+        Three.initialStates = [];
     }
 };
 
