@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15</title>
+    <title>POLYHEDRON QUIZ V15.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -112,7 +112,16 @@
     <div id="host-app">
         <div id="screen-title" class="screen active">
             <h1>POLYHEDRON QUIZ V15</h1>
-            
+            <div style="margin-top: 50px;">
+                <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="Host.showSettings()">設定</button>
+            </div>
+        </div>
+
+        <div id="screen-lobby" class="screen">
+            <h1>LOBBY</h1>
             <div id="host-info">
                 <div>参加用URL (クリックでコピー)</div>
                 <div id="host-url" class="url-box" onclick="Host.copyUrl()">---</div>
@@ -120,12 +129,17 @@
                 <div style="margin-top:10px;">参加者: <span id="p-count" style="color:var(--accent); font-weight:bold;">0</span>人</div>
                 <div id="player-list"></div>
             </div>
-
-            <div style="margin: 20px 0; width: 100%; text-align: center;">
-                <button class="settings-toggle btn" onclick="Host.showSettings()">⚙️ 設定 & 問題管理</button>
+            <div style="margin-top:30px;">
+                <button class="btn" style="font-size:24px; padding:20px 50px; background:var(--accent); color:#000; border:none;" onclick="Host.showProblemSelect()">ゲームスタート</button>
+                <br>
+                <button class="btn" onclick="Host.showTitle()">戻る</button>
             </div>
+        </div>
 
+        <div id="screen-prob-select" class="screen">
+            <h1>SELECT PROBLEM</h1>
             <div id="question-grid"></div>
+            <button class="btn" style="margin-top:30px;" onclick="Host.showLobby()">戻る</button>
         </div>
 
         <div id="screen-settings" class="screen">
@@ -273,15 +287,29 @@ const Host = {
     // --- Screens ---
     showTitle: () => {
         document.getElementById('screen-title').classList.add('active');
+        document.getElementById('screen-lobby').classList.remove('active');
+        document.getElementById('screen-prob-select').classList.remove('active');
         document.getElementById('screen-settings').classList.remove('active');
         document.getElementById('game-ui').style.display = 'none';
         document.getElementById('result-screen').classList.add('hidden');
         document.getElementById('canvas-container').style.zIndex = 1;
         Three.stop();
-        Host.renderProbBtns();
         Host.broadcast({ type: 'STATUS', text: '待機中...' });
     },
     
+    showLobby: () => {
+        document.getElementById('screen-title').classList.remove('active');
+        document.getElementById('screen-prob-select').classList.remove('active');
+        document.getElementById('screen-lobby').classList.add('active');
+    },
+
+    showProblemSelect: () => {
+        document.getElementById('screen-lobby').classList.remove('active');
+        document.getElementById('screen-prob-select').classList.add('active');
+        document.getElementById('result-screen').classList.add('hidden'); // Ensure result hidden
+        Host.renderProbBtns();
+    },
+
     showSettings: () => {
         document.getElementById('screen-title').classList.remove('active');
         document.getElementById('screen-settings').classList.add('active');
@@ -294,7 +322,7 @@ const Host = {
         Host.answers = [];
         
         // UI
-        document.getElementById('screen-title').classList.remove('active');
+        document.getElementById('screen-prob-select').classList.remove('active');
         document.getElementById('game-ui').style.display = 'block';
         
         // 3D Start
@@ -338,10 +366,7 @@ const Host = {
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('ranking-list').innerHTML = "";
         
-        // Determine Correct Answer (Simple logic: Assuming problem string itself contains answer or just checking non-empty for now. 
-        // *Requirement says "Question string is registered". Let's assume the registered string IS the answer or words.*
-        // Since the prompt implies "polyhedron quiz", usually the answer is the word displayed.
-        // We will check if the user's answer is included in the problem words.
+        // Determine Correct Answer
         const validWords = Host.currentProblem.trim().toUpperCase().split(/\s+/);
         
         // Grading
@@ -423,7 +448,8 @@ const Host = {
         Host.problems.forEach((p, i) => {
             const btn = document.createElement('div');
             btn.className = 'q-btn';
-            btn.innerHTML = `<div class="q-num">Q.${i+1}</div><div class="q-sub">${p.length>10?p.substr(0,10)+'...':p}</div>`;
+            // Removed text display
+            btn.innerHTML = `<div class="q-num">Q.${i+1}</div>`; 
             btn.onclick = () => Host.startGame(i);
             grid.appendChild(btn);
         });
