@@ -2,165 +2,139 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>カード並び順判定システム（改良版）</title>
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArUco Marker Detector (Web)</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
-        
-        /* UIレイヤー */
-        #ui-layer {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #333; color: white; }
+        h2 { margin: 10px; }
+        /* 映像表示用のCanvas */
+        #outputCanvas {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #666;
         }
-
-        /* 各カードの認識状況パネル */
-        #debug-panel {
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            text-align: left;
-            pointer-events: auto; /* タップ可能に */
-        }
-        .status-row { margin: 5px 0; display: flex; align-items: center; }
-        .indicator {
-            width: 15px; height: 15px; border-radius: 50%;
-            margin-right: 10px; background: gray; border: 1px solid white;
-        }
-        .indicator.active { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
-
-        /* 結果メッセージ */
-        #result-box {
-            align-self: center;
-            background: rgba(255, 255, 255, 0.9);
-            color: #333;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            margin-bottom: 30px;
-            display: none; /* 初期は非表示 */
-        }
-        .correct { color: #27ae60; border: 3px solid #27ae60; display: block !important; }
-        .wrong { color: #c0392b; border: 3px solid #c0392b; display: block !important; }
-
+        /* カメラ入力（非表示にしてCanvasに描画する） */
+        #inputVideo { display: none; }
+        .loading { color: yellow; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div id="debug-panel">
-            <div class="status-row"><div id="ind-0" class="indicator"></div> 1枚目 (左)</div>
-            <div class="status-row"><div id="ind-1" class="indicator"></div> 2枚目 (中)</div>
-            <div class="status-row"><div id="ind-2" class="indicator"></div> 3枚目 (右)</div>
-            <div style="font-size:0.7rem; margin-top:5px; color:#ccc;">※全て緑になると判定します</div>
-        </div>
+    <h2>ArUco認識 (HTML/JS版)</h2>
+    <div id="status" class="loading">OpenCVを読み込み中...</div>
+    
+    <video id="inputVideo" playsinline autoplay muted></video>
+    <canvas id="outputCanvas"></canvas>
 
-        <div id="result-box"></div>
-    </div>
-
-    <a-scene 
-        mindar-image="imageTargetSrc: ./targets.mind; maxTrack: 3; filterMinCF:0.0001; filterBeta: 0.001;" 
-        color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights" 
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
-
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-        <a-entity mindar-image-target="targetIndex: 0" class="card-target" data-id="0">
-            <a-plane color="blue" opacity="0.3" width="1" height="1"></a-plane>
-            <a-text value="1" color="white" align="center" width="6"></a-text>
-        </a-entity>
-
-        <a-entity mindar-image-target="targetIndex: 1" class="card-target" data-id="1">
-            <a-plane color="green" opacity="0.3" width="1" height="1"></a-plane>
-            <a-text value="2" color="white" align="center" width="6"></a-text>
-        </a-entity>
-
-        <a-entity mindar-image-target="targetIndex: 2" class="card-target" data-id="2">
-            <a-plane color="red" opacity="0.3" width="1" height="1"></a-plane>
-            <a-text value="3" color="white" align="center" width="6"></a-text>
-        </a-entity>
-    </a-scene>
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();"></script>
 
     <script>
-        const resultBox = document.getElementById('result-box');
-        const indicators = [
-            document.getElementById('ind-0'),
-            document.getElementById('ind-1'),
-            document.getElementById('ind-2')
-        ];
-        
-        // カードの状態管理
-        let cards = [
-            { visible: false, x: 0 },
-            { visible: false, x: 0 },
-            { visible: false, x: 0 }
-        ];
+        let video = document.getElementById('inputVideo');
+        let canvas = document.getElementById('outputCanvas');
+        let ctx = canvas.getContext('2d');
+        let status = document.getElementById('status');
+        let stream = null;
+        let src = null;
+        let dst = null;
+        let cap = null;
+        let dictionary = null;
+        let parameter = null;
+        let isStreaming = false;
 
-        const targets = document.querySelectorAll('.card-target');
+        // 1. OpenCVの読み込み完了時に呼ばれる
+        function onOpenCvReady() {
+            status.innerHTML = "OpenCV読み込み完了。カメラを起動します...";
+            cv['onRuntimeInitialized'] = () => {
+                startCamera();
+            };
+        }
 
-        // イベントリスナー設定
-        targets.forEach(target => {
-            const id = parseInt(target.getAttribute('data-id'));
-
-            target.addEventListener("targetFound", () => {
-                cards[id].visible = true;
-                indicators[id].classList.add('active');
-            });
-
-            target.addEventListener("targetLost", () => {
-                cards[id].visible = false;
-                indicators[id].classList.remove('active');
-                // ロストしたら結果表示も消す
-                resultBox.className = ""; 
-                resultBox.style.display = "none";
-            });
-        });
-
-        // メインループ
-        const scene = document.querySelector('a-scene');
-        scene.addEventListener('loaded', () => {
-            const loop = () => {
-                // 3枚とも見えているかチェック
-                const allVisible = cards.every(c => c.visible);
-
-                if (allVisible) {
-                    // 座標更新
-                    targets.forEach(target => {
-                        const id = parseInt(target.getAttribute('data-id'));
-                        // ワールド座標を取得
-                        const pos = target.object3D.position; 
-                        cards[id].x = pos.x;
-                    });
-
-                    // 判定ロジック
-                    // 左(x小) < 中 < 右(x大)
-                    if (cards[0].x < cards[1].x && cards[1].x < cards[2].x) {
-                        resultBox.textContent = "正解！⭕️";
-                        resultBox.className = "correct";
-                    } else {
-                        resultBox.textContent = "並び順が違います❌";
-                        resultBox.className = "wrong";
+        // 2. カメラの起動
+        async function startCamera() {
+            try {
+                // リアカメラを優先、なければフロント
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
                     }
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    initOpenCV();
+                };
+            } catch (err) {
+                status.innerHTML = "カメラエラー: " + err;
+                console.error(err);
+            }
+        }
+
+        // 3. OpenCVの初期設定
+        function initOpenCV() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // 映像処理用のメモリ確保
+            src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+            dst = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+            cap = new cv.VideoCapture(video);
+
+            // ArUcoの設定 (Python版と同じ DICT_4X4_50 を指定)
+            // OpenCV.jsでは cv.aruco が利用可能です
+            dictionary = new cv.aruco_Dictionary(cv.aruco.DICT_4X4_50);
+            parameter = new cv.aruco_DetectorParameters();
+
+            status.innerHTML = "認識中... マーカーを映してください";
+            isStreaming = true;
+            processVideo();
+        }
+
+        // 4. ループ処理（毎フレーム実行）
+        function processVideo() {
+            if (!isStreaming) return;
+
+            try {
+                // カメラ映像をMatに読み込む
+                cap.read(src);
+
+                // --- 検出処理 ---
+                let corners = new cv.MatVector();
+                let ids = new cv.Mat();
+                let rejected = new cv.MatVector();
+
+                // マーカー検出
+                cv.aruco.detectMarkers(src, dictionary, corners, ids, parameter, rejected);
+
+                // マーカーが見つかったら描画
+                if (ids.rows > 0) {
+                    // Python版の cv2.aruco.drawDetectedMarkers と同じ
+                    cv.aruco.drawDetectedMarkers(src, corners, ids);
+                    
+                    // IDをコンソールにも出すならここ
+                    // for (let i = 0; i < ids.rows; i++) {
+                    //    console.log("Detected ID:", ids.data32S[i]);
+                    // }
                 }
 
-                requestAnimationFrame(loop);
-            };
-            loop();
-        });
+                // --- 結果の表示 ---
+                cv.imshow('outputCanvas', src);
+
+                // メモリ解放（JavaScriptでは必須！しないとブラウザがクラッシュします）
+                corners.delete();
+                ids.delete();
+                rejected.delete();
+
+                // 次のフレームへ
+                requestAnimationFrame(processVideo);
+
+            } catch (err) {
+                console.error(err);
+                status.innerHTML = "処理エラー発生";
+            }
+        }
     </script>
 </body>
 </html>
