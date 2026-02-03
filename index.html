@@ -2,29 +2,46 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArUco Marker Detector (Web)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ArUco Camera (Mobile)</title>
     <style>
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #333; color: white; }
-        h2 { margin: 10px; }
-        /* 映像表示用のCanvas */
-        #outputCanvas {
-            width: 100%;
-            max-width: 640px;
-            border: 2px solid #666;
-        }
-        /* カメラ入力（非表示にしてCanvasに描画する） */
+        body { margin: 0; padding: 0; background-color: #222; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+        h2 { margin: 10px; font-size: 1.2rem; }
+        
+        /* 映像表示エリア */
+        .container { position: relative; width: 100%; max-width: 640px; }
+        #outputCanvas { width: 100%; height: auto; border: 2px solid #666; background: #000; }
         #inputVideo { display: none; }
-        .loading { color: yellow; font-weight: bold; }
+
+        /* スタートボタンの装飾 */
+        #startBtn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #00d2ff;
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,210,255, 0.4);
+        }
+        #startBtn:disabled { background-color: #555; color: #888; cursor: not-allowed; box-shadow: none; }
+        
+        #status { margin: 10px; color: yellow; font-size: 0.9rem; text-align: center; }
     </style>
 </head>
 <body>
 
-    <h2>ArUco認識 (HTML/JS版)</h2>
-    <div id="status" class="loading">OpenCVを読み込み中...</div>
+    <h2>ArUco Marker Detector</h2>
+    <div id="status">準備中... OpenCVを読み込んでいます</div>
     
-    <video id="inputVideo" playsinline autoplay muted></video>
-    <canvas id="outputCanvas"></canvas>
+    <button id="startBtn" disabled onclick="startCamera()">📷 カメラを起動する</button>
+
+    <div class="container">
+        <video id="inputVideo" playsinline muted></video>
+        <canvas id="outputCanvas"></canvas>
+    </div>
 
     <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();"></script>
 
@@ -33,106 +50,101 @@
         let canvas = document.getElementById('outputCanvas');
         let ctx = canvas.getContext('2d');
         let status = document.getElementById('status');
+        let startBtn = document.getElementById('startBtn');
+        
         let stream = null;
-        let src = null;
-        let dst = null;
         let cap = null;
+        let src = null;
         let dictionary = null;
         let parameter = null;
         let isStreaming = false;
 
-        // 1. OpenCVの読み込み完了時に呼ばれる
+        // 1. OpenCV読み込み完了
         function onOpenCvReady() {
-            status.innerHTML = "OpenCV読み込み完了。カメラを起動します...";
-            cv['onRuntimeInitialized'] = () => {
-                startCamera();
-            };
+            status.innerHTML = "準備完了！ボタンを押してスタートしてください";
+            startBtn.disabled = false; // ボタンを押せるようにする
+            startBtn.innerText = "📷 カメラを起動する";
         }
 
-        // 2. カメラの起動
+        // 2. ボタンが押されたらカメラ起動
         async function startCamera() {
+            startBtn.style.display = 'none'; // ボタンを消す
+            status.innerHTML = "カメラへのアクセスを求めています...";
+
             try {
-                // リアカメラを優先、なければフロント
+                // スマホの「外カメラ(environment)」を優先指定
                 const constraints = {
                     video: {
-                        facingMode: 'environment',
+                        facingMode: 'environment', 
                         width: { ideal: 640 },
                         height: { ideal: 480 }
-                    }
+                    },
+                    audio: false
                 };
+
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                
+                // 映像が流れ始めたらOpenCV処理開始
                 video.onloadedmetadata = () => {
                     video.play();
                     initOpenCV();
                 };
             } catch (err) {
-                status.innerHTML = "カメラエラー: " + err;
+                status.innerHTML = "カメラエラー: " + err.name;
+                alert("カメラの許可が必要です。ブラウザの設定を確認してください。");
                 console.error(err);
+                startBtn.style.display = 'block'; // エラー時はボタンを戻す
             }
         }
 
-        // 3. OpenCVの初期設定
+        // 3. 処理開始
         function initOpenCV() {
+            status.innerHTML = "認識中...";
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-            // 映像処理用のメモリ確保
-            src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-            dst = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
             cap = new cv.VideoCapture(video);
-
-            // ArUcoの設定 (Python版と同じ DICT_4X4_50 を指定)
-            // OpenCV.jsでは cv.aruco が利用可能です
+            src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
             dictionary = new cv.aruco_Dictionary(cv.aruco.DICT_4X4_50);
             parameter = new cv.aruco_DetectorParameters();
 
-            status.innerHTML = "認識中... マーカーを映してください";
             isStreaming = true;
             processVideo();
         }
 
-        // 4. ループ処理（毎フレーム実行）
+        // 4. ループ処理
         function processVideo() {
             if (!isStreaming) return;
 
             try {
-                // カメラ映像をMatに読み込む
                 cap.read(src);
 
-                // --- 検出処理 ---
                 let corners = new cv.MatVector();
                 let ids = new cv.Mat();
                 let rejected = new cv.MatVector();
 
-                // マーカー検出
+                // 検出実行
                 cv.aruco.detectMarkers(src, dictionary, corners, ids, parameter, rejected);
 
-                // マーカーが見つかったら描画
+                // 描画
                 if (ids.rows > 0) {
-                    // Python版の cv2.aruco.drawDetectedMarkers と同じ
                     cv.aruco.drawDetectedMarkers(src, corners, ids);
-                    
-                    // IDをコンソールにも出すならここ
-                    // for (let i = 0; i < ids.rows; i++) {
-                    //    console.log("Detected ID:", ids.data32S[i]);
-                    // }
+                    status.innerHTML = `マーカー検知! ID: ${ids.data32S[0]}`; // 最初に見つけたIDを表示
+                } else {
+                    status.innerHTML = "認識中...";
                 }
 
-                // --- 結果の表示 ---
                 cv.imshow('outputCanvas', src);
 
-                // メモリ解放（JavaScriptでは必須！しないとブラウザがクラッシュします）
+                // メモリ解放
                 corners.delete();
                 ids.delete();
                 rejected.delete();
 
-                // 次のフレームへ
                 requestAnimationFrame(processVideo);
-
             } catch (err) {
                 console.error(err);
-                status.innerHTML = "処理エラー発生";
             }
         }
     </script>
