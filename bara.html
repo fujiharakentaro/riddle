@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>被らないダンジョン V6.2</title>
+    <title>被らないダンジョン V6.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Reggae+One&family=Noto+Serif+JP:wght@900&display=swap" rel="stylesheet">
@@ -116,7 +116,9 @@
             transition: 0.2s;
         }
 
-        .q-list-item { background: #333; padding: 5px; margin-bottom: 2px; display: flex; justify-content: space-between; font-size: 14px; }
+        .q-list-item { background: #333; padding: 5px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .q-del-btn { background: #c0392b; color: #fff; border: none; padding: 2px 8px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+        
         input[type="text"], input[type="number"] { padding: 5px; background: #000; color: #fff; border: 1px solid #777; text-align: center; font-family: 'DotGothic16'; }
         
         .file-status { font-size: 12px; color: #555; margin-left: 5px; border: 1px solid #555; padding: 2px 4px; border-radius: 4px; }
@@ -496,7 +498,11 @@
     }
     function renderQuestionList() {
         const l = document.getElementById('question-list'); l.innerHTML = "";
-        config.questions.forEach(q=>{ const i=document.createElement('div'); i.className='q-list-item'; i.innerHTML=`<span>${q.text}</span><span>(目安:${q.count})</span>`; l.appendChild(i); });
+        config.questions.forEach((q, idx)=>{ 
+            const i=document.createElement('div'); i.className='q-list-item'; 
+            i.innerHTML=`<span>${q.text}</span><span>(目安:${q.count})</span> <button class="q-del-btn" onclick="deleteQuestion(${idx})">削除</button>`; 
+            l.appendChild(i); 
+        });
         document.getElementById('q-status').innerText = `${config.questions.length} 問`;
     }
     function addQuestion() {
@@ -504,6 +510,14 @@
         if(!t || !c) return alert("入力してください");
         config.questions = config.questions.filter(q=>q.text!==t); config.questions.push({text:t,count:c});
         renderQuestionList(); autoSaveQuestions(); document.getElementById('q-text').value=""; document.getElementById('q-count').value="";
+    }
+    
+    function deleteQuestion(index) {
+        if(confirm("このお題を削除しますか？")) {
+            config.questions.splice(index, 1);
+            renderQuestionList();
+            autoSaveQuestions();
+        }
     }
     
     async function saveSettingsAndBack() { 
