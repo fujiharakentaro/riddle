@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15.9</title>
+    <title>POLYHEDRON QUIZ V16.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -125,7 +125,7 @@
 
     <div id="host-app" class="hidden">
         <div id="screen-title" class="screen active">
-            <h1>POLYHEDRON QUIZ V15</h1>
+            <h1>POLYHEDRON QUIZ V16</h1>
             <div style="margin-top: 50px;">
                 <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
             </div>
@@ -239,7 +239,8 @@ const Host = {
     currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
     
     init: () => {
-        const savedP = localStorage.getItem('polyDataV15_9');
+        // V16用にキー変更
+        const savedP = localStorage.getItem('polyDataV16_0');
         if(savedP) {
             const data = JSON.parse(savedP);
             Host.problems = data.problems || [];
@@ -526,7 +527,7 @@ const Host = {
     
     saveData: () => {
         Host.config.timeLimit = parseInt(document.getElementById('time-limit').value);
-        localStorage.setItem('polyDataV15_9', JSON.stringify({
+        localStorage.setItem('polyDataV16_0', JSON.stringify({
             problems: Host.problems,
             config: Host.config
         }));
@@ -615,7 +616,7 @@ const Three = {
         const startX = -((words.length - 1) * spacing) / 2;
         
         words.forEach((w, i) => {
-            const mesh = Three.createPoly(w);
+            const mesh = Three.createPerfectPolyhedron(w.split(''), w.length);
             mesh.position.x = startX + i * spacing;
             mesh.userData = { rx: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1), ry: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1) };
             Three.scene.add(mesh); Three.meshes.push(mesh);
@@ -628,7 +629,6 @@ const Three = {
         Three.initialStates = Three.meshes.map(m => ({ x: m.rotation.x, y: m.rotation.y, z: m.rotation.z }));
     },
     
-    // Setup for Replay: Reset rotations to captured state and adjust camera
     setupReplay: () => {
         Three.meshes.forEach((m, i) => {
             if(Three.initialStates[i]) {
@@ -641,63 +641,145 @@ const Three = {
         }
     },
     
-    createPoly: (word) => {
-        const len = word.length;
-        let geo;
-        
-        // --- 修正箇所: 各多面体への明確な分岐 ---
-        if(len === 4) {
-            geo = new THREE.TetrahedronGeometry(3);
-            // 4面体: インデックスを削除して面ごとに分離
-            geo = geo.toNonIndexed(); 
-            geo.clearGroups();
-            for(let i=0; i<4; i++) geo.addGroup(i*3, 3, i); // 3頂点1面
-        }
-        else if(len === 6) {
-            geo = new THREE.BoxGeometry(3.5, 3.5, 3.5);
-            // Boxはデフォルトでマルチマテリアル対応
-        }
-        else if(len === 8) {
-            geo = new THREE.OctahedronGeometry(3);
-            geo = geo.toNonIndexed();
-            geo.clearGroups();
-            for(let i=0; i<8; i++) geo.addGroup(i*3, 3, i);
-        }
-        else if(len === 12) {
-            geo = new THREE.DodecahedronGeometry(3);
-            // ※12面体は構造が複雑なため標準描画(1素材)になります
-        }
-        else if(len === 20) {
-            geo = new THREE.IcosahedronGeometry(3);
-            geo = geo.toNonIndexed();
-            geo.clearGroups();
-            for(let i=0; i<20; i++) geo.addGroup(i*3, 3, i);
-        }
-        else {
-            geo = new THREE.SphereGeometry(3, 16, 16);
+    createPerfectPolyhedron: (chars, count) => {
+        // Shuffle chars
+        for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+
+        let baseGeometry;
+        const r = 3.0;
+
+        switch (count) {
+            case 4:  baseGeometry = new THREE.TetrahedronGeometry(r); break;
+            case 6:  baseGeometry = new THREE.BoxGeometry(r*1.2, r*1.2, r*1.2); break;
+            case 8:  baseGeometry = new THREE.OctahedronGeometry(r); break;
+            case 12: baseGeometry = new THREE.DodecahedronGeometry(r); break;
+            case 20: baseGeometry = new THREE.IcosahedronGeometry(r); break;
+            default: baseGeometry = new THREE.SphereGeometry(r, 16, 16); // Fallback
         }
 
-        const chars = word.split('');
-        // シャッフル
-        for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
-        
-        const mats = [];
-        for(let i=0; i<chars.length; i++) { 
-            mats.push(new THREE.MeshStandardMaterial({ map: Three.createTex(chars[i%chars.length]), color: 0xeeeeee })); 
+        if (count === 12) {
+            // Dodecahedron special handling (default mapping)
+            const mats = [];
+            for(let i=0; i<chars.length; i++) mats.push(new THREE.MeshStandardMaterial({ map: Three.createTextTexture(chars[i], count, 0), color: 0xeeeeee }));
+            return new THREE.Mesh(baseGeometry, mats);
         }
-        return new THREE.Mesh(geo, mats);
+
+        // Custom UV Mapping Logic for 4, 6, 8, 20
+        let geometry = baseGeometry.toNonIndexed();
+        geometry.computeVertexNormals();
+
+        const posAttribute = geometry.attributes.position;
+        const normAttribute = geometry.attributes.normal;
+        const vertexCount = posAttribute.count;
+        const verticesPerFace = vertexCount / count;
+
+        geometry.clearGroups();
+        const uvAttribute = geometry.attributes.uv;
+
+        for (let i = 0; i < count; i++) {
+            geometry.addGroup(i * verticesPerFace, verticesPerFace, i);
+
+            const firstVIndex = i * verticesPerFace;
+            const nx = normAttribute.getX(firstVIndex);
+            const ny = normAttribute.getY(firstVIndex);
+            const nz = normAttribute.getZ(firstVIndex);
+            const normal = new THREE.Vector3(nx, ny, nz).normalize();
+
+            // Create tangent basis
+            const v0 = new THREE.Vector3(posAttribute.getX(firstVIndex), posAttribute.getY(firstVIndex), posAttribute.getZ(firstVIndex));
+            const v1 = new THREE.Vector3(posAttribute.getX(firstVIndex+1), posAttribute.getY(firstVIndex+1), posAttribute.getZ(firstVIndex+1));
+            const tangent = new THREE.Vector3().subVectors(v1, v0).normalize();
+            const bitangent = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+
+            const scale = (count === 4 || count === 8 || count === 20) ? 0.25 : 0.35;
+
+            for (let v = 0; v < verticesPerFace; v++) {
+                const vi = firstVIndex + v;
+                const pos = new THREE.Vector3(
+                    posAttribute.getX(vi),
+                    posAttribute.getY(vi),
+                    posAttribute.getZ(vi)
+                );
+                
+                let u = pos.dot(tangent) * scale + 0.5;
+                let v_coord = pos.dot(bitangent) * scale + 0.5;
+                uvAttribute.setXY(vi, u, v_coord);
+            }
+        }
+        geometry.attributes.uv.needsUpdate = true;
+
+        const materials = [];
+        let symmetryOrder = 4;
+        if (count === 4 || count === 8 || count === 20) symmetryOrder = 3;
+
+        for (let i = 0; i < count; i++) {
+            const rotationIndex = Math.floor(Math.random() * symmetryOrder);
+            const rotationAngle = rotationIndex * (Math.PI * 2 / symmetryOrder);
+
+            materials.push(new THREE.MeshStandardMaterial({
+                map: Three.createTextTexture(chars[i], count, rotationAngle),
+                color: 0xeeeeee, 
+                roughness: 1.0,
+                metalness: 0.0,
+                side: THREE.FrontSide
+            }));
+        }
+
+        return new THREE.Mesh(geometry, materials);
     },
     
-    createTex: (char) => {
-        const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
-        const ctx = cvs.getContext('2d'); ctx.fillStyle = '#ddd'; ctx.fillRect(0,0,256,256);
-        ctx.fillStyle = '#000'; ctx.font = 'bold 150px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(char, 128, 128);
-        return new THREE.CanvasTexture(cvs);
+    createTextTexture: (char, count, rotationAngle) => {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#eeeeee';
+        ctx.fillRect(0, 0, size, size);
+        
+        ctx.save();
+        ctx.translate(size/2, size/2);
+        ctx.rotate(rotationAngle);
+
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let yOffset = 0;
+        let fontSize = 380;
+
+        if (count === 4 || count === 8) {
+            fontSize = 220;
+            yOffset = 10;
+        } else if (count === 20) {
+            fontSize = 170;
+            yOffset = 15;
+        } else if (count === 6) {
+            fontSize = 420;
+            yOffset = 0;
+        } else if (count === 12) {
+            fontSize = 280;
+            yOffset = 0;
+        }
+
+        ctx.font = `bold ${fontSize}px sans-serif`; 
+        ctx.fillText(char, 0, 0 + yOffset);
+
+        ctx.restore();
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.minFilter = THREE.LinearFilter;
+        tex.center.set(0.5, 0.5); 
+        return tex;
     },
 
     animate: () => {
         Three.reqId = requestAnimationFrame(Three.animate);
-        Three.meshes.forEach(m => { m.rotation.x += m.userData.rx * Three.speed; m.rotation.y += m.userData.ry * Three.speed; });
+        Three.meshes.forEach(m => { 
+            m.rotation.x += m.userData.rx * Three.speed; 
+            m.rotation.y += m.userData.ry * Three.speed; 
+        });
         Three.renderer.render(Three.scene, Three.camera);
     },
     
