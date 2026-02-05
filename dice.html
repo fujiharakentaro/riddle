@@ -2,694 +2,832 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15.8</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クイズ：光文字の灯火 V6.0</title>
     <style>
-        :root { 
-            --bg: #222222; 
-            --text: #eee; 
-            --panel: #333; 
-            --border: #444; 
-            --accent: #00d2ff; 
-            --danger: #ff4444;
-            --gold: #ffd700;
+        :root {
+            --bg-color: #111;
+            --text-color: #ddd;
+            --accent-color: #aaa;
+            --panel-bg: #222;
+            --border-color: #444;
         }
-        body { margin: 0; overflow: hidden; background-color: var(--bg); font-family: 'Helvetica Neue', Arial, sans-serif; color: var(--text); }
 
-        .hidden { display: none !important; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- 画面管理 --- */
         .screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            background: var(--bg); transition: opacity 0.5s; overflow-y: auto;
-        }
-        .screen.active { display: flex; z-index: 10; }
-
-        h1 { color: #fff; letter-spacing: 4px; margin-bottom: 30px; font-size: 32px; border-bottom: 2px solid #555; padding-bottom: 10px; }
-
-        /* UI Parts */
-        .btn {
-            background: #444; color: #fff; border: 1px solid #666; padding: 10px 20px;
-            cursor: pointer; font-size: 16px; border-radius: 4px; margin: 5px;
-        }
-        .btn:hover { background: #555; border-color: var(--accent); }
-        .btn-add { background: var(--accent); color: #000; border: none; font-weight: bold; }
-        .btn-sm { padding: 2px 8px; font-size: 12px; min-width: 30px; }
-        
-        input[type="text"], input[type="number"] {
-            padding: 10px; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 16px;
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        /* --- 1. HOST: Title & Lobby --- */
-        #question-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 20px; width: 80%; max-width: 900px; max-height: 50vh; overflow-y: auto; padding: 20px;
-        }
-        .q-btn {
-            background: #2b2b2b; border: 1px solid #555; border-radius: 8px; height: 100px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.2s; color: #eee; text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: relative;
-        }
-        .q-btn:hover { border-color: var(--accent); transform: translateY(-3px); background: #383838; }
-        .q-num { font-size: 24px; font-weight: bold; color: var(--accent); }
-        
-        /* Lobby Info */
-        #host-info { margin-top: 20px; text-align: center; padding: 20px; background: #333; border-radius: 8px; width: 80%; max-width: 600px;}
-        #qr-area { background: #fff; padding: 10px; display: inline-block; border-radius: 8px; margin: 10px; }
-        .url-box { font-family: monospace; background: #000; padding: 10px; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; user-select: all; }
-        #player-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px; }
-        .p-chip { background: #444; padding: 5px 10px; border-radius: 15px; border: 1px solid #666; font-size: 14px; }
-
-        /* --- 2. HOST: Game Screen --- */
-        #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; z-index: 5; }
-        #canvas-container { width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 1; }
-        #timer-display { position: absolute; top: 20px; right: 20px; font-size: 60px; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px var(--accent); }
-        #back-btn { position: absolute; top: 20px; left: 20px; pointer-events: auto; z-index: 20; }
-        
-        #countdown-display {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 150px; font-weight: 900; color: #fff;
-            text-shadow: 0 0 20px var(--accent); display: none; z-index: 30;
+        .screen.active {
+            display: flex;
         }
 
-        /* --- 3. HOST: Result Screen --- */
-        #result-screen { 
-            display: flex; flex-direction: row; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 20; 
-            /* Left side transparent to show 3D BG */
-            background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.95) 50%, rgba(0,0,0,0.95) 100%);
-            pointer-events: none; 
+        h1, h2 {
+            font-weight: normal;
+            border-bottom: 1px solid #555;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            text-align: center;
         }
-        #res-left { flex: 1; position: relative; } 
-        #res-right { flex: 1; padding: 20px; overflow-y: hidden; display: flex; flex-direction: column; pointer-events: auto; border-left: 2px solid #444; background: rgba(0,0,0,0.8); }
-        
-        #seek-bar-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 10px; background: #333; z-index: 25; pointer-events: auto;}
-        #seek-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
-        
-        .rank-row {
-            display: flex; align-items: center; justify-content: space-between;
-            background: linear-gradient(90deg, #333, #444); margin-bottom: 10px; padding: 15px;
-            border-radius: 8px; color: #fff; font-size: 20px; font-weight: bold;
-            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            opacity: 0; border-left: 5px solid #666;
+
+        /* --- 共通パーツ --- */
+        button {
+            background: var(--panel-bg);
+            color: #fff;
+            border: 1px solid #666;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            font-size: 1rem;
         }
-        .rank-row.show { transform: translateX(0); opacity: 1; }
-        .rank-row.correct { border-left-color: var(--accent); background: linear-gradient(90deg, #004455, #006688); }
-        .rank-row.incorrect { border-left-color: var(--danger); background: linear-gradient(90deg, #552222, #883333); }
-        .r-name { flex: 1; margin-left: 10px; }
-        .r-score { color: var(--gold); }
-        .r-ans { font-size: 0.8em; color: #aaa; margin-right: 15px; }
+        button:hover {
+            background: #444;
+            border-color: #fff;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
-        /* --- CLIENT APP --- */
-        #client-app { width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        #c-login { text-align: center; }
-        #c-game { display: none; text-align: center; width: 90%; }
-        #c-status { font-size: 24px; margin-bottom: 20px; color: #aaa; }
-        #c-input { width: 80%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #555; background: #222; color: #fff; margin-bottom: 20px; }
-        #c-btn-submit { width: 80%; padding: 15px; font-size: 20px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        #c-btn-submit:disabled { background: #555; color: #888; cursor: not-allowed; }
+        input[type="text"], input[type="number"], input[type="color"] {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px;
+        }
 
-        /* --- Settings --- */
-        .settings-container { width: 90%; max-width: 600px; background: var(--panel); padding: 30px; border-radius: 12px; display: flex; flex-direction: column; gap: 20px; }
-        .list-area { max-height: 300px; overflow-y: auto; border: 1px solid #444; background: #222; }
-        .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; align-items: center; }
-        .config-area { background: #2b2b2b; padding: 15px; border-radius: 4px; }
+        /* --- タイトル画面 --- */
+        .title-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .big-btn {
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            min-width: 200px;
+        }
+
+        /* --- 設定画面 --- */
+        #settings-container {
+            width: 90%;
+            max-width: 800px;
+            background: var(--panel-bg);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .setting-section {
+            margin-bottom: 30px;
+            border-bottom: 1px dashed #444;
+            padding-bottom: 20px;
+        }
+
+        /* 問題リスト */
+        #question-list-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            margin-bottom: 10px;
+            background: #000;
+        }
+        .q-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            border-bottom: 1px solid #333;
+        }
+        .q-item:last-child { border-bottom: none; }
         
-        .prob-timer-input { width: 50px; padding: 5px; font-size: 14px; text-align: right; margin-right: 5px; }
+        .q-text-view { 
+            flex-grow: 1; text-align: left; padding-left: 10px; 
+            white-space: pre-wrap; font-size: 0.9rem;
+        }
         
+        .q-edit-area {
+            flex-grow: 1; display: flex; gap: 5px; margin-right: 10px;
+        }
+        .q-edit-input {
+            flex-grow: 1;
+            background: #222; color: #fff; border: 1px solid #88ff88;
+            font-family: inherit; font-size: 0.9rem; padding: 5px;
+            resize: none;
+        }
+        .q-edit-size {
+            width: 50px;
+            background: #222; color: #fff; border: 1px solid #88ff88;
+            text-align: center;
+        }
+
+        .q-controls button {
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            margin: 0 2px;
+        }
+
+        /* 光源リスト */
+        #light-list-display {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .light-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #333;
+            border: 1px solid #555;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            border-left-width: 5px;
+        }
+        .light-del-btn {
+            margin-left: 8px;
+            cursor: pointer;
+            color: #ff6666;
+            font-weight: bold;
+            font-family: sans-serif;
+        }
+        .light-del-btn:hover { color: #ff0000; }
+
+        /* スライダー制御 */
+        .range-control {
+            margin-top: 15px;
+            padding: 10px;
+            background: #333;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .range-control input[type="range"] {
+            flex-grow: 1;
+        }
+
+        /* --- 問題選択画面 --- */
+        #level-select-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 50vh; 
+            overflow-y: auto;
+            justify-content: center;
+            align-content: flex-start;
+        }
+        .level-btn {
+            width: 120px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            background: #222;
+            border: 1px solid #555;
+        }
+        
+        .mode-switch-label {
+            cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 1rem;
+        }
+        .mode-switch-label input[type="checkbox"] {
+            transform: scale(1.5);
+        }
+
+        /* --- ゲーム画面（暗闇） --- */
+        #darkness-stage {
+            background-color: #000;
+            width: 95%;
+            max-width: 1000px;
+            height: 60vh; 
+            padding: 20px;
+            margin: 20px 0;
+            border: 4px double #333;
+            position: relative;
+            overflow: auto;
+            display: grid;
+            justify-content: center;
+            align-content: center;
+            gap: 2px; /* 隙間を詰める */
+        }
+
+        .char-box {
+            width: 1.2em;
+            height: 1.2em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            color: transparent;
+            transition: all 1.0s ease;
+            user-select: none;
+            background-clip: text;
+            -webkit-background-clip: text;
+            background-image: none;
+        }
+
+        .test-mode .char-box:not(.source):not(.reveal) {
+            color: #222 !important;
+            text-shadow: none !important;
+            opacity: 1 !important;
+        }
+
+        .char-box.source {
+            color: var(--char-color);
+            text-shadow: 0 0 20px var(--char-color), 0 0 40px var(--char-color);
+        }
+
+        .char-box.reveal {
+            color: #fff !important;
+            text-shadow: none !important;
+            opacity: 1 !important;
+            background-image: none !important;
+        }
+
+        #game-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+        }
+
+        #new-q-input {
+            height: 40px; 
+        }
+
     </style>
 </head>
 <body>
 
-    <div id="host-app" class="hidden">
-        <div id="screen-title" class="screen active">
-            <h1>POLYHEDRON QUIZ V15</h1>
-            <div style="margin-top: 50px;">
-                <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
-            </div>
-            <div style="margin-top: 20px;">
-                <button class="btn" onclick="Host.showSettings()">設定</button>
-            </div>
-        </div>
-
-        <div id="screen-lobby" class="screen">
-            <h1>LOBBY</h1>
-            <div id="host-info">
-                <div>参加用URL (クリックでコピー)</div>
-                <div id="host-url" class="url-box" onclick="Host.copyUrl()">---</div>
-                <div id="qr-area"></div>
-                <div style="margin-top:10px;">参加者: <span id="p-count" style="color:var(--accent); font-weight:bold;">0</span>人</div>
-                <div id="player-list"></div>
-            </div>
-            <div style="margin-top:30px;">
-                <button class="btn" style="font-size:24px; padding:20px 50px; background:var(--accent); color:#000; border:none;" onclick="Host.showProblemSelect()">ゲームスタート</button>
-                <br>
-                <button class="btn" onclick="Host.showTitle()">戻る</button>
-            </div>
-        </div>
-
-        <div id="screen-prob-select" class="screen">
-            <h1>SELECT PROBLEM</h1>
-            <div id="question-grid"></div>
-            <button class="btn" style="margin-top:30px;" onclick="Host.showLobby()">戻る</button>
-        </div>
-
-        <div id="screen-settings" class="screen">
-            <div class="settings-container">
-                <h2>設定 & 問題管理</h2>
-                <div class="list-area" id="word-list"></div>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="inp-word" placeholder="単語 (SPACE区切り)" style="flex:1;">
-                    <button class="btn-add" onclick="Host.addWord()">追加</button>
-                </div>
-                <div class="config-area">
-                    <label>⏱ 基本制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;" onchange="Host.saveData()"></label><br><br>
-                    <label>🚀 回転スピード: <input type="range" id="speed-slider" min="0" max="300" value="130" oninput="Host.updateSpeed(this.value)"> <span id="speed-val">130</span>%</label>
-                </div>
-                <button class="btn" onclick="Host.showTitle()">戻る</button>
-            </div>
-        </div>
-
-        <div id="game-ui">
-            <button id="back-btn" class="btn" onclick="Host.backToTitle()">タイトルへ</button>
-            <div id="timer-display"></div>
-            <div id="countdown-display">3</div>
-        </div>
-        <div id="canvas-container"></div>
-
-        <div id="result-screen" class="hidden">
-            <div id="res-left">
-                </div>
-            <div id="res-right">
-                <h2 style="text-align:center; color:#fff; border-bottom:1px solid #555;">RANKING</h2>
-                <div id="ranking-list"></div>
-                <button class="btn" style="margin-top:auto;" onclick="Host.backToTitle()">終了</button>
-            </div>
-            <div id="seek-bar-container"><div id="seek-bar"></div></div>
+    <div id="screen-title" class="screen active">
+        <h1>光文字の灯火 V6.0</h1>
+        <div class="title-menu">
+            <button class="big-btn" onclick="goToLevelSelect()">ゲームスタート</button>
+            <button class="big-btn" onclick="goToSettings()">設定</button>
         </div>
     </div>
 
-    <div id="client-app" class="hidden">
-        <div id="c-login" class="screen active">
-            <h1>ENTRY</h1>
-            <input type="text" id="c-name" placeholder="名前を入力"><br><br>
-            <button class="btn btn-add" onclick="Client.join()">参加する</button>
+    <div id="screen-settings" class="screen">
+        <h2>設定・問題編集</h2>
+        <div id="settings-container">
+            <div class="setting-section">
+                <h3>問題リスト</h3>
+                <div id="question-list-container"></div>
+                
+                <div style="display:flex; gap:5px; margin-top:10px; align-items: flex-start;">
+                    <textarea id="new-q-input" placeholder="新しい問題を入力 (改行で2行になります)" style="flex-grow:1; background:#333; color:#fff; border:1px solid #555; padding:5px; font-family:inherit; resize: vertical;"></textarea>
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-size:0.8rem;">サイズ</span>
+                        <input type="number" id="new-q-size" value="4" step="0.5" min="1" style="width:50px;">
+                    </div>
+                    <button onclick="addNewQuestion()" style="height: 50px;">追加</button>
+                </div>
+            </div>
+
+            <div class="setting-section">
+                <h3>光源文字の設定</h3>
+                <p style="font-size:0.8rem; color:#888;">単語（例：花火）でも登録可能。長い単語が優先されます。</p>
+                
+                <div style="display:flex; gap:5px; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="light-char" placeholder="文字/単語" size="8">
+                    <input type="color" id="light-color" value="#ffffff">
+                    <button onclick="addLightSetting()">登録/更新</button>
+                </div>
+
+                <div class="range-control">
+                    <label for="light-range-input">光の届く範囲(0〜1文字):</label>
+                    <input type="range" id="light-range-input" min="0" max="1" step="0.05" value="0.25" oninput="updateRangeDisplay()">
+                    <span id="light-range-val">0.25</span>
+                </div>
+                <p style="font-size:0.8rem; color:#888;">斜め方向は距離(√2)分だけ減衰します</p>
+
+                <div id="light-list-display"></div>
+            </div>
+
+            <div class="setting-section">
+                <h3>その他の設定</h3>
+                <label class="mode-switch-label">
+                    <input type="checkbox" id="test-mode-toggle" onchange="saveData()">
+                    テストモード（ゲーム中にうっすら文字を表示）
+                </label>
+            </div>
         </div>
-        <div id="c-game" class="screen hidden">
-            <div id="c-status">問題出題までお待ちください</div>
-            <input type="text" id="c-input" placeholder="解答を入力" disabled>
-            <button id="c-btn-submit" onclick="Client.submitAnswer()" disabled>送信</button>
+        <button onclick="goToTitle()">タイトルに戻る</button>
+    </div>
+
+    <div id="screen-levels" class="screen">
+        <h2>問題選択</h2>
+        <div id="level-select-grid"></div>
+        <div style="margin-top:20px;">
+            <button onclick="goToTitle()">タイトルに戻る</button>
         </div>
     </div>
 
-    <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> 
-    
-    
+    <div id="screen-game" class="screen">
+        <h2 id="q-number-display">第 X 問</h2>
+        <div id="darkness-stage"></div>
+        <div id="game-controls">
+            <button onclick="showAnswer()">正解を表示</button>
+            <button onclick="goToLevelSelect()">問題選択へ</button>
+        </div>
+    </div>
 
-<script>
-/* ================= COMMON UTILS ================= */
-const PEER_CONFIG = {
-    config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
-};
+    <script>
+        // --- デフォルトデータ ---
+        const DEFAULT_QUESTIONS = [
+            { text: "日光東照宮", size: 4 },
+            { text: "一寸先は\n闇", size: 4 },
+            { text: "焼肉定食\n食べ放題", size: 3.5 },
+            { text: "花鳥風月", size: 5 },
+            { text: "豪華絢爛", size: 5 }
+        ];
+        
+        // データ保存キー（固定）
+        const STORAGE_KEY = 'lightQuiz_Permanent_V6';
 
-const AudioCtx = window.AudioContext || window.webkitAudioContext;
-const actx = new AudioCtx();
-function playTone(freq, type, dur) {
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    osc.connect(gain);
-    gain.connect(actx.destination);
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.00001, actx.currentTime + dur);
-    osc.stop(actx.currentTime + dur);
-}
-function playCorrectSE() { playTone(880, 'sine', 0.1); setTimeout(()=>playTone(1760, 'sine', 0.4), 100); }
-function playWrongSE() { playTone(150, 'sawtooth', 0.4); }
-function playCountSE(final=false) { 
-    if(final) playTone(880, 'triangle', 0.6); 
-    else playTone(440, 'triangle', 0.2); 
-}
+        // 状態変数
+        let questions = [];
+        let lightDatabase = {};
+        let editingIndex = -1;
+        let currentQuestionIndex = 0;
+        let lightReach = 0.25; // 0.0 ~ 1.0
 
-/* ================= HOST LOGIC ================= */
-const Host = {
-    peer: null, conns: {}, players: {}, answers: [],
-    // problems: [{text: "WORD", time: 30}, ...] format
-    problems: [], 
-    config: { speed: 130, timeLimit: 30 },
-    currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
-    
-    init: () => {
-        const savedP = localStorage.getItem('polyDataV15_8');
-        if(savedP) {
-            const data = JSON.parse(savedP);
-            Host.problems = data.problems || [];
-            Host.config = data.config || Host.config;
-        } else {
-            // Default init if empty
-            Host.problems = [
-                {text: "RANDOM", time: 30},
-                {text: "CUBE66 TETRA4", time: 30},
-                {text: "ICOSAHEDRON20", time: 30}
-            ];
+        // --- 初期化 ---
+        window.onload = () => {
+            loadData(); 
+            renderQuestionList();
+            renderLightList();
+            updateRangeDisplay();
+        };
+
+        // --- データ永続化 (Save/Load) ---
+        function saveData() {
+            const data = {
+                questions: questions,
+                lightDatabase: lightDatabase,
+                lightReach: document.getElementById('light-range-input').value,
+                isTestMode: document.getElementById('test-mode-toggle').checked
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
-        
-        // Restore config UI
-        document.getElementById('time-limit').value = Host.config.timeLimit;
-        document.getElementById('speed-slider').value = Host.config.speed;
-        document.getElementById('speed-val').innerText = Host.config.speed;
 
-        Host.peer = new Peer(PEER_CONFIG);
-        Host.peer.on('open', id => {
-            const url = location.href.split('?')[0] + '?host=' + id;
-            new QRCode(document.getElementById('qr-area'), { text: url, width: 128, height: 128 });
-            document.getElementById('host-url').innerText = url;
-        });
-        Host.peer.on('connection', conn => {
-            Host.conns[conn.peer] = conn;
-            conn.on('data', data => Host.handleData(conn.peer, data));
-            conn.on('close', () => {
-                delete Host.players[conn.peer];
-                delete Host.conns[conn.peer];
-                Host.updatePlayerList();
-            });
-        });
-
-        document.getElementById('host-app').classList.remove('hidden'); 
-        Host.renderProbList();
-        Host.showTitle();
-    },
-
-    handleData: (id, data) => {
-        if(data.type === 'JOIN') {
-            Host.players[id] = { name: data.name, score: 0 };
-            Host.updatePlayerList();
-        } else if(data.type === 'ANSWER') {
-            if(!Host.answers.find(a => a.id === id)) {
-                const timeOffset = (Date.now() - Host.startTime) / 1000;
-                Host.answers.push({ id: id, name: Host.players[id].name, ans: data.text, timeOffset: timeOffset });
-            }
-        }
-    },
-
-    updatePlayerList: () => {
-        document.getElementById('p-count').innerText = Object.keys(Host.players).length;
-        document.getElementById('player-list').innerHTML = Object.values(Host.players).map(p => `<div class="p-chip">${p.name}</div>`).join('');
-    },
-
-    copyUrl: () => {
-        const text = document.getElementById('host-url').innerText;
-        navigator.clipboard.writeText(text).then(() => alert('URLをコピーしました'));
-    },
-
-    // --- Screens ---
-    showTitle: () => {
-        document.getElementById('screen-title').classList.add('active');
-        document.getElementById('screen-lobby').classList.remove('active');
-        document.getElementById('screen-prob-select').classList.remove('active');
-        document.getElementById('screen-settings').classList.remove('active');
-        document.getElementById('game-ui').style.display = 'none';
-        document.getElementById('result-screen').classList.add('hidden');
-        document.getElementById('canvas-container').style.zIndex = 1;
-        Three.stop();
-        Host.broadcast({ type: 'STATUS', text: '待機中...' });
-    },
-    
-    showLobby: () => {
-        document.getElementById('screen-title').classList.remove('active');
-        document.getElementById('screen-prob-select').classList.remove('active');
-        document.getElementById('screen-lobby').classList.add('active');
-    },
-
-    showProblemSelect: () => {
-        document.getElementById('screen-lobby').classList.remove('active');
-        document.getElementById('screen-prob-select').classList.add('active');
-        document.getElementById('result-screen').classList.add('hidden');
-        Host.renderProbBtns();
-    },
-
-    showSettings: () => {
-        document.getElementById('screen-title').classList.remove('active');
-        document.getElementById('screen-settings').classList.add('active');
-        Host.renderProbList();
-    },
-
-    // --- Game ---
-    startGame: (idx) => {
-        Host.currentProblem = Host.problems[idx];
-        Host.answers = [];
-        
-        document.getElementById('screen-prob-select').classList.remove('active');
-        document.getElementById('game-ui').style.display = 'block';
-        document.getElementById('timer-display').innerText = "";
-        
-        Three.stop(); 
-        
-        // Countdown
-        let count = 3;
-        const cdEl = document.getElementById('countdown-display');
-        cdEl.style.display = 'block';
-        cdEl.innerText = count;
-        playCountSE();
-
-        const cdTimer = setInterval(() => {
-            count--;
-            if (count > 0) {
-                cdEl.innerText = count;
-                playCountSE();
+        function loadData() {
+            const json = localStorage.getItem(STORAGE_KEY);
+            if (json) {
+                try {
+                    const data = JSON.parse(json);
+                    questions = data.questions || DEFAULT_QUESTIONS;
+                    lightDatabase = data.lightDatabase || {};
+                    lightReach = parseFloat(data.lightReach);
+                    if(isNaN(lightReach)) lightReach = 0.25;
+                    
+                    document.getElementById('light-range-input').value = lightReach;
+                    document.getElementById('test-mode-toggle').checked = !!data.isTestMode;
+                } catch (e) {
+                    resetToDefault();
+                }
             } else {
-                clearInterval(cdTimer);
-                cdEl.style.display = 'none';
-                playCountSE(true);
-                Host.startActualGame();
+                resetToDefault();
             }
-        }, 1000);
-    },
-    
-    startActualGame: () => {
-        Three.init(Host.currentProblem.text, Host.config.speed / 100);
+        }
+
+        function resetToDefault() {
+            questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+            lightDatabase = {};
+            lightReach = 0.25;
+            document.getElementById('light-range-input').value = 0.25;
+            document.getElementById('test-mode-toggle').checked = false;
+            saveData();
+        }
+
+        function updateRangeDisplay() {
+            const val = document.getElementById('light-range-input').value;
+            document.getElementById('light-range-val').textContent = val;
+            lightReach = parseFloat(val);
+            saveData();
+        }
+
+        // --- 画面遷移関数 ---
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function goToTitle() { switchScreen('screen-title'); }
+        function goToSettings() { switchScreen('screen-settings'); }
         
-        // Capture initial state for replay
-        Three.captureState();
-
-        // Determine Time Limit (Individual > Global)
-        let limit = Host.currentProblem.time;
-        if (!limit || limit <= 0) limit = parseInt(document.getElementById('time-limit').value);
-        Host.currentLimit = limit;
-
-        document.getElementById('timer-display').innerText = limit;
-        
-        Host.broadcast({ type: 'START' });
-        Host.startTime = Date.now();
-        
-        let timeLeft = limit;
-        Host.timerId = setInterval(() => {
-            timeLeft--;
-            document.getElementById('timer-display').innerText = timeLeft;
-            if(timeLeft <= 0) Host.finishGame();
-        }, 1000);
-    },
-
-    finishGame: () => {
-        clearInterval(Host.timerId);
-        document.getElementById('timer-display').innerText = "TIME UP";
-        Host.broadcast({ type: 'END' });
-        setTimeout(() => { Host.showResult(); }, 2000);
-    },
-    
-    backToTitle: () => {
-        clearInterval(Host.timerId);
-        Host.showTitle();
-    },
-
-    // --- Result & Replay ---
-    showResult: () => {
-        document.getElementById('result-screen').classList.remove('hidden');
-        document.getElementById('ranking-list').innerHTML = "";
-        
-        // Replay Setup
-        Three.setupReplay(); // Reset rotation to captured state and adjust camera
-
-        const limit = Host.currentLimit;
-        
-        // --- Speed Adjustment Logic ---
-        const REPLAY_TIME = 30; // Fixed duration
-        const speedFactor = limit / REPLAY_TIME;
-        
-        // Adjust 3D Speed for Replay
-        Three.speed = (Host.config.speed / 100) * speedFactor;
-
-        // Grading Logic
-        const validWords = Host.currentProblem.text.trim().toUpperCase().split(/\s+/);
-        Host.answers.forEach(a => {
-            const userAns = a.ans.trim().toUpperCase();
-            a.isCorrect = validWords.includes(userAns);
-        });
-        Host.answers.sort((a,b) => a.timeOffset - b.timeOffset);
-
-        let correctRank = 0;
-        Host.answers.forEach(a => {
-            if(a.isCorrect) {
-                correctRank++;
-                if(correctRank === 1) a.points = 5;
-                else if(correctRank === 2) a.points = 4;
-                else if(correctRank === 3) a.points = 3;
-                else if(correctRank === 4) a.points = 2;
-                else a.points = 1;
-            } else { a.points = 0; }
-        });
-
-        const bar = document.getElementById('seek-bar');
-        const list = document.getElementById('ranking-list');
-        
-        let replayStartTime = Date.now();
-        let answerIndex = 0;
-
-        const replayTimer = setInterval(() => {
-            // Real elapsed time in replay (0s -> 30s)
-            const realElapsed = (Date.now() - replayStartTime) / 1000;
+        function goToLevelSelect() {
+            const grid = document.getElementById('level-select-grid');
+            grid.innerHTML = '';
             
-            // Virtual game time (0s -> limit)
-            const virtualElapsed = realElapsed * speedFactor;
+            questions.forEach((q, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                btn.textContent = `第${index + 1}問`;
+                btn.onclick = () => startGame(index);
+                grid.appendChild(btn);
+            });
+            switchScreen('screen-levels');
+        }
 
-            // Bar Progress based on Replay Time (0 -> 100% in 30s)
-            const progress = Math.min((realElapsed / REPLAY_TIME) * 100, 100);
-            bar.style.width = progress + "%";
+        // --- 設定画面ロジック ---
+        function renderQuestionList() {
+            const container = document.getElementById('question-list-container');
+            container.innerHTML = '';
+            
+            questions.forEach((q, index) => {
+                const item = document.createElement('div');
+                item.className = 'q-item';
+                
+                if (index === editingIndex) {
+                    const editArea = document.createElement('div');
+                    editArea.className = 'q-edit-area';
 
-            // Check if any answer should appear based on Virtual Time
-            while(answerIndex < Host.answers.length) {
-                const ans = Host.answers[answerIndex];
-                if(virtualElapsed >= ans.timeOffset) {
-                    const div = document.createElement('div');
-                    div.className = `rank-row ${ans.isCorrect ? 'correct' : 'incorrect'}`;
-                    div.innerHTML = `<span class="r-name">${ans.name}</span><span class="r-ans">${ans.ans}</span><span class="r-score">+${ans.points}pt</span>`;
-                    list.appendChild(div);
-                    div.offsetWidth; div.classList.add('show');
-                    if(ans.isCorrect) playCorrectSE(); else playWrongSE();
-                    answerIndex++;
-                } else { break; }
+                    const input = document.createElement('textarea');
+                    input.className = 'q-edit-input';
+                    input.value = q.text;
+                    input.rows = q.text.split('\n').length;
+                    
+                    const sizeInput = document.createElement('input');
+                    sizeInput.type = 'number';
+                    sizeInput.className = 'q-edit-size';
+                    sizeInput.value = q.size;
+                    sizeInput.step = 0.5;
+                    sizeInput.min = 1;
+
+                    editArea.append(input, sizeInput);
+                    
+                    const controls = document.createElement('div');
+                    controls.className = 'q-controls';
+                    
+                    const btnSave = document.createElement('button');
+                    btnSave.textContent = '完了';
+                    btnSave.onclick = () => saveEdit(index, input.value, sizeInput.value);
+                    
+                    controls.appendChild(btnSave);
+                    item.append(editArea, controls);
+
+                } else {
+                    const text = document.createElement('span');
+                    text.className = 'q-text-view';
+                    text.innerHTML = `${index + 1}. ${q.text.replace(/\n/g, '↵')} <small style="color:#888;">(サイズ:${q.size}rem)</small>`;
+                    
+                    const controls = document.createElement('div');
+                    controls.className = 'q-controls';
+                    
+                    const btnUp = document.createElement('button'); btnUp.textContent = '↑'; btnUp.onclick = () => moveQuestion(index, -1);
+                    const btnDown = document.createElement('button'); btnDown.textContent = '↓'; btnDown.onclick = () => moveQuestion(index, 1);
+                    const btnEdit = document.createElement('button'); btnEdit.textContent = '編集'; btnEdit.onclick = () => startEdit(index);
+                    const btnDel = document.createElement('button'); btnDel.textContent = '削除'; btnDel.onclick = () => deleteQuestion(index);
+
+                    controls.append(btnUp, btnDown, btnEdit, btnDel);
+                    item.append(text, controls);
+                }
+                
+                container.appendChild(item);
+            });
+        }
+
+        function addNewQuestion() {
+            const input = document.getElementById('new-q-input');
+            const sizeInput = document.getElementById('new-q-size');
+            const val = input.value.trim();
+            const size = parseFloat(sizeInput.value) || 4;
+
+            if (val) {
+                questions.push({ text: val, size: size });
+                input.value = '';
+                saveData(); 
+                renderQuestionList();
             }
-            if(realElapsed >= REPLAY_TIME + 1) clearInterval(replayTimer);
-        }, 50);
-    },
-
-    // --- Helpers ---
-    renderProbBtns: () => {
-        const grid = document.getElementById('question-grid');
-        grid.innerHTML = "";
-        Host.problems.forEach((p, i) => {
-            const btn = document.createElement('div');
-            btn.className = 'q-btn';
-            btn.innerHTML = `<div class="q-num">Q.${i+1}</div>`; 
-            btn.onclick = () => Host.startGame(i);
-            grid.appendChild(btn);
-        });
-    },
-    
-    renderProbList: () => {
-        const l = document.getElementById('word-list');
-        l.innerHTML = Host.problems.map((p,i) => `
-            <div class="list-item">
-                <span class="item-idx">${i+1}.</span>
-                <span class="item-word">${p.text}</span>
-                <div style="display:flex; align-items:center;">
-                    ⏱ <input type="number" class="prob-timer-input" value="${p.time || ''}" placeholder="De" onchange="Host.updateProbTime(${i}, this.value)">
-                    <button class="btn btn-sm" onclick="Host.moveProb(${i}, -1)">▲</button>
-                    <button class="btn btn-sm" onclick="Host.moveProb(${i}, 1)">▼</button>
-                    <button class="btn btn-add" style="background:#cc0000; padding:2px 10px; font-size:12px;" onclick="Host.delProb(${i})">×</button>
-                </div>
-            </div>
-        `).join('');
-    },
-
-    moveProb: (idx, dir) => {
-        if(idx + dir < 0 || idx + dir >= Host.problems.length) return;
-        [Host.problems[idx], Host.problems[idx+dir]] = [Host.problems[idx+dir], Host.problems[idx]];
-        Host.saveData();
-        Host.renderProbList();
-    },
-
-    addWord: () => {
-        const v = document.getElementById('inp-word').value.trim().toUpperCase();
-        const defTime = parseInt(document.getElementById('time-limit').value) || 30;
-        if(v) { 
-            Host.problems.push({text: v, time: defTime}); 
-            Host.saveData(); 
-            Host.renderProbList(); 
-            document.getElementById('inp-word').value = ""; 
         }
-    },
-    updateProbTime: (idx, val) => {
-        Host.problems[idx].time = parseInt(val) || 0;
-        Host.saveData();
-    },
-    delProb: (i) => { Host.problems.splice(i,1); Host.saveData(); Host.renderProbList(); },
-    
-    saveData: () => {
-        Host.config.timeLimit = parseInt(document.getElementById('time-limit').value);
-        localStorage.setItem('polyDataV15_8', JSON.stringify({
-            problems: Host.problems,
-            config: Host.config
-        }));
-    },
-    
-    updateSpeed: (v) => { document.getElementById('speed-val').innerText = v; Host.config.speed = parseInt(v); Host.saveData(); },
-    broadcast: (data) => { for(let id in Host.conns) Host.conns[id].send(data); }
-};
 
-/* ================= CLIENT LOGIC ================= */
-const Client = {
-    peer: null, conn: null, name: "",
-    init: (hostId) => {
-        document.getElementById('host-app').classList.add('hidden');
-        const cApp = document.getElementById('client-app');
-        cApp.classList.remove('hidden');
-        cApp.style.display = 'flex';
-        document.getElementById('c-login').classList.add('active');
-        document.getElementById('c-game').classList.remove('active');
-        
-        Client.peer = new Peer(PEER_CONFIG);
-        Client.peer.on('open', () => {
-            Client.conn = Client.peer.connect(hostId);
-            Client.conn.on('open', () => { console.log("Connected"); });
-            Client.conn.on('data', data => Client.handleData(data));
-        });
-    },
-
-    join: () => {
-        const n = document.getElementById('c-name').value;
-        if(!n) return;
-        Client.name = n;
-        Client.conn.send({ type: 'JOIN', name: n });
-        document.getElementById('c-login').classList.remove('active');
-        document.getElementById('c-login').style.display = 'none';
-        document.getElementById('c-game').classList.add('active');
-        document.getElementById('c-game').style.display = 'flex';
-        document.getElementById('c-game').classList.remove('hidden');
-    },
-
-    handleData: (data) => {
-        const status = document.getElementById('c-status');
-        const input = document.getElementById('c-input');
-        const btn = document.getElementById('c-btn-submit');
-
-        if(data.type === 'START') {
-            status.innerText = "解答受付中！";
-            status.style.color = "#00d2ff";
-            input.disabled = false; input.value = ""; btn.disabled = false; input.focus();
-        } else if(data.type === 'END') {
-            status.innerText = "終了！結果発表待ち...";
-            status.style.color = "#ff4444";
-            input.disabled = true; btn.disabled = true;
-        } else if(data.type === 'STATUS') {
-            status.innerText = data.text;
+        function deleteQuestion(index) {
+            questions.splice(index, 1);
+            if (editingIndex === index) editingIndex = -1;
+            else if (editingIndex > index) editingIndex--;
+            saveData(); 
+            renderQuestionList();
         }
-    },
 
-    submitAnswer: () => {
-        const text = document.getElementById('c-input').value;
-        if(!text) return;
-        Client.conn.send({ type: 'ANSWER', text: text });
-        document.getElementById('c-status').innerText = "送信済み。待機中...";
-        document.getElementById('c-input').disabled = true;
-        document.getElementById('c-btn-submit').disabled = true;
-    }
-};
-
-/* ================= THREE.JS LOGIC ================= */
-const Three = {
-    scene: null, camera: null, renderer: null, reqId: null, meshes: [], speed: 1.0, currentZ: 15,
-    initialStates: [], // Store {x,y,z}
-    
-    init: (text, speed) => {
-        Three.stop();
-        Three.speed = speed;
-        const container = document.getElementById('canvas-container');
-        Three.scene = new THREE.Scene(); Three.scene.background = new THREE.Color(0x222222);
-        Three.camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000); 
-        Three.camera.position.z = 15; Three.currentZ = 15;
-        Three.renderer = new THREE.WebGLRenderer({ antialias: true }); Three.renderer.setSize(window.innerWidth, window.innerHeight); container.appendChild(Three.renderer.domElement);
-        const light = new THREE.DirectionalLight(0xffffff, 1); light.position.set(5, 10, 7); Three.scene.add(light); Three.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        
-        const words = text.trim().split(/\s+/);
-        const spacing = 8;
-        const startX = -((words.length - 1) * spacing) / 2;
-        
-        words.forEach((w, i) => {
-            const mesh = Three.createPoly(w);
-            mesh.position.x = startX + i * spacing;
-            mesh.userData = { rx: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1), ry: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1) };
-            Three.scene.add(mesh); Three.meshes.push(mesh);
-        });
-        if(words.length > 2) { Three.currentZ = 15 + (words.length-2)*5; Three.camera.position.z = Three.currentZ; }
-        Three.animate();
-    },
-
-    captureState: () => {
-        Three.initialStates = Three.meshes.map(m => ({ x: m.rotation.x, y: m.rotation.y, z: m.rotation.z }));
-    },
-    
-    // Setup for Replay: Reset rotations to captured state and adjust camera
-    setupReplay: () => {
-        Three.meshes.forEach((m, i) => {
-            if(Three.initialStates[i]) {
-                m.rotation.set(Three.initialStates[i].x, Three.initialStates[i].y, Three.initialStates[i].z);
+        function moveQuestion(index, direction) {
+            editingIndex = -1;
+            if (direction === -1 && index > 0) {
+                [questions[index], questions[index - 1]] = [questions[index - 1], questions[index]];
+            } else if (direction === 1 && index < questions.length - 1) {
+                [questions[index], questions[index + 1]] = [questions[index + 1], questions[index]];
             }
-        });
-        if(Three.camera) {
-            Three.camera.position.x = 5; 
-            Three.camera.position.z = Three.currentZ * 1.4; 
+            saveData(); 
+            renderQuestionList();
         }
-    },
-    
-    createPoly: (word) => {
-        const len = word.length;
-        let geo;
-        if(len===4) geo = new THREE.TetrahedronGeometry(3);
-        else if(len===6) geo = new THREE.BoxGeometry(3.5,3.5,3.5);
-        else if(len===8) geo = new THREE.OctahedronGeometry(3);
-        else if(len===12) geo = new THREE.DodecahedronGeometry(3);
-        else if(len===20) geo = new THREE.IcosahedronGeometry(3);
-        else geo = new THREE.SphereGeometry(3, 16, 16);
 
-        const chars = word.split('');
-        for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
-        
-        const mats = [];
-        for(let i=0; i<chars.length; i++) { mats.push(new THREE.MeshStandardMaterial({ map: Three.createTex(chars[i%chars.length]), color: 0xeeeeee })); }
-        return new THREE.Mesh(geo, mats);
-    },
-    
-    createTex: (char) => {
-        const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
-        const ctx = cvs.getContext('2d'); ctx.fillStyle = '#ddd'; ctx.fillRect(0,0,256,256);
-        ctx.fillStyle = '#000'; ctx.font = 'bold 150px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(char, 128, 128);
-        return new THREE.CanvasTexture(cvs);
-    },
+        function startEdit(index) {
+            editingIndex = index;
+            renderQuestionList();
+        }
 
-    animate: () => {
-        Three.reqId = requestAnimationFrame(Three.animate);
-        Three.meshes.forEach(m => { m.rotation.x += m.userData.rx * Three.speed; m.rotation.y += m.userData.ry * Three.speed; });
-        Three.renderer.render(Three.scene, Three.camera);
-    },
-    
-    stop: () => {
-        if(Three.reqId) cancelAnimationFrame(Three.reqId);
-        const el = document.getElementById('canvas-container');
-        while(el.firstChild) el.removeChild(el.firstChild);
-        Three.meshes = [];
-        Three.initialStates = [];
-    }
-};
+        function saveEdit(index, newVal, newSize) {
+            if (newVal.trim() !== "") {
+                questions[index].text = newVal.trim();
+                questions[index].size = parseFloat(newSize) || 4;
+                saveData(); 
+            }
+            editingIndex = -1;
+            renderQuestionList();
+        }
 
-// Bootstrap
-const params = new URLSearchParams(location.search);
-if(params.get('host')) Client.init(params.get('host'));
-else Host.init();
+        function addLightSetting() {
+            const char = document.getElementById('light-char').value.trim();
+            // powerはV6では距離計算に使うため基本不要だが、データ構造維持のため10固定
+            const power = 10; 
+            const color = document.getElementById('light-color').value;
+            if(!char) return;
+            lightDatabase[char] = { power, color };
+            saveData(); 
+            renderLightList();
+            document.getElementById('light-char').value = '';
+        }
 
-</script>
+        function deleteLightSetting(char) {
+            delete lightDatabase[char];
+            saveData(); 
+            renderLightList();
+        }
+
+        function renderLightList() {
+            const container = document.getElementById('light-list-display');
+            container.innerHTML = ''; 
+
+            const keys = Object.keys(lightDatabase).sort((a,b) => b.length - a.length || a.localeCompare(b));
+
+            keys.forEach(char => {
+                const data = lightDatabase[char];
+                const tag = document.createElement('div');
+                tag.className = 'light-tag';
+                tag.style.borderLeftColor = data.color;
+                
+                const label = document.createElement('span');
+                label.innerHTML = `<strong>${char}</strong>`;
+                
+                const delBtn = document.createElement('span');
+                delBtn.className = 'light-del-btn';
+                delBtn.textContent = '×';
+                delBtn.onclick = () => deleteLightSetting(char);
+
+                tag.appendChild(label);
+                tag.appendChild(delBtn);
+                container.appendChild(tag);
+            });
+        }
+
+        // --- ゲームロジック (距離減衰対応) ---
+
+        function startGame(index) {
+            currentQuestionIndex = index;
+            document.getElementById('q-number-display').textContent = `第 ${index + 1} 問`;
+            
+            const stage = document.getElementById('darkness-stage');
+            stage.innerHTML = ''; 
+
+            const isTestMode = document.getElementById('test-mode-toggle').checked;
+            if (isTestMode) stage.classList.add('test-mode');
+            else stage.classList.remove('test-mode');
+
+            const qObj = questions[index];
+            const rawText = qObj.text;
+            const fontSize = qObj.size; 
+
+            const rows = rawText.split('\n');
+            const rowCount = rows.length;
+            const colCount = Math.max(...rows.map(r => r.length));
+
+            stage.style.gridTemplateColumns = `repeat(${colCount}, auto)`;
+
+            // グリッド初期化
+            let lightMap = [];
+            for(let y=0; y<rowCount; y++) {
+                let rowData = [];
+                for(let x=0; x<colCount; x++) {
+                    const char = rows[y][x] || null; 
+                    rowData.push({
+                        char: char,
+                        isSource: false,
+                        color: '#ffffff',
+                        incomingLights: [] 
+                    });
+                }
+                lightMap.push(rowData);
+            }
+
+            // 光源判定
+            const keywords = Object.keys(lightDatabase).sort((a, b) => b.length - a.length);
+
+            for(let y=0; y<rowCount; y++) {
+                const lineStr = rows[y];
+                let usedFlags = new Array(lineStr.length).fill(false);
+
+                keywords.forEach(keyword => {
+                    let pos = lineStr.indexOf(keyword);
+                    while (pos !== -1) {
+                        let isFree = true;
+                        for(let k=0; k<keyword.length; k++) {
+                            if(usedFlags[pos + k]) isFree = false;
+                        }
+                        if(isFree) {
+                            const data = lightDatabase[keyword];
+                            for(let k=0; k<keyword.length; k++) {
+                                const x = pos + k;
+                                usedFlags[x] = true;
+                                lightMap[y][x].isSource = true;
+                                lightMap[y][x].color = data.color;
+                            }
+                        }
+                        pos = lineStr.indexOf(keyword, pos + 1);
+                    }
+                });
+            }
+
+            // 光の伝播 (距離・方向計算)
+            const DIRECTIONS = [
+                { dx: 0, dy: -1, type: 'top' },    
+                { dx: 0, dy: 1,  type: 'bottom' },
+                { dx: -1, dy: 0, type: 'left' },
+                { dx: 1, dy: 0,  type: 'right' },
+                { dx: -1, dy: -1, type: 'topLeft' },
+                { dx: 1, dy: -1,  type: 'topRight' },
+                { dx: -1, dy: 1,  type: 'bottomLeft' },
+                { dx: 1, dy: 1,   type: 'bottomRight' }
+            ];
+
+            // 対角線距離の定数
+            const DIAG_DIST = 1.414; 
+
+            for(let y=0; y<rowCount; y++) {
+                for(let x=0; x<colCount; x++) {
+                    const cell = lightMap[y][x];
+                    if (!cell.isSource) continue; 
+
+                    // 光源から周囲へ光を飛ばす
+                    DIRECTIONS.forEach(dir => {
+                        const tx = x + dir.dx;
+                        const ty = y + dir.dy;
+
+                        if (tx >= 0 && tx < colCount && ty >= 0 && ty < rowCount) {
+                            const target = lightMap[ty][tx];
+                            if (!target.isSource && target.char) {
+                                
+                                // 表示される長さ(%)の計算
+                                let visibleRatio = 0;
+                                
+                                if (dir.dx === 0 || dir.dy === 0) {
+                                    // 上下左右: 距離1
+                                    // 設定値そのまま (例: 0.5なら50%見える)
+                                    visibleRatio = lightReach;
+                                } else {
+                                    // 斜め: 距離√2 (約1.414)
+                                    // 見える長さ = 設定値 - (距離 - 1)
+                                    // つまり lightReach - 0.414
+                                    visibleRatio = lightReach - (DIAG_DIST - 1);
+                                }
+
+                                if (visibleRatio > 0) {
+                                    target.incomingLights.push({
+                                        direction: getOppositeDirName(dir.type), 
+                                        color: cell.color,
+                                        ratio: Math.min(visibleRatio, 1.0), // 最大100%
+                                        isDiagonal: (dir.dx !== 0 && dir.dy !== 0)
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // DOM生成
+            for(let y=0; y<rowCount; y++) {
+                for(let x=0; x<colCount; x++) {
+                    const cell = lightMap[y][x];
+                    const span = document.createElement('div');
+                    span.classList.add('char-box');
+                    
+                    span.style.fontSize = `${fontSize}rem`;
+
+                    if (cell.char) {
+                        span.textContent = cell.char;
+                    } else {
+                        span.textContent = "";
+                        span.style.pointerEvents = "none";
+                    }
+
+                    if (cell.isSource) {
+                        span.classList.add('source');
+                        span.style.setProperty('--char-color', cell.color);
+                        span.style.opacity = 1;
+
+                    } else if (cell.char && cell.incomingLights.length > 0) {
+                        let backgrounds = [];
+                        let maxOpacity = 0;
+
+                        cell.incomingLights.forEach(light => {
+                            const c = light.color;
+                            const t = 'rgba(0,0,0,0)'; 
+                            const percent = Math.round(light.ratio * 100);
+                            
+                            // 明るさ(Opacity)は、近いほど(ratioが高いほど)明るくする
+                            // ratio 0.1 -> opacity 0.2, ratio 1.0 -> opacity 1.0
+                            maxOpacity = Math.max(maxOpacity, 0.1 + (light.ratio * 0.9));
+
+                            if (!light.isDiagonal) {
+                                // 線形グラデーション (近い方が色、遠い方が透明)
+                                if (light.direction === 'left') { 
+                                    // 左から光: 左0% -> 左P% (色), P%->透明
+                                    backgrounds.push(`linear-gradient(90deg, ${c} 0%, ${t} ${percent}%)`);
+                                } else if (light.direction === 'right') { 
+                                    backgrounds.push(`linear-gradient(-90deg, ${c} 0%, ${t} ${percent}%)`);
+                                } else if (light.direction === 'top') { 
+                                    backgrounds.push(`linear-gradient(180deg, ${c} 0%, ${t} ${percent}%)`);
+                                } else if (light.direction === 'bottom') { 
+                                    backgrounds.push(`linear-gradient(0deg, ${c} 0%, ${t} ${percent}%)`);
+                                }
+                            } else {
+                                // 斜め: 円形グラデーション
+                                if (light.direction === 'topLeft') {
+                                    backgrounds.push(`radial-gradient(circle at 0% 0%, ${c} 0%, ${t} ${percent}%)`);
+                                } else if (light.direction === 'topRight') {
+                                    backgrounds.push(`radial-gradient(circle at 100% 0%, ${c} 0%, ${t} ${percent}%)`);
+                                } else if (light.direction === 'bottomLeft') {
+                                    backgrounds.push(`radial-gradient(circle at 0% 100%, ${c} 0%, ${t} ${percent}%)`);
+                                } else if (light.direction === 'bottomRight') {
+                                    backgrounds.push(`radial-gradient(circle at 100% 100%, ${c} 0%, ${t} ${percent}%)`);
+                                }
+                            }
+                        });
+
+                        span.style.backgroundImage = backgrounds.join(',');
+                        span.style.opacity = maxOpacity;
+
+                    } else {
+                        span.style.opacity = 0;
+                    }
+
+                    stage.appendChild(span);
+                }
+            }
+
+            switchScreen('screen-game');
+        }
+
+        function getOppositeDirName(name) {
+            switch(name) {
+                case 'top': return 'bottom'; 
+                case 'bottom': return 'top'; 
+                case 'left': return 'right'; 
+                case 'right': return 'left'; 
+                case 'topLeft': return 'bottomRight';
+                case 'topRight': return 'bottomLeft';
+                case 'bottomLeft': return 'topRight';
+                case 'bottomRight': return 'topLeft';
+            }
+            return '';
+        }
+
+        function showAnswer() {
+            const chars = document.querySelectorAll('.char-box');
+            chars.forEach(char => {
+                char.classList.add('reveal');
+            });
+        }
+
+    </script>
 </body>
 </html>
