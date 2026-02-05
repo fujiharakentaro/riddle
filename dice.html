@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V16.3</title>
+    <title>POLYHEDRON QUIZ V16.4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -115,7 +115,7 @@
 
         /* --- Settings --- */
         .settings-container { width: 90%; max-width: 600px; background: var(--panel); padding: 30px; border-radius: 12px; display: flex; flex-direction: column; gap: 20px; }
-        .list-area { max-height: 200px; overflow-y: auto; border: 1px solid #444; background: #222; }
+        .list-area { max-height: 250px; overflow-y: auto; border: 1px solid #444; background: #222; }
         .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; align-items: center; }
         .config-area { background: #2b2b2b; padding: 15px; border-radius: 4px; }
         
@@ -123,14 +123,14 @@
         .turn-config { background: #222; padding: 10px; border: 1px dashed #666; margin-top: 10px; }
         .turn-config label { display: block; font-size: 12px; color: #aaa; margin-top: 5px; }
         .turn-config input { width: 90%; font-size: 14px; }
-        
+        .ans-input { width: 150px; padding: 5px; font-size: 14px; background: #444; border: 1px solid #666; color: #fff; margin-left: 5px;}
     </style>
 </head>
 <body>
 
     <div id="host-app" class="hidden">
         <div id="screen-title" class="screen active">
-            <h1>POLYHEDRON QUIZ V16.3</h1>
+            <h1>POLYHEDRON QUIZ V16.4</h1>
             <div style="margin-top: 50px;">
                 <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
             </div>
@@ -165,9 +165,12 @@
             <div class="settings-container">
                 <h2>設定 & 問題管理</h2>
                 <div class="list-area" id="word-list"></div>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="inp-word" placeholder="単語 (SPACE区切り)" style="flex:1;">
-                    <button class="btn-add" onclick="Host.addWord()">追加</button>
+                <div style="display:flex; gap:10px; align-items:flex-end;">
+                    <div style="flex:1;">
+                        <input type="text" id="inp-word" placeholder="表示単語 (SPACE区切り)" style="width:100%; margin-bottom:5px;">
+                        <input type="text" id="inp-ans" placeholder="正解 (カンマ区切り, 空欄なら表示と同じ)" style="width:100%;">
+                    </div>
+                    <button class="btn-add" style="height:80px;" onclick="Host.addWord()">追加</button>
                 </div>
                 <div class="config-area">
                     <label>⏱ 基本制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;" onchange="Host.saveData()"></label><br><br>
@@ -176,7 +179,7 @@
                     <div class="turn-config">
                         <strong style="color:var(--gold);">🌐 ネットワーク設定 (5G対策)</strong>
                         <p style="font-size:11px; margin:5px 0;">5G/4GとWiFiで繋がらない場合、TURNサーバーを設定してください。</p>
-                        <label>TURN URL (例: turn:openrelay.metered.ca:80)</label>
+                        <label>TURN URL</label>
                         <input type="text" id="turn-url" placeholder="turn:your.turn.server:3478" onchange="Host.saveData()">
                         <label>Username</label>
                         <input type="text" id="turn-user" placeholder="username" onchange="Host.saveData()">
@@ -255,22 +258,24 @@ function playCountSE(final=false) {
 /* ================= HOST LOGIC ================= */
 const Host = {
     peer: null, conns: {}, players: {}, answers: [],
+    // problems: [{text: "DISPLAY", answers:["ANS1", "ANS2"], time: 30}, ...]
     problems: [], 
     config: { speed: 130, timeLimit: 30, turnUrl: "", turnUser: "", turnPass: "" },
     currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
-    replayTimer: null, // 追加: リプレイタイマーID保存用
+    replayTimer: null,
     
     init: () => {
-        const savedP = localStorage.getItem('polyDataV16_3');
+        // V16_4用にキー変更
+        const savedP = localStorage.getItem('polyDataV16_4');
         if(savedP) {
             const data = JSON.parse(savedP);
             Host.problems = data.problems || [];
             Host.config = { ...Host.config, ...data.config }; 
         } else {
             Host.problems = [
-                {text: "RANDOM", time: 30},
-                {text: "CUBE66 TETRA4", time: 30},
-                {text: "ICOSAHEDRON20", time: 30}
+                {text: "RANDOM", answers:["RANDOM"], time: 30},
+                {text: "CUBE66 TETRA4", answers:["CUBE66 TETRA4"], time: 30},
+                {text: "ICOSAHEDRON20", answers:["ICOSAHEDRON20"], time: 30}
             ];
         }
         
@@ -435,7 +440,6 @@ const Host = {
         Host.showTitle();
     },
 
-    // 追加: 問題選択に戻る関数
     backToSelect: () => {
         clearInterval(Host.timerId);
         if(Host.replayTimer) clearInterval(Host.replayTimer);
@@ -455,10 +459,18 @@ const Host = {
         const speedFactor = limit / REPLAY_TIME;
         Three.speed = (Host.config.speed / 100) * speedFactor;
 
-        const validWords = Host.currentProblem.text.trim().toUpperCase().split(/\s+/);
+        // Grading: Check against all possible answers
+        // Fallback: if answers array is empty or undefined, use problem text (normalized)
+        let validAnswers = [];
+        if(Host.currentProblem.answers && Host.currentProblem.answers.length > 0) {
+            validAnswers = Host.currentProblem.answers.map(a => a.trim().toUpperCase());
+        } else {
+            validAnswers = [Host.currentProblem.text.trim().toUpperCase()];
+        }
+
         Host.answers.forEach(a => {
             const userAns = a.ans.trim().toUpperCase();
-            a.isCorrect = validWords.includes(userAns);
+            a.isCorrect = validAnswers.includes(userAns);
         });
         Host.answers.sort((a,b) => a.timeOffset - b.timeOffset);
 
@@ -480,7 +492,6 @@ const Host = {
         let replayStartTime = Date.now();
         let answerIndex = 0;
 
-        // リプレイタイマーをHostプロパティに保存
         Host.replayTimer = setInterval(() => {
             const realElapsed = (Date.now() - replayStartTime) / 1000;
             const virtualElapsed = realElapsed * speedFactor;
@@ -520,8 +531,11 @@ const Host = {
         const l = document.getElementById('word-list');
         l.innerHTML = Host.problems.map((p,i) => `
             <div class="list-item">
-                <span class="item-idx">${i+1}.</span>
-                <span class="item-word">${p.text}</span>
+                <div style="flex:1;">
+                    <div style="font-size:12px; color:#aaa;">Q.${i+1}</div>
+                    <div class="item-word">${p.text}</div>
+                    <div style="font-size:10px; color:#0f0;">正解: ${p.answers ? p.answers.join(', ') : p.text}</div>
+                </div>
                 <div style="display:flex; align-items:center;">
                     ⏱ <input type="number" class="prob-timer-input" value="${p.time || ''}" placeholder="De" onchange="Host.updateProbTime(${i}, this.value)">
                     <button class="btn btn-sm" onclick="Host.moveProb(${i}, -1)">▲</button>
@@ -541,12 +555,23 @@ const Host = {
 
     addWord: () => {
         const v = document.getElementById('inp-word').value.trim().toUpperCase();
+        const aVal = document.getElementById('inp-ans').value.trim().toUpperCase();
         const defTime = parseInt(document.getElementById('time-limit').value) || 30;
+        
         if(v) { 
-            Host.problems.push({text: v, time: defTime}); 
+            // Split answer by comma, remove whitespace
+            let ansList = [];
+            if(aVal) {
+                ansList = aVal.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            } else {
+                ansList = [v]; // Default to display text
+            }
+
+            Host.problems.push({text: v, answers: ansList, time: defTime}); 
             Host.saveData(); 
             Host.renderProbList(); 
             document.getElementById('inp-word').value = ""; 
+            document.getElementById('inp-ans').value = ""; 
         }
     },
     updateProbTime: (idx, val) => {
@@ -561,7 +586,7 @@ const Host = {
         Host.config.turnUser = document.getElementById('turn-user').value;
         Host.config.turnPass = document.getElementById('turn-pass').value;
         
-        localStorage.setItem('polyDataV16_3', JSON.stringify({
+        localStorage.setItem('polyDataV16_4', JSON.stringify({
             problems: Host.problems,
             config: Host.config
         }));
