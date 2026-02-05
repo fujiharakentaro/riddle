@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V15.7</title>
+    <title>POLYHEDRON QUIZ V15.8</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -113,9 +113,11 @@
 
         /* --- Settings --- */
         .settings-container { width: 90%; max-width: 600px; background: var(--panel); padding: 30px; border-radius: 12px; display: flex; flex-direction: column; gap: 20px; }
-        .list-area { max-height: 200px; overflow-y: auto; border: 1px solid #444; background: #222; }
+        .list-area { max-height: 300px; overflow-y: auto; border: 1px solid #444; background: #222; }
         .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; align-items: center; }
         .config-area { background: #2b2b2b; padding: 15px; border-radius: 4px; }
+        
+        .prob-timer-input { width: 50px; padding: 5px; font-size: 14px; text-align: right; margin-right: 5px; }
         
     </style>
 </head>
@@ -163,7 +165,7 @@
                     <button class="btn-add" onclick="Host.addWord()">追加</button>
                 </div>
                 <div class="config-area">
-                    <label>⏱ 制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;"></label><br><br>
+                    <label>⏱ 基本制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;" onchange="Host.saveData()"></label><br><br>
                     <label>🚀 回転スピード: <input type="range" id="speed-slider" min="0" max="300" value="130" oninput="Host.updateSpeed(this.value)"> <span id="speed-val">130</span>%</label>
                 </div>
                 <button class="btn" onclick="Host.showTitle()">戻る</button>
@@ -202,7 +204,11 @@
         </div>
     </div>
 
-    <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <script>
+    <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> 
+    
+    
+
+<script>
 /* ================= COMMON UTILS ================= */
 const PEER_CONFIG = {
     config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
@@ -231,14 +237,31 @@ function playCountSE(final=false) {
 /* ================= HOST LOGIC ================= */
 const Host = {
     peer: null, conns: {}, players: {}, answers: [],
-    problems: ["RANDOM", "CUBE66 TETRA4", "ICOSAHEDRON20"],
+    // problems: [{text: "WORD", time: 30}, ...] format
+    problems: [], 
     config: { speed: 130, timeLimit: 30 },
-    currentProblem: null, startTime: 0, timerId: null,
+    currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
     
     init: () => {
-        const savedP = localStorage.getItem('polyData');
-        if(savedP) Host.problems = JSON.parse(savedP);
+        const savedP = localStorage.getItem('polyDataV15_8');
+        if(savedP) {
+            const data = JSON.parse(savedP);
+            Host.problems = data.problems || [];
+            Host.config = data.config || Host.config;
+        } else {
+            // Default init if empty
+            Host.problems = [
+                {text: "RANDOM", time: 30},
+                {text: "CUBE66 TETRA4", time: 30},
+                {text: "ICOSAHEDRON20", time: 30}
+            ];
+        }
         
+        // Restore config UI
+        document.getElementById('time-limit').value = Host.config.timeLimit;
+        document.getElementById('speed-slider').value = Host.config.speed;
+        document.getElementById('speed-val').innerText = Host.config.speed;
+
         Host.peer = new Peer(PEER_CONFIG);
         Host.peer.on('open', id => {
             const url = location.href.split('?')[0] + '?host=' + id;
@@ -323,8 +346,6 @@ const Host = {
         document.getElementById('game-ui').style.display = 'block';
         document.getElementById('timer-display').innerText = "";
         
-        // Setup 3D but hide objects initially if needed, or just show them
-        // Requirement: "Countdown before question".
         Three.stop(); 
         
         // Countdown
@@ -349,17 +370,22 @@ const Host = {
     },
     
     startActualGame: () => {
-        Three.init(Host.currentProblem, Host.config.speed / 100);
+        Three.init(Host.currentProblem.text, Host.config.speed / 100);
         
         // Capture initial state for replay
         Three.captureState();
 
-        let timeLeft = parseInt(document.getElementById('time-limit').value);
-        document.getElementById('timer-display').innerText = timeLeft;
+        // Determine Time Limit (Individual > Global)
+        let limit = Host.currentProblem.time;
+        if (!limit || limit <= 0) limit = parseInt(document.getElementById('time-limit').value);
+        Host.currentLimit = limit;
+
+        document.getElementById('timer-display').innerText = limit;
         
         Host.broadcast({ type: 'START' });
         Host.startTime = Date.now();
         
+        let timeLeft = limit;
         Host.timerId = setInterval(() => {
             timeLeft--;
             document.getElementById('timer-display').innerText = timeLeft;
@@ -387,7 +413,7 @@ const Host = {
         // Replay Setup
         Three.setupReplay(); // Reset rotation to captured state and adjust camera
 
-        const limit = parseInt(document.getElementById('time-limit').value);
+        const limit = Host.currentLimit;
         
         // --- Speed Adjustment Logic ---
         const REPLAY_TIME = 30; // Fixed duration
@@ -396,8 +422,8 @@ const Host = {
         // Adjust 3D Speed for Replay
         Three.speed = (Host.config.speed / 100) * speedFactor;
 
-        // Grading Logic (Same as before)
-        const validWords = Host.currentProblem.trim().toUpperCase().split(/\s+/);
+        // Grading Logic
+        const validWords = Host.currentProblem.text.trim().toUpperCase().split(/\s+/);
         Host.answers.forEach(a => {
             const userAns = a.ans.trim().toUpperCase();
             a.isCorrect = validWords.includes(userAns);
@@ -468,8 +494,9 @@ const Host = {
         l.innerHTML = Host.problems.map((p,i) => `
             <div class="list-item">
                 <span class="item-idx">${i+1}.</span>
-                <span class="item-word">${p}</span>
-                <div>
+                <span class="item-word">${p.text}</span>
+                <div style="display:flex; align-items:center;">
+                    ⏱ <input type="number" class="prob-timer-input" value="${p.time || ''}" placeholder="De" onchange="Host.updateProbTime(${i}, this.value)">
                     <button class="btn btn-sm" onclick="Host.moveProb(${i}, -1)">▲</button>
                     <button class="btn btn-sm" onclick="Host.moveProb(${i}, 1)">▼</button>
                     <button class="btn btn-add" style="background:#cc0000; padding:2px 10px; font-size:12px;" onclick="Host.delProb(${i})">×</button>
@@ -487,11 +514,29 @@ const Host = {
 
     addWord: () => {
         const v = document.getElementById('inp-word').value.trim().toUpperCase();
-        if(v) { Host.problems.push(v); Host.saveData(); Host.renderProbList(); document.getElementById('inp-word').value = ""; }
+        const defTime = parseInt(document.getElementById('time-limit').value) || 30;
+        if(v) { 
+            Host.problems.push({text: v, time: defTime}); 
+            Host.saveData(); 
+            Host.renderProbList(); 
+            document.getElementById('inp-word').value = ""; 
+        }
+    },
+    updateProbTime: (idx, val) => {
+        Host.problems[idx].time = parseInt(val) || 0;
+        Host.saveData();
     },
     delProb: (i) => { Host.problems.splice(i,1); Host.saveData(); Host.renderProbList(); },
-    saveData: () => localStorage.setItem('polyData', JSON.stringify(Host.problems)),
-    updateSpeed: (v) => { document.getElementById('speed-val').innerText = v; Host.config.speed = parseInt(v); },
+    
+    saveData: () => {
+        Host.config.timeLimit = parseInt(document.getElementById('time-limit').value);
+        localStorage.setItem('polyDataV15_8', JSON.stringify({
+            problems: Host.problems,
+            config: Host.config
+        }));
+    },
+    
+    updateSpeed: (v) => { document.getElementById('speed-val').innerText = v; Host.config.speed = parseInt(v); Host.saveData(); },
     broadcast: (data) => { for(let id in Host.conns) Host.conns[id].send(data); }
 };
 
