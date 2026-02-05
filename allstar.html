@@ -186,6 +186,9 @@
         #client-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: rgba(0,0,0,0.9); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .client-msg-main { font-size: 32px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #0af; margin-bottom: 20px;}
         #result-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg); font-family: 'M PLUS Rounded 1c'; font-weight: 900; font-size: 100px; white-space: nowrap; z-index: 200; pointer-events: none; text-shadow: 2px 2px 0 #000; padding: 20px; border-radius: 20px; border: 8px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* 再接続オーバーレイ */
+        #reconnect-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -234,6 +237,8 @@
                 <div class="url-area">
                     <div style="font-weight:bold; color:#0f0;">参加者用URL:</div>
                     <input type="text" class="url-input" id="host-url" readonly onclick="this.select()">
+                    <div style="margin-top:10px; color:#fff;">現在の参加者: <span id="p-count-setup" style="color:#0f0;font-weight:bold;">0</span>名</div>
+                    <div id="p-list-setup" style="max-height:100px; overflow-y:auto; border:1px solid #555; background:#111; padding:5px; margin-top:5px; font-size:12px; color:#aaa;"></div>
                 </div>
             </div>
         </div>
@@ -242,7 +247,6 @@
             <button class="btn" onclick="showSetupMenu()" style="margin-bottom:10px;">◀ メニューへ</button>
             <h3 style="color:#fb0;">音響設定 (自動保存)</h3>
             <div style="line-height:2.5;">
-                出題:<input type="file" accept="audio/*" onchange="saveAudio('q_open',this)"><br>
                 シンキング:<input type="file" accept="audio/*" onchange="saveAudio('thinking',this)"><br>
                 ピリオド終了:<input type="file" accept="audio/*" onchange="saveAudio('period_end',this)"><br>
                 集計:<input type="file" accept="audio/*" onchange="saveAudio('votes',this)"><br>
@@ -320,6 +324,10 @@
             <button class="btn btn-red" onclick="resetSort()" style="padding:10px 20px;">リセット</button>
         </div>
     </div>
+    <div id="reconnect-overlay" class="hidden">
+        <h2 style="color:#ff4444; margin-bottom:20px;">接続が切れました</h2>
+        <button class="btn btn-green" onclick="reconnectClient()" style="padding:15px 30px; font-size:20px;">再接続する</button>
+    </div>
 </div>
 
 <script>
@@ -327,10 +335,10 @@
     const DB_NAME = 'AllStarQuizDB'; const DB_VER = 2;
     function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME, DB_VER); r.onupgradeneeded=e=>{ const db=e.target.result; if(!db.objectStoreNames.contains('audios')) db.createObjectStore('audios'); if(!db.objectStoreNames.contains('data')) db.createObjectStore('data'); }; r.onsuccess=e=>res(e.target.result); r.onerror=e=>rej(e); }); }
     async function saveToDB(store, k, val){ const db=await openDB(); const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val, k); }
-    async function loadFromDB(){ const db=await openDB(); const tx=db.transaction(['audios','data'],'readonly'); const as=tx.objectStore('audios'); ['q_open','thinking','votes','correct','sort_reveal','sort_thinking','period_end'].forEach(k=>{ const r=as.get(k); r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); }; }); const ds=tx.objectStore('data'); const r=ds.get('periods'); r.onsuccess=e=>{ if(r.result) { periods=r.result; } }; }
+    async function loadFromDB(){ const db=await openDB(); const tx=db.transaction(['audios','data'],'readonly'); const as=tx.objectStore('audios'); ['thinking','votes','correct','sort_reveal','sort_thinking','period_end'].forEach(k=>{ const r=as.get(k); r.onsuccess=e=>{ if(r.result) audioFiles[k]=URL.createObjectURL(r.result); }; }); const ds=tx.objectStore('data'); const r=ds.get('periods'); r.onsuccess=e=>{ if(r.result) { periods=r.result; } }; }
 
     let periods = [{ title: "第1ピリオド", questions: [{qType:'text', zoom:false, q:"日本一高い山は？",correct:"1",options:{1:{type:'text',val:'富士山'},2:{type:'text',val:'北岳'},3:{type:'text',val:'奥穂高岳'},4:{type:'text',val:'間ノ岳'}}}], sortingQ: {q:"次の出来事を古い順に並べよ", order:["2","4","1","3"], options:{1:{type:'text',val:'明治維新'},2:{type:'text',val:'関ヶ原の戦い'},3:{type:'text',val:'第二次世界大戦終結'},4:{type:'text',val:'ペリー来航'}}} }];
-    let audioFiles={q_open:null,thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null, period_end:null};
+    let audioFiles={thinking:null,votes:null,correct:null,sort_reveal:null,sort_thinking:null, period_end:null};
     let peer, conn, conns={}, myId, currentPIdx=0, currentQIdx=0, hostState=0; 
     let answers={}, participants={}, scores={}, periodScores={}, periodTimes={}, clientStartTime=0, bgmAudio=null, isSorting=false, clientSortAns=[], champSortAns=null, lastChoice=null, isLagTime = false, currentChampId = null; 
     let editingPIdx = 0; // Currently editing period index
@@ -363,7 +371,36 @@
         document.getElementById("qrcode-setup").innerHTML="<div style='color:#000;font-size:12px;'>接続中...</div>";
         peer = new Peer(PEER_CONFIG);
         peer.on('open', id=>{ myId=id; const url = location.href.split('?')[0] + '?host=' + id; document.getElementById('host-url').value = url; document.getElementById("qrcode-setup").innerHTML=""; new QRCode(document.getElementById("qrcode-setup"), {text:url, width:150, height:150}); });
-        peer.on('connection',c=>{ c.on('open',()=>{ conns[c.peer]=c; c.on('data',d=>{ if(d.type==='LOGIN'){ participants[c.peer]=d.name; if(scores[c.peer] === undefined) scores[c.peer]=0; if(periodScores[c.peer] === undefined) periodScores[c.peer]=0; if(periodTimes[c.peer] === undefined) periodTimes[c.peer]=0; } if(d.type==='ANSWER') { const canAnswer = (hostState === 3 || hostState === 9 || hostState === 90) || isLagTime; if (canAnswer && !answers[c.peer]) { answers[c.peer] = d; } } }); c.on('close',()=>{delete conns[c.peer];}); }); });
+        peer.on('connection',c=>{ 
+            c.on('open',()=>{ 
+                conns[c.peer]=c; 
+                c.on('data',d=>{ 
+                    if(d.type==='LOGIN'){ 
+                        participants[c.peer]=d.name; 
+                        if(scores[c.peer] === undefined) scores[c.peer]=0; 
+                        if(periodScores[c.peer] === undefined) periodScores[c.peer]=0; 
+                        if(periodTimes[c.peer] === undefined) periodTimes[c.peer]=0; 
+                        updateParticipantsDisplay();
+                    } 
+                    if(d.type==='ANSWER') { 
+                        const canAnswer = (hostState === 3 || hostState === 9 || hostState === 90) || isLagTime; 
+                        if (canAnswer && !answers[c.peer]) { answers[c.peer] = d; } 
+                    } 
+                }); 
+                c.on('close',()=>{
+                    delete conns[c.peer];
+                    delete participants[c.peer];
+                    updateParticipantsDisplay();
+                }); 
+            }); 
+        });
+    }
+
+    function updateParticipantsDisplay(){
+        const count = Object.keys(participants).length;
+        document.getElementById('p-count-setup').innerText = count;
+        const list = document.getElementById('p-list-setup');
+        list.innerHTML = Object.values(participants).join(', ');
     }
 
     // --- Editor Logic (Improved) ---
@@ -496,7 +533,7 @@
                     currentQIdx++; isSorting=false;
                     if(currentQIdx>=P.questions.length){ hostState=7; nextPhase(); return; }
                     resetDisp(); hostState=2; broadcast({type:'STANDBY', msg:'問題の出題をお待ちください'}); break;
-                case 2: displayQ(Q); playAudio('q_open'); playAudio('thinking',false); startTimer(10); broadcast({type:'START', sort:false}); hostState=3; break; 
+                case 2: displayQ(Q); playAudio('thinking',false); startTimer(10); broadcast({type:'START', sort:false}); hostState=3; break; 
                 case 3: stopTimer(); break;
                 case 4: stopTimer(); break; 
                 case 5: showVotes(); playAudio('votes'); hostState=6; break; 
@@ -516,7 +553,7 @@
                     currentChampId = champId; document.getElementById('champ-name').innerText = participants[champId] || "該当なし"; champSortAns = null; hostState = 71; break; 
                 case 71: document.getElementById('champ-name').classList.remove('hidden'); hostState=8; break;
                 case 8: document.getElementById('period-end-view').classList.add('hidden'); resetDisp(); isSorting=true; displayQ({q:"", options:{1:{type:'text',val:''},2:{type:'text',val:''},3:{type:'text',val:''},4:{type:'text',val:''}}}); broadcast({type:'STANDBY', msg:'山分けクイズが出題されます'}); hostState=9; break;
-                case 9: displayQ(P.sortingQ); playAudio('q_open'); playAudio('sort_thinking',false); startTimer(20); broadcast({type:'START', sort:true}); hostState=90; break;
+                case 9: displayQ(P.sortingQ); playAudio('sort_thinking',false); startTimer(20); broadcast({type:'START', sort:true}); hostState=90; break;
                 case 90: stopTimer(); break;
                 case 10: stopTimer(); break; 
                 case 11: champSortAns = (answers[currentChampId] && answers[currentChampId].choice) ? answers[currentChampId].choice : ["?","?","?","?"]; renderSortResultLayout(champSortAns, P.sortingQ); hostState = 12; break; 
@@ -626,7 +663,11 @@
         peer = new Peer(PEER_CONFIG);
         peer.on('open',()=>{ 
             conn=peer.connect(hid); 
-            conn.on('open', ()=>{ document.getElementById('join-btn').disabled = false; document.getElementById('join-btn').innerText = "参加"; });
+            conn.on('open', ()=>{ 
+                document.getElementById('join-btn').disabled = false; 
+                document.getElementById('join-btn').innerText = "参加"; 
+                document.getElementById('reconnect-overlay').classList.add('hidden'); // 再接続成功したら隠す
+            });
             conn.on('data',d=>{
                 if(d.type==='SCORE') document.getElementById('client-score').innerText=`現在の得点: ${d.score}点`;
                 if(d.type==='STANDBY'){ updateClientUI('standby', d.msg); }
@@ -634,8 +675,22 @@
                 if(d.type==='TIMEUP'){ updateClientUI('locked'); }
                 if(d.type==='RESULT'){ showClientResult(d.correct); }
             });
+            conn.on('close', () => { document.getElementById('reconnect-overlay').classList.remove('hidden'); });
         });
+        peer.on('disconnected', () => { document.getElementById('reconnect-overlay').classList.remove('hidden'); });
+        peer.on('error', () => { document.getElementById('reconnect-overlay').classList.remove('hidden'); });
     }
+    
+    function reconnectClient() {
+        const u = new URLSearchParams(window.location.search);
+        const hostId = u.get('host');
+        if (hostId) {
+            initClient(hostId);
+        } else {
+            alert('接続先情報がありません');
+        }
+    }
+
     function joinGame(){ const n=document.getElementById('user-name').value; if(!n)return; if(!conn || !conn.open) return alert("接続中...少々お待ちください"); conn.send({type:'LOGIN', name:n}); showScreen('client-view'); }
     function updateClientUI(state, msg="") {
         const pad = document.getElementById('client-pad');
