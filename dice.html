@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V16.1</title>
+    <title>POLYHEDRON QUIZ V16.3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -16,6 +16,7 @@
             --accent: #00d2ff; 
             --danger: #ff4444;
             --gold: #ffd700;
+            --success: #2ecc71;
         }
         body { margin: 0; overflow: hidden; background-color: var(--bg); font-family: 'Helvetica Neue', Arial, sans-serif; color: var(--text); }
 
@@ -38,7 +39,7 @@
         .btn-add { background: var(--accent); color: #000; border: none; font-weight: bold; }
         .btn-sm { padding: 2px 8px; font-size: 12px; min-width: 30px; }
         
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], input[type="password"] {
             padding: 10px; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 16px;
         }
 
@@ -59,7 +60,7 @@
         /* Lobby Info */
         #host-info { margin-top: 20px; text-align: center; padding: 20px; background: #333; border-radius: 8px; width: 80%; max-width: 600px;}
         #qr-area { background: #fff; padding: 10px; display: inline-block; border-radius: 8px; margin: 10px; }
-        .url-box { font-family: monospace; background: #000; padding: 10px; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; user-select: all; }
+        .url-box { font-family: monospace; background: #000; padding: 10px; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; user-select: all; word-break: break-all; }
         #player-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px; }
         .p-chip { background: #444; padding: 5px 10px; border-radius: 15px; border: 1px solid #666; font-size: 14px; }
 
@@ -78,7 +79,6 @@
         /* --- 3. HOST: Result Screen --- */
         #result-screen { 
             display: flex; flex-direction: row; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 20; 
-            /* Left side transparent to show 3D BG */
             background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.95) 50%, rgba(0,0,0,0.95) 100%);
             pointer-events: none; 
         }
@@ -110,14 +110,19 @@
         #c-input { width: 80%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #555; background: #222; color: #fff; margin-bottom: 20px; }
         #c-btn-submit { width: 80%; padding: 15px; font-size: 20px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         #c-btn-submit:disabled { background: #555; color: #888; cursor: not-allowed; }
+        #conn-indicator { position: fixed; top: 10px; right: 10px; width: 15px; height: 15px; border-radius: 50%; background: #555; border: 2px solid #fff; }
+        #conn-indicator.on { background: var(--success); box-shadow: 0 0 10px var(--success); }
 
         /* --- Settings --- */
         .settings-container { width: 90%; max-width: 600px; background: var(--panel); padding: 30px; border-radius: 12px; display: flex; flex-direction: column; gap: 20px; }
-        .list-area { max-height: 300px; overflow-y: auto; border: 1px solid #444; background: #222; }
+        .list-area { max-height: 200px; overflow-y: auto; border: 1px solid #444; background: #222; }
         .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; align-items: center; }
         .config-area { background: #2b2b2b; padding: 15px; border-radius: 4px; }
         
         .prob-timer-input { width: 50px; padding: 5px; font-size: 14px; text-align: right; margin-right: 5px; }
+        .turn-config { background: #222; padding: 10px; border: 1px dashed #666; margin-top: 10px; }
+        .turn-config label { display: block; font-size: 12px; color: #aaa; margin-top: 5px; }
+        .turn-config input { width: 90%; font-size: 14px; }
         
     </style>
 </head>
@@ -125,7 +130,7 @@
 
     <div id="host-app" class="hidden">
         <div id="screen-title" class="screen active">
-            <h1>POLYHEDRON QUIZ V16.1</h1>
+            <h1>POLYHEDRON QUIZ V16.3</h1>
             <div style="margin-top: 50px;">
                 <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
             </div>
@@ -167,6 +172,17 @@
                 <div class="config-area">
                     <label>⏱ 基本制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;" onchange="Host.saveData()"></label><br><br>
                     <label>🚀 回転スピード: <input type="range" id="speed-slider" min="0" max="300" value="130" oninput="Host.updateSpeed(this.value)"> <span id="speed-val">130</span>%</label>
+                    
+                    <div class="turn-config">
+                        <strong style="color:var(--gold);">🌐 ネットワーク設定 (5G対策)</strong>
+                        <p style="font-size:11px; margin:5px 0;">5G/4GとWiFiで繋がらない場合、TURNサーバーを設定してください。</p>
+                        <label>TURN URL (例: turn:openrelay.metered.ca:80)</label>
+                        <input type="text" id="turn-url" placeholder="turn:your.turn.server:3478" onchange="Host.saveData()">
+                        <label>Username</label>
+                        <input type="text" id="turn-user" placeholder="username" onchange="Host.saveData()">
+                        <label>Password</label>
+                        <input type="password" id="turn-pass" placeholder="password" onchange="Host.saveData()">
+                    </div>
                 </div>
                 <button class="btn" onclick="Host.showTitle()">戻る</button>
             </div>
@@ -180,18 +196,18 @@
         <div id="canvas-container"></div>
 
         <div id="result-screen" class="hidden">
-            <div id="res-left">
-                </div>
+            <div id="res-left"></div>
             <div id="res-right">
                 <h2 style="text-align:center; color:#fff; border-bottom:1px solid #555;">RANKING</h2>
                 <div id="ranking-list"></div>
-                <button class="btn" style="margin-top:auto;" onclick="Host.backToTitle()">終了</button>
+                <button class="btn" style="margin-top:auto;" onclick="Host.backToSelect()">問題選択へ</button>
             </div>
             <div id="seek-bar-container"><div id="seek-bar"></div></div>
         </div>
     </div>
 
     <div id="client-app" class="hidden">
+        <div id="conn-indicator" title="接続状態"></div>
         <div id="c-login" class="screen active">
             <h1>ENTRY</h1>
             <input type="text" id="c-name" placeholder="名前を入力"><br><br>
@@ -204,11 +220,17 @@
         </div>
     </div>
 
-    <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <script>
+    <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> 
+
+<script>
 /* ================= COMMON UTILS ================= */
-const PEER_CONFIG = {
-    config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
-};
+const DEFAULT_ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' }
+];
 
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 const actx = new AudioCtx();
@@ -233,20 +255,18 @@ function playCountSE(final=false) {
 /* ================= HOST LOGIC ================= */
 const Host = {
     peer: null, conns: {}, players: {}, answers: [],
-    // problems: [{text: "WORD", time: 30}, ...] format
     problems: [], 
-    config: { speed: 130, timeLimit: 30 },
+    config: { speed: 130, timeLimit: 30, turnUrl: "", turnUser: "", turnPass: "" },
     currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
+    replayTimer: null, // 追加: リプレイタイマーID保存用
     
     init: () => {
-        // V16_1用にキー変更(データ構造は同じ)
-        const savedP = localStorage.getItem('polyDataV16_1');
+        const savedP = localStorage.getItem('polyDataV16_3');
         if(savedP) {
             const data = JSON.parse(savedP);
             Host.problems = data.problems || [];
-            Host.config = data.config || Host.config;
+            Host.config = { ...Host.config, ...data.config }; 
         } else {
-            // Default init if empty
             Host.problems = [
                 {text: "RANDOM", time: 30},
                 {text: "CUBE66 TETRA4", time: 30},
@@ -254,12 +274,24 @@ const Host = {
             ];
         }
         
-        // Restore config UI
         document.getElementById('time-limit').value = Host.config.timeLimit;
         document.getElementById('speed-slider').value = Host.config.speed;
         document.getElementById('speed-val').innerText = Host.config.speed;
+        document.getElementById('turn-url').value = Host.config.turnUrl || "";
+        document.getElementById('turn-user').value = Host.config.turnUser || "";
+        document.getElementById('turn-pass').value = Host.config.turnPass || "";
 
-        Host.peer = new Peer(PEER_CONFIG);
+        const iceConfig = [...DEFAULT_ICE_SERVERS];
+        if(Host.config.turnUrl) {
+            iceConfig.push({
+                urls: Host.config.turnUrl,
+                username: Host.config.turnUser,
+                credential: Host.config.turnPass
+            });
+        }
+
+        Host.peer = new Peer({ config: { iceServers: iceConfig } });
+        
         Host.peer.on('open', id => {
             const url = location.href.split('?')[0] + '?host=' + id;
             new QRCode(document.getElementById('qr-area'), { text: url, width: 128, height: 128 });
@@ -273,6 +305,10 @@ const Host = {
                 delete Host.conns[conn.peer];
                 Host.updatePlayerList();
             });
+        });
+        Host.peer.on('error', err => {
+            console.error(err);
+            alert("通信エラー: " + err.type + "\n設定からTURNサーバーを確認してください。");
         });
 
         document.getElementById('host-app').classList.remove('hidden'); 
@@ -345,7 +381,6 @@ const Host = {
         
         Three.stop(); 
         
-        // Countdown
         let count = 3;
         const cdEl = document.getElementById('countdown-display');
         cdEl.style.display = 'block';
@@ -368,11 +403,8 @@ const Host = {
     
     startActualGame: () => {
         Three.init(Host.currentProblem.text, Host.config.speed / 100);
-        
-        // Capture initial state for replay
         Three.captureState();
 
-        // Determine Time Limit
         let limit = Host.currentProblem.time;
         if (!limit || limit <= 0) limit = parseInt(document.getElementById('time-limit').value);
         Host.currentLimit = limit;
@@ -399,7 +431,16 @@ const Host = {
     
     backToTitle: () => {
         clearInterval(Host.timerId);
+        if(Host.replayTimer) clearInterval(Host.replayTimer);
         Host.showTitle();
+    },
+
+    // 追加: 問題選択に戻る関数
+    backToSelect: () => {
+        clearInterval(Host.timerId);
+        if(Host.replayTimer) clearInterval(Host.replayTimer);
+        Host.showProblemSelect();
+        Host.broadcast({ type: 'STATUS', text: '問題選択中...' });
     },
 
     // --- Result & Replay ---
@@ -407,19 +448,13 @@ const Host = {
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('ranking-list').innerHTML = "";
         
-        // Replay Setup
-        Three.setupReplay(); // Reset rotation to captured state and adjust camera
+        Three.setupReplay(); 
 
         const limit = Host.currentLimit;
-        
-        // --- Speed Adjustment Logic ---
-        const REPLAY_TIME = 30; // Fixed duration
+        const REPLAY_TIME = 30; 
         const speedFactor = limit / REPLAY_TIME;
-        
-        // Adjust 3D Speed for Replay
         Three.speed = (Host.config.speed / 100) * speedFactor;
 
-        // Grading Logic
         const validWords = Host.currentProblem.text.trim().toUpperCase().split(/\s+/);
         Host.answers.forEach(a => {
             const userAns = a.ans.trim().toUpperCase();
@@ -445,18 +480,13 @@ const Host = {
         let replayStartTime = Date.now();
         let answerIndex = 0;
 
-        const replayTimer = setInterval(() => {
-            // Real elapsed time in replay (0s -> 30s)
+        // リプレイタイマーをHostプロパティに保存
+        Host.replayTimer = setInterval(() => {
             const realElapsed = (Date.now() - replayStartTime) / 1000;
-            
-            // Virtual game time (0s -> limit)
             const virtualElapsed = realElapsed * speedFactor;
-
-            // Bar Progress based on Replay Time (0 -> 100% in 30s)
             const progress = Math.min((realElapsed / REPLAY_TIME) * 100, 100);
             bar.style.width = progress + "%";
 
-            // Check if any answer should appear based on Virtual Time
             while(answerIndex < Host.answers.length) {
                 const ans = Host.answers[answerIndex];
                 if(virtualElapsed >= ans.timeOffset) {
@@ -469,7 +499,7 @@ const Host = {
                     answerIndex++;
                 } else { break; }
             }
-            if(realElapsed >= REPLAY_TIME + 1) clearInterval(replayTimer);
+            if(realElapsed >= REPLAY_TIME + 1) clearInterval(Host.replayTimer);
         }, 50);
     },
 
@@ -527,7 +557,11 @@ const Host = {
     
     saveData: () => {
         Host.config.timeLimit = parseInt(document.getElementById('time-limit').value);
-        localStorage.setItem('polyDataV16_1', JSON.stringify({
+        Host.config.turnUrl = document.getElementById('turn-url').value;
+        Host.config.turnUser = document.getElementById('turn-user').value;
+        Host.config.turnPass = document.getElementById('turn-pass').value;
+        
+        localStorage.setItem('polyDataV16_3', JSON.stringify({
             problems: Host.problems,
             config: Host.config
         }));
@@ -548,11 +582,19 @@ const Client = {
         document.getElementById('c-login').classList.add('active');
         document.getElementById('c-game').classList.remove('active');
         
-        Client.peer = new Peer(PEER_CONFIG);
+        Client.peer = new Peer({ config: { iceServers: DEFAULT_ICE_SERVERS } });
+        
         Client.peer.on('open', () => {
             Client.conn = Client.peer.connect(hostId);
-            Client.conn.on('open', () => { console.log("Connected"); });
+            Client.conn.on('open', () => { 
+                console.log("Connected"); 
+                document.getElementById('conn-indicator').classList.add('on');
+            });
             Client.conn.on('data', data => Client.handleData(data));
+            Client.conn.on('close', () => {
+                document.getElementById('conn-indicator').classList.remove('on');
+                alert("ホストとの接続が切れました");
+            });
         });
     },
 
@@ -599,7 +641,7 @@ const Client = {
 /* ================= THREE.JS LOGIC ================= */
 const Three = {
     scene: null, camera: null, renderer: null, reqId: null, meshes: [], speed: 1.0, currentZ: 15,
-    initialStates: [], // Store {x,y,z}
+    initialStates: [],
     
     init: (text, speed) => {
         Three.stop();
@@ -642,7 +684,6 @@ const Three = {
     },
     
     createPerfectPolyhedron: (chars, count) => {
-        // Shuffle chars
         for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
 
         let baseGeometry;
@@ -654,20 +695,21 @@ const Three = {
             case 8:  baseGeometry = new THREE.OctahedronGeometry(r); break;
             case 12: baseGeometry = new THREE.DodecahedronGeometry(r); break;
             case 20: baseGeometry = new THREE.IcosahedronGeometry(r); break;
-            default: baseGeometry = new THREE.SphereGeometry(r, 16, 16); // Fallback
+            default: baseGeometry = new THREE.SphereGeometry(r, 16, 16);
         }
 
-        // Custom UV Mapping Logic for Polyhedra
+        if (count === 12) {
+            const mats = [];
+            for(let i=0; i<chars.length; i++) mats.push(new THREE.MeshStandardMaterial({ map: Three.createTextTexture(chars[i], count, 0), color: 0xeeeeee }));
+            return new THREE.Mesh(baseGeometry, mats);
+        }
+
         let geometry = baseGeometry.toNonIndexed();
         geometry.computeVertexNormals();
 
         const posAttribute = geometry.attributes.position;
         const normAttribute = geometry.attributes.normal;
         const vertexCount = posAttribute.count;
-        // Vertices per face: all Platonic solids except Dodecahedron are triangles (3 verts).
-        // Box is quads (2 triangles = 6 verts).
-        // Dodecahedron (BufferGeometry) is pentagons tessellated into 3 triangles = 9 verts.
-        // Let's rely on the count to determine split.
         const verticesPerFace = vertexCount / count;
 
         geometry.clearGroups();
@@ -682,7 +724,6 @@ const Three = {
             const nz = normAttribute.getZ(firstVIndex);
             const normal = new THREE.Vector3(nx, ny, nz).normalize();
 
-            // Create tangent basis
             const v0 = new THREE.Vector3(posAttribute.getX(firstVIndex), posAttribute.getY(firstVIndex), posAttribute.getZ(firstVIndex));
             const v1 = new THREE.Vector3(posAttribute.getX(firstVIndex+1), posAttribute.getY(firstVIndex+1), posAttribute.getZ(firstVIndex+1));
             const tangent = new THREE.Vector3().subVectors(v1, v0).normalize();
@@ -708,7 +749,6 @@ const Three = {
         const materials = [];
         let symmetryOrder = 4;
         if (count === 4 || count === 8 || count === 20) symmetryOrder = 3;
-        else if (count === 12) symmetryOrder = 5;
 
         for (let i = 0; i < count; i++) {
             const rotationIndex = Math.floor(Math.random() * symmetryOrder);
@@ -790,7 +830,6 @@ const Three = {
     }
 };
 
-// Bootstrap
 const params = new URLSearchParams(location.search);
 if(params.get('host')) Client.init(params.get('host'));
 else Host.init();
