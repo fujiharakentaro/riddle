@@ -1,1299 +1,720 @@
 <!DOCTYPE html>
-
 <html lang="ja">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
-    <title>POLYHEDRON QUIZ V15.7</title>
-
+    <title>POLYHEDRON QUIZ V15.9</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
     <style>
-
         :root { 
-
             --bg: #222222; 
-
             --text: #eee; 
-
             --panel: #333; 
-
             --border: #444; 
-
             --accent: #00d2ff; 
-
             --danger: #ff4444;
-
             --gold: #ffd700;
-
         }
-
         body { margin: 0; overflow: hidden; background-color: var(--bg); font-family: 'Helvetica Neue', Arial, sans-serif; color: var(--text); }
 
-
-
         .hidden { display: none !important; }
-
         .screen {
-
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-
             display: none; flex-direction: column; align-items: center; justify-content: center;
-
             background: var(--bg); transition: opacity 0.5s; overflow-y: auto;
-
         }
-
         .screen.active { display: flex; z-index: 10; }
-
-
 
         h1 { color: #fff; letter-spacing: 4px; margin-bottom: 30px; font-size: 32px; border-bottom: 2px solid #555; padding-bottom: 10px; }
 
-
-
         /* UI Parts */
-
         .btn {
-
             background: #444; color: #fff; border: 1px solid #666; padding: 10px 20px;
-
             cursor: pointer; font-size: 16px; border-radius: 4px; margin: 5px;
-
         }
-
         .btn:hover { background: #555; border-color: var(--accent); }
-
         .btn-add { background: var(--accent); color: #000; border: none; font-weight: bold; }
-
         .btn-sm { padding: 2px 8px; font-size: 12px; min-width: 30px; }
-
         
-
         input[type="text"], input[type="number"] {
-
             padding: 10px; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 16px;
-
         }
-
-
 
         /* --- 1. HOST: Title & Lobby --- */
-
         #question-grid {
-
             display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-
             gap: 20px; width: 80%; max-width: 900px; max-height: 50vh; overflow-y: auto; padding: 20px;
-
         }
-
         .q-btn {
-
             background: #2b2b2b; border: 1px solid #555; border-radius: 8px; height: 100px;
-
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-
             cursor: pointer; transition: all 0.2s; color: #eee; text-align: center;
-
             box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: relative;
-
         }
-
         .q-btn:hover { border-color: var(--accent); transform: translateY(-3px); background: #383838; }
-
         .q-num { font-size: 24px; font-weight: bold; color: var(--accent); }
-
         
-
         /* Lobby Info */
-
         #host-info { margin-top: 20px; text-align: center; padding: 20px; background: #333; border-radius: 8px; width: 80%; max-width: 600px;}
-
         #qr-area { background: #fff; padding: 10px; display: inline-block; border-radius: 8px; margin: 10px; }
-
         .url-box { font-family: monospace; background: #000; padding: 10px; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; user-select: all; }
-
         #player-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px; }
-
         .p-chip { background: #444; padding: 5px 10px; border-radius: 15px; border: 1px solid #666; font-size: 14px; }
 
-
-
         /* --- 2. HOST: Game Screen --- */
-
         #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; z-index: 5; }
-
         #canvas-container { width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 1; }
-
         #timer-display { position: absolute; top: 20px; right: 20px; font-size: 60px; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px var(--accent); }
-
         #back-btn { position: absolute; top: 20px; left: 20px; pointer-events: auto; z-index: 20; }
-
         
-
         #countdown-display {
-
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-
             font-size: 150px; font-weight: 900; color: #fff;
-
             text-shadow: 0 0 20px var(--accent); display: none; z-index: 30;
-
         }
-
-
 
         /* --- 3. HOST: Result Screen --- */
-
         #result-screen { 
-
             display: flex; flex-direction: row; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 20; 
-
             /* Left side transparent to show 3D BG */
-
             background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.95) 50%, rgba(0,0,0,0.95) 100%);
-
             pointer-events: none; 
-
         }
-
         #res-left { flex: 1; position: relative; } 
-
         #res-right { flex: 1; padding: 20px; overflow-y: hidden; display: flex; flex-direction: column; pointer-events: auto; border-left: 2px solid #444; background: rgba(0,0,0,0.8); }
-
         
-
         #seek-bar-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 10px; background: #333; z-index: 25; pointer-events: auto;}
-
         #seek-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
-
         
-
         .rank-row {
-
             display: flex; align-items: center; justify-content: space-between;
-
             background: linear-gradient(90deg, #333, #444); margin-bottom: 10px; padding: 15px;
-
             border-radius: 8px; color: #fff; font-size: 20px; font-weight: bold;
-
             transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-
             opacity: 0; border-left: 5px solid #666;
-
         }
-
         .rank-row.show { transform: translateX(0); opacity: 1; }
-
         .rank-row.correct { border-left-color: var(--accent); background: linear-gradient(90deg, #004455, #006688); }
-
         .rank-row.incorrect { border-left-color: var(--danger); background: linear-gradient(90deg, #552222, #883333); }
-
         .r-name { flex: 1; margin-left: 10px; }
-
         .r-score { color: var(--gold); }
-
         .r-ans { font-size: 0.8em; color: #aaa; margin-right: 15px; }
 
-
-
         /* --- CLIENT APP --- */
-
         #client-app { width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; }
-
         #c-login { text-align: center; }
-
         #c-game { display: none; text-align: center; width: 90%; }
-
         #c-status { font-size: 24px; margin-bottom: 20px; color: #aaa; }
-
         #c-input { width: 80%; padding: 15px; font-size: 20px; text-align: center; border-radius: 8px; border: 2px solid #555; background: #222; color: #fff; margin-bottom: 20px; }
-
         #c-btn-submit { width: 80%; padding: 15px; font-size: 20px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-
         #c-btn-submit:disabled { background: #555; color: #888; cursor: not-allowed; }
 
-
-
         /* --- Settings --- */
-
         .settings-container { width: 90%; max-width: 600px; background: var(--panel); padding: 30px; border-radius: 12px; display: flex; flex-direction: column; gap: 20px; }
-
-        .list-area { max-height: 200px; overflow-y: auto; border: 1px solid #444; background: #222; }
-
+        .list-area { max-height: 300px; overflow-y: auto; border: 1px solid #444; background: #222; }
         .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; align-items: center; }
-
         .config-area { background: #2b2b2b; padding: 15px; border-radius: 4px; }
-
         
-
+        .prob-timer-input { width: 50px; padding: 5px; font-size: 14px; text-align: right; margin-right: 5px; }
+        
     </style>
-
 </head>
-
 <body>
 
-
-
     <div id="host-app" class="hidden">
-
         <div id="screen-title" class="screen active">
-
             <h1>POLYHEDRON QUIZ V15</h1>
-
             <div style="margin-top: 50px;">
-
                 <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
-
             </div>
-
             <div style="margin-top: 20px;">
-
                 <button class="btn" onclick="Host.showSettings()">設定</button>
-
             </div>
-
         </div>
-
-
 
         <div id="screen-lobby" class="screen">
-
             <h1>LOBBY</h1>
-
             <div id="host-info">
-
                 <div>参加用URL (クリックでコピー)</div>
-
                 <div id="host-url" class="url-box" onclick="Host.copyUrl()">---</div>
-
                 <div id="qr-area"></div>
-
                 <div style="margin-top:10px;">参加者: <span id="p-count" style="color:var(--accent); font-weight:bold;">0</span>人</div>
-
                 <div id="player-list"></div>
-
             </div>
-
             <div style="margin-top:30px;">
-
                 <button class="btn" style="font-size:24px; padding:20px 50px; background:var(--accent); color:#000; border:none;" onclick="Host.showProblemSelect()">ゲームスタート</button>
-
                 <br>
-
                 <button class="btn" onclick="Host.showTitle()">戻る</button>
-
             </div>
-
         </div>
-
-
 
         <div id="screen-prob-select" class="screen">
-
             <h1>SELECT PROBLEM</h1>
-
             <div id="question-grid"></div>
-
             <button class="btn" style="margin-top:30px;" onclick="Host.showLobby()">戻る</button>
-
         </div>
-
-
 
         <div id="screen-settings" class="screen">
-
             <div class="settings-container">
-
                 <h2>設定 & 問題管理</h2>
-
                 <div class="list-area" id="word-list"></div>
-
                 <div style="display:flex; gap:10px;">
-
                     <input type="text" id="inp-word" placeholder="単語 (SPACE区切り)" style="flex:1;">
-
                     <button class="btn-add" onclick="Host.addWord()">追加</button>
-
                 </div>
-
                 <div class="config-area">
-
-                    <label>⏱ 制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;"></label><br><br>
-
+                    <label>⏱ 基本制限時間(秒): <input type="number" id="time-limit" value="30" style="width:60px;" onchange="Host.saveData()"></label><br><br>
                     <label>🚀 回転スピード: <input type="range" id="speed-slider" min="0" max="300" value="130" oninput="Host.updateSpeed(this.value)"> <span id="speed-val">130</span>%</label>
-
                 </div>
-
                 <button class="btn" onclick="Host.showTitle()">戻る</button>
-
             </div>
-
         </div>
-
-
 
         <div id="game-ui">
-
             <button id="back-btn" class="btn" onclick="Host.backToTitle()">タイトルへ</button>
-
             <div id="timer-display"></div>
-
             <div id="countdown-display">3</div>
-
         </div>
-
         <div id="canvas-container"></div>
 
-
-
         <div id="result-screen" class="hidden">
-
             <div id="res-left">
-
                 </div>
-
             <div id="res-right">
-
                 <h2 style="text-align:center; color:#fff; border-bottom:1px solid #555;">RANKING</h2>
-
                 <div id="ranking-list"></div>
-
                 <button class="btn" style="margin-top:auto;" onclick="Host.backToTitle()">終了</button>
-
             </div>
-
             <div id="seek-bar-container"><div id="seek-bar"></div></div>
-
         </div>
-
     </div>
-
-
 
     <div id="client-app" class="hidden">
-
         <div id="c-login" class="screen active">
-
             <h1>ENTRY</h1>
-
             <input type="text" id="c-name" placeholder="名前を入力"><br><br>
-
             <button class="btn btn-add" onclick="Client.join()">参加する</button>
-
         </div>
-
         <div id="c-game" class="screen hidden">
-
             <div id="c-status">問題出題までお待ちください</div>
-
             <input type="text" id="c-input" placeholder="解答を入力" disabled>
-
             <button id="c-btn-submit" onclick="Client.submitAnswer()" disabled>送信</button>
-
         </div>
-
     </div>
 
-
-
     <audio id="se-correct" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <audio id="se-wrong" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="></audio> <script>
-
 /* ================= COMMON UTILS ================= */
-
 const PEER_CONFIG = {
-
     config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] }
-
 };
-
-
 
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
-
 const actx = new AudioCtx();
-
 function playTone(freq, type, dur) {
-
     const osc = actx.createOscillator();
-
     const gain = actx.createGain();
-
     osc.type = type;
-
     osc.frequency.value = freq;
-
     osc.connect(gain);
-
     gain.connect(actx.destination);
-
     osc.start();
-
     gain.gain.exponentialRampToValueAtTime(0.00001, actx.currentTime + dur);
-
     osc.stop(actx.currentTime + dur);
-
 }
-
 function playCorrectSE() { playTone(880, 'sine', 0.1); setTimeout(()=>playTone(1760, 'sine', 0.4), 100); }
-
 function playWrongSE() { playTone(150, 'sawtooth', 0.4); }
-
 function playCountSE(final=false) { 
-
     if(final) playTone(880, 'triangle', 0.6); 
-
     else playTone(440, 'triangle', 0.2); 
-
 }
-
-
 
 /* ================= HOST LOGIC ================= */
-
 const Host = {
-
     peer: null, conns: {}, players: {}, answers: [],
-
-    problems: ["RANDOM", "CUBE66 TETRA4", "ICOSAHEDRON20"],
-
+    // problems: [{text: "WORD", time: 30}, ...] format
+    problems: [], 
     config: { speed: 130, timeLimit: 30 },
-
-    currentProblem: null, startTime: 0, timerId: null,
-
+    currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
     
-
     init: () => {
-
-        const savedP = localStorage.getItem('polyData');
-
-        if(savedP) Host.problems = JSON.parse(savedP);
-
+        const savedP = localStorage.getItem('polyDataV15_9');
+        if(savedP) {
+            const data = JSON.parse(savedP);
+            Host.problems = data.problems || [];
+            Host.config = data.config || Host.config;
+        } else {
+            // Default init if empty
+            Host.problems = [
+                {text: "RANDOM", time: 30},
+                {text: "CUBE66 TETRA4", time: 30},
+                {text: "ICOSAHEDRON20", time: 30}
+            ];
+        }
         
+        // Restore config UI
+        document.getElementById('time-limit').value = Host.config.timeLimit;
+        document.getElementById('speed-slider').value = Host.config.speed;
+        document.getElementById('speed-val').innerText = Host.config.speed;
 
         Host.peer = new Peer(PEER_CONFIG);
-
         Host.peer.on('open', id => {
-
             const url = location.href.split('?')[0] + '?host=' + id;
-
             new QRCode(document.getElementById('qr-area'), { text: url, width: 128, height: 128 });
-
             document.getElementById('host-url').innerText = url;
-
         });
-
         Host.peer.on('connection', conn => {
-
             Host.conns[conn.peer] = conn;
-
             conn.on('data', data => Host.handleData(conn.peer, data));
-
             conn.on('close', () => {
-
                 delete Host.players[conn.peer];
-
                 delete Host.conns[conn.peer];
-
                 Host.updatePlayerList();
-
             });
-
         });
-
-
 
         document.getElementById('host-app').classList.remove('hidden'); 
-
         Host.renderProbList();
-
         Host.showTitle();
-
     },
-
-
 
     handleData: (id, data) => {
-
         if(data.type === 'JOIN') {
-
             Host.players[id] = { name: data.name, score: 0 };
-
             Host.updatePlayerList();
-
         } else if(data.type === 'ANSWER') {
-
             if(!Host.answers.find(a => a.id === id)) {
-
                 const timeOffset = (Date.now() - Host.startTime) / 1000;
-
                 Host.answers.push({ id: id, name: Host.players[id].name, ans: data.text, timeOffset: timeOffset });
-
             }
-
         }
-
     },
-
-
 
     updatePlayerList: () => {
-
         document.getElementById('p-count').innerText = Object.keys(Host.players).length;
-
         document.getElementById('player-list').innerHTML = Object.values(Host.players).map(p => `<div class="p-chip">${p.name}</div>`).join('');
-
     },
-
-
 
     copyUrl: () => {
-
         const text = document.getElementById('host-url').innerText;
-
         navigator.clipboard.writeText(text).then(() => alert('URLをコピーしました'));
-
     },
-
-
 
     // --- Screens ---
-
     showTitle: () => {
-
         document.getElementById('screen-title').classList.add('active');
-
         document.getElementById('screen-lobby').classList.remove('active');
-
         document.getElementById('screen-prob-select').classList.remove('active');
-
         document.getElementById('screen-settings').classList.remove('active');
-
         document.getElementById('game-ui').style.display = 'none';
-
         document.getElementById('result-screen').classList.add('hidden');
-
         document.getElementById('canvas-container').style.zIndex = 1;
-
         Three.stop();
-
         Host.broadcast({ type: 'STATUS', text: '待機中...' });
-
     },
-
     
-
     showLobby: () => {
-
         document.getElementById('screen-title').classList.remove('active');
-
         document.getElementById('screen-prob-select').classList.remove('active');
-
         document.getElementById('screen-lobby').classList.add('active');
-
     },
-
-
 
     showProblemSelect: () => {
-
         document.getElementById('screen-lobby').classList.remove('active');
-
         document.getElementById('screen-prob-select').classList.add('active');
-
         document.getElementById('result-screen').classList.add('hidden');
-
         Host.renderProbBtns();
-
     },
-
-
 
     showSettings: () => {
-
         document.getElementById('screen-title').classList.remove('active');
-
         document.getElementById('screen-settings').classList.add('active');
-
         Host.renderProbList();
-
     },
-
-
 
     // --- Game ---
-
     startGame: (idx) => {
-
         Host.currentProblem = Host.problems[idx];
-
         Host.answers = [];
-
         
-
         document.getElementById('screen-prob-select').classList.remove('active');
-
         document.getElementById('game-ui').style.display = 'block';
-
         document.getElementById('timer-display').innerText = "";
-
         
-
-        // Setup 3D but hide objects initially if needed, or just show them
-
-        // Requirement: "Countdown before question".
-
         Three.stop(); 
-
         
-
         // Countdown
-
         let count = 3;
-
         const cdEl = document.getElementById('countdown-display');
-
         cdEl.style.display = 'block';
-
         cdEl.innerText = count;
-
         playCountSE();
 
-
-
         const cdTimer = setInterval(() => {
-
             count--;
-
             if (count > 0) {
-
                 cdEl.innerText = count;
-
                 playCountSE();
-
             } else {
-
                 clearInterval(cdTimer);
-
                 cdEl.style.display = 'none';
-
                 playCountSE(true);
-
                 Host.startActualGame();
-
             }
-
         }, 1000);
-
     },
-
     
-
     startActualGame: () => {
-
-        Three.init(Host.currentProblem, Host.config.speed / 100);
-
+        Three.init(Host.currentProblem.text, Host.config.speed / 100);
         
-
         // Capture initial state for replay
-
         Three.captureState();
 
+        // Determine Time Limit
+        let limit = Host.currentProblem.time;
+        if (!limit || limit <= 0) limit = parseInt(document.getElementById('time-limit').value);
+        Host.currentLimit = limit;
 
-
-        let timeLeft = parseInt(document.getElementById('time-limit').value);
-
-        document.getElementById('timer-display').innerText = timeLeft;
-
+        document.getElementById('timer-display').innerText = limit;
         
-
         Host.broadcast({ type: 'START' });
-
         Host.startTime = Date.now();
-
         
-
+        let timeLeft = limit;
         Host.timerId = setInterval(() => {
-
             timeLeft--;
-
             document.getElementById('timer-display').innerText = timeLeft;
-
             if(timeLeft <= 0) Host.finishGame();
-
         }, 1000);
-
     },
-
-
 
     finishGame: () => {
-
         clearInterval(Host.timerId);
-
         document.getElementById('timer-display').innerText = "TIME UP";
-
         Host.broadcast({ type: 'END' });
-
         setTimeout(() => { Host.showResult(); }, 2000);
-
     },
-
     
-
     backToTitle: () => {
-
         clearInterval(Host.timerId);
-
         Host.showTitle();
-
     },
-
-
 
     // --- Result & Replay ---
-
     showResult: () => {
-
         document.getElementById('result-screen').classList.remove('hidden');
-
         document.getElementById('ranking-list').innerHTML = "";
-
         
-
         // Replay Setup
-
         Three.setupReplay(); // Reset rotation to captured state and adjust camera
 
-
-
-        const limit = parseInt(document.getElementById('time-limit').value);
-
+        const limit = Host.currentLimit;
         
-
         // --- Speed Adjustment Logic ---
-
         const REPLAY_TIME = 30; // Fixed duration
-
         const speedFactor = limit / REPLAY_TIME;
-
         
-
         // Adjust 3D Speed for Replay
-
         Three.speed = (Host.config.speed / 100) * speedFactor;
 
-
-
-        // Grading Logic (Same as before)
-
-        const validWords = Host.currentProblem.trim().toUpperCase().split(/\s+/);
-
+        // Grading Logic
+        const validWords = Host.currentProblem.text.trim().toUpperCase().split(/\s+/);
         Host.answers.forEach(a => {
-
             const userAns = a.ans.trim().toUpperCase();
-
             a.isCorrect = validWords.includes(userAns);
-
         });
-
         Host.answers.sort((a,b) => a.timeOffset - b.timeOffset);
 
-
-
         let correctRank = 0;
-
         Host.answers.forEach(a => {
-
             if(a.isCorrect) {
-
                 correctRank++;
-
                 if(correctRank === 1) a.points = 5;
-
                 else if(correctRank === 2) a.points = 4;
-
                 else if(correctRank === 3) a.points = 3;
-
                 else if(correctRank === 4) a.points = 2;
-
                 else a.points = 1;
-
             } else { a.points = 0; }
-
         });
-
-
 
         const bar = document.getElementById('seek-bar');
-
         const list = document.getElementById('ranking-list');
-
         
-
         let replayStartTime = Date.now();
-
         let answerIndex = 0;
 
-
-
         const replayTimer = setInterval(() => {
-
             // Real elapsed time in replay (0s -> 30s)
-
             const realElapsed = (Date.now() - replayStartTime) / 1000;
-
             
-
             // Virtual game time (0s -> limit)
-
             const virtualElapsed = realElapsed * speedFactor;
 
-
-
             // Bar Progress based on Replay Time (0 -> 100% in 30s)
-
             const progress = Math.min((realElapsed / REPLAY_TIME) * 100, 100);
-
             bar.style.width = progress + "%";
 
-
-
             // Check if any answer should appear based on Virtual Time
-
             while(answerIndex < Host.answers.length) {
-
                 const ans = Host.answers[answerIndex];
-
                 if(virtualElapsed >= ans.timeOffset) {
-
                     const div = document.createElement('div');
-
                     div.className = `rank-row ${ans.isCorrect ? 'correct' : 'incorrect'}`;
-
                     div.innerHTML = `<span class="r-name">${ans.name}</span><span class="r-ans">${ans.ans}</span><span class="r-score">+${ans.points}pt</span>`;
-
                     list.appendChild(div);
-
                     div.offsetWidth; div.classList.add('show');
-
                     if(ans.isCorrect) playCorrectSE(); else playWrongSE();
-
                     answerIndex++;
-
                 } else { break; }
-
             }
-
             if(realElapsed >= REPLAY_TIME + 1) clearInterval(replayTimer);
-
         }, 50);
-
     },
-
-
 
     // --- Helpers ---
-
     renderProbBtns: () => {
-
         const grid = document.getElementById('question-grid');
-
         grid.innerHTML = "";
-
         Host.problems.forEach((p, i) => {
-
             const btn = document.createElement('div');
-
             btn.className = 'q-btn';
-
             btn.innerHTML = `<div class="q-num">Q.${i+1}</div>`; 
-
             btn.onclick = () => Host.startGame(i);
-
             grid.appendChild(btn);
-
         });
-
     },
-
     
-
     renderProbList: () => {
-
         const l = document.getElementById('word-list');
-
         l.innerHTML = Host.problems.map((p,i) => `
-
             <div class="list-item">
-
                 <span class="item-idx">${i+1}.</span>
-
-                <span class="item-word">${p}</span>
-
-                <div>
-
+                <span class="item-word">${p.text}</span>
+                <div style="display:flex; align-items:center;">
+                    ⏱ <input type="number" class="prob-timer-input" value="${p.time || ''}" placeholder="De" onchange="Host.updateProbTime(${i}, this.value)">
                     <button class="btn btn-sm" onclick="Host.moveProb(${i}, -1)">▲</button>
-
                     <button class="btn btn-sm" onclick="Host.moveProb(${i}, 1)">▼</button>
-
                     <button class="btn btn-add" style="background:#cc0000; padding:2px 10px; font-size:12px;" onclick="Host.delProb(${i})">×</button>
-
                 </div>
-
             </div>
-
         `).join('');
-
     },
-
-
 
     moveProb: (idx, dir) => {
-
         if(idx + dir < 0 || idx + dir >= Host.problems.length) return;
-
         [Host.problems[idx], Host.problems[idx+dir]] = [Host.problems[idx+dir], Host.problems[idx]];
-
         Host.saveData();
-
         Host.renderProbList();
-
     },
-
-
 
     addWord: () => {
-
         const v = document.getElementById('inp-word').value.trim().toUpperCase();
-
-        if(v) { Host.problems.push(v); Host.saveData(); Host.renderProbList(); document.getElementById('inp-word').value = ""; }
-
+        const defTime = parseInt(document.getElementById('time-limit').value) || 30;
+        if(v) { 
+            Host.problems.push({text: v, time: defTime}); 
+            Host.saveData(); 
+            Host.renderProbList(); 
+            document.getElementById('inp-word').value = ""; 
+        }
     },
-
+    updateProbTime: (idx, val) => {
+        Host.problems[idx].time = parseInt(val) || 0;
+        Host.saveData();
+    },
     delProb: (i) => { Host.problems.splice(i,1); Host.saveData(); Host.renderProbList(); },
-
-    saveData: () => localStorage.setItem('polyData', JSON.stringify(Host.problems)),
-
-    updateSpeed: (v) => { document.getElementById('speed-val').innerText = v; Host.config.speed = parseInt(v); },
-
+    
+    saveData: () => {
+        Host.config.timeLimit = parseInt(document.getElementById('time-limit').value);
+        localStorage.setItem('polyDataV15_9', JSON.stringify({
+            problems: Host.problems,
+            config: Host.config
+        }));
+    },
+    
+    updateSpeed: (v) => { document.getElementById('speed-val').innerText = v; Host.config.speed = parseInt(v); Host.saveData(); },
     broadcast: (data) => { for(let id in Host.conns) Host.conns[id].send(data); }
-
 };
-
-
 
 /* ================= CLIENT LOGIC ================= */
-
 const Client = {
-
     peer: null, conn: null, name: "",
-
     init: (hostId) => {
-
         document.getElementById('host-app').classList.add('hidden');
-
         const cApp = document.getElementById('client-app');
-
         cApp.classList.remove('hidden');
-
         cApp.style.display = 'flex';
-
         document.getElementById('c-login').classList.add('active');
-
         document.getElementById('c-game').classList.remove('active');
-
         
-
         Client.peer = new Peer(PEER_CONFIG);
-
         Client.peer.on('open', () => {
-
             Client.conn = Client.peer.connect(hostId);
-
             Client.conn.on('open', () => { console.log("Connected"); });
-
             Client.conn.on('data', data => Client.handleData(data));
-
         });
-
     },
-
-
 
     join: () => {
-
         const n = document.getElementById('c-name').value;
-
         if(!n) return;
-
         Client.name = n;
-
         Client.conn.send({ type: 'JOIN', name: n });
-
         document.getElementById('c-login').classList.remove('active');
-
         document.getElementById('c-login').style.display = 'none';
-
         document.getElementById('c-game').classList.add('active');
-
         document.getElementById('c-game').style.display = 'flex';
-
         document.getElementById('c-game').classList.remove('hidden');
-
     },
-
-
 
     handleData: (data) => {
-
         const status = document.getElementById('c-status');
-
         const input = document.getElementById('c-input');
-
         const btn = document.getElementById('c-btn-submit');
 
-
-
         if(data.type === 'START') {
-
             status.innerText = "解答受付中！";
-
             status.style.color = "#00d2ff";
-
             input.disabled = false; input.value = ""; btn.disabled = false; input.focus();
-
         } else if(data.type === 'END') {
-
             status.innerText = "終了！結果発表待ち...";
-
             status.style.color = "#ff4444";
-
             input.disabled = true; btn.disabled = true;
-
         } else if(data.type === 'STATUS') {
-
             status.innerText = data.text;
-
         }
-
     },
-
-
 
     submitAnswer: () => {
-
         const text = document.getElementById('c-input').value;
-
         if(!text) return;
-
         Client.conn.send({ type: 'ANSWER', text: text });
-
         document.getElementById('c-status').innerText = "送信済み。待機中...";
-
         document.getElementById('c-input').disabled = true;
-
         document.getElementById('c-btn-submit').disabled = true;
-
     }
-
 };
-
-
 
 /* ================= THREE.JS LOGIC ================= */
-
 const Three = {
-
     scene: null, camera: null, renderer: null, reqId: null, meshes: [], speed: 1.0, currentZ: 15,
-
     initialStates: [], // Store {x,y,z}
-
     
-
     init: (text, speed) => {
-
         Three.stop();
-
         Three.speed = speed;
-
         const container = document.getElementById('canvas-container');
-
         Three.scene = new THREE.Scene(); Three.scene.background = new THREE.Color(0x222222);
-
         Three.camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000); 
-
         Three.camera.position.z = 15; Three.currentZ = 15;
-
         Three.renderer = new THREE.WebGLRenderer({ antialias: true }); Three.renderer.setSize(window.innerWidth, window.innerHeight); container.appendChild(Three.renderer.domElement);
-
         const light = new THREE.DirectionalLight(0xffffff, 1); light.position.set(5, 10, 7); Three.scene.add(light); Three.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
         
-
         const words = text.trim().split(/\s+/);
-
         const spacing = 8;
-
         const startX = -((words.length - 1) * spacing) / 2;
-
         
-
         words.forEach((w, i) => {
-
             const mesh = Three.createPoly(w);
-
             mesh.position.x = startX + i * spacing;
-
             mesh.userData = { rx: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1), ry: (Math.random()*0.01 + 0.005) * (Math.random()<0.5?1:-1) };
-
             Three.scene.add(mesh); Three.meshes.push(mesh);
-
         });
-
         if(words.length > 2) { Three.currentZ = 15 + (words.length-2)*5; Three.camera.position.z = Three.currentZ; }
-
         Three.animate();
-
     },
-
-
 
     captureState: () => {
-
         Three.initialStates = Three.meshes.map(m => ({ x: m.rotation.x, y: m.rotation.y, z: m.rotation.z }));
-
     },
-
     
-
     // Setup for Replay: Reset rotations to captured state and adjust camera
-
     setupReplay: () => {
-
         Three.meshes.forEach((m, i) => {
-
             if(Three.initialStates[i]) {
-
                 m.rotation.set(Three.initialStates[i].x, Three.initialStates[i].y, Three.initialStates[i].z);
-
             }
-
         });
-
         if(Three.camera) {
-
             Three.camera.position.x = 5; 
-
             Three.camera.position.z = Three.currentZ * 1.4; 
-
+        }
+    },
+    
+    createPoly: (word) => {
+        const len = word.length;
+        let geo;
+        
+        // --- 修正箇所: 各多面体への明確な分岐 ---
+        if(len === 4) {
+            geo = new THREE.TetrahedronGeometry(3);
+            // 4面体: インデックスを削除して面ごとに分離
+            geo = geo.toNonIndexed(); 
+            geo.clearGroups();
+            for(let i=0; i<4; i++) geo.addGroup(i*3, 3, i); // 3頂点1面
+        }
+        else if(len === 6) {
+            geo = new THREE.BoxGeometry(3.5, 3.5, 3.5);
+            // Boxはデフォルトでマルチマテリアル対応
+        }
+        else if(len === 8) {
+            geo = new THREE.OctahedronGeometry(3);
+            geo = geo.toNonIndexed();
+            geo.clearGroups();
+            for(let i=0; i<8; i++) geo.addGroup(i*3, 3, i);
+        }
+        else if(len === 12) {
+            geo = new THREE.DodecahedronGeometry(3);
+            // ※12面体は構造が複雑なため標準描画(1素材)になります
+        }
+        else if(len === 20) {
+            geo = new THREE.IcosahedronGeometry(3);
+            geo = geo.toNonIndexed();
+            geo.clearGroups();
+            for(let i=0; i<20; i++) geo.addGroup(i*3, 3, i);
+        }
+        else {
+            geo = new THREE.SphereGeometry(3, 16, 16);
         }
 
-    },
-
-    
-
-    createPoly: (word) => {
-
-        const len = word.length;
-
-        let geo;
-
-        if(len===4) geo = new THREE.TetrahedronGeometry(3);
-
-        else if(len===6) geo = new THREE.BoxGeometry(3.5,3.5,3.5);
-
-        else if(len===8) geo = new THREE.OctahedronGeometry(3);
-
-        else if(len===12) geo = new THREE.DodecahedronGeometry(3);
-
-        else if(len===20) geo = new THREE.IcosahedronGeometry(3);
-
-        else geo = new THREE.SphereGeometry(3, 16, 16);
-
-
-
         const chars = word.split('');
-
+        // シャッフル
         for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; }
-
         
-
         const mats = [];
-
-        for(let i=0; i<chars.length; i++) { mats.push(new THREE.MeshStandardMaterial({ map: Three.createTex(chars[i%chars.length]), color: 0xeeeeee })); }
-
+        for(let i=0; i<chars.length; i++) { 
+            mats.push(new THREE.MeshStandardMaterial({ map: Three.createTex(chars[i%chars.length]), color: 0xeeeeee })); 
+        }
         return new THREE.Mesh(geo, mats);
-
     },
-
     
-
     createTex: (char) => {
-
         const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = 256;
-
         const ctx = cvs.getContext('2d'); ctx.fillStyle = '#ddd'; ctx.fillRect(0,0,256,256);
-
         ctx.fillStyle = '#000'; ctx.font = 'bold 150px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(char, 128, 128);
-
         return new THREE.CanvasTexture(cvs);
-
     },
-
-
 
     animate: () => {
-
         Three.reqId = requestAnimationFrame(Three.animate);
-
         Three.meshes.forEach(m => { m.rotation.x += m.userData.rx * Three.speed; m.rotation.y += m.userData.ry * Three.speed; });
-
         Three.renderer.render(Three.scene, Three.camera);
-
     },
-
     
-
     stop: () => {
-
         if(Three.reqId) cancelAnimationFrame(Three.reqId);
-
         const el = document.getElementById('canvas-container');
-
         while(el.firstChild) el.removeChild(el.firstChild);
-
         Three.meshes = [];
-
         Three.initialStates = [];
-
     }
-
 };
 
-
-
 // Bootstrap
-
 const params = new URLSearchParams(location.search);
-
 if(params.get('host')) Client.init(params.get('host'));
-
 else Host.init();
 
-
-
 </script>
-
 </body>
-
 </html>
