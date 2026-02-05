@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>POLYHEDRON QUIZ V16.0</title>
+    <title>POLYHEDRON QUIZ V16.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -125,7 +125,7 @@
 
     <div id="host-app" class="hidden">
         <div id="screen-title" class="screen active">
-            <h1>POLYHEDRON QUIZ V16</h1>
+            <h1>POLYHEDRON QUIZ V16.1</h1>
             <div style="margin-top: 50px;">
                 <button class="btn" style="font-size:24px; padding:20px 50px;" onclick="Host.showLobby()">スタート</button>
             </div>
@@ -239,8 +239,8 @@ const Host = {
     currentProblem: null, startTime: 0, timerId: null, currentLimit: 30,
     
     init: () => {
-        // V16用にキー変更
-        const savedP = localStorage.getItem('polyDataV16_0');
+        // V16_1用にキー変更(データ構造は同じ)
+        const savedP = localStorage.getItem('polyDataV16_1');
         if(savedP) {
             const data = JSON.parse(savedP);
             Host.problems = data.problems || [];
@@ -527,7 +527,7 @@ const Host = {
     
     saveData: () => {
         Host.config.timeLimit = parseInt(document.getElementById('time-limit').value);
-        localStorage.setItem('polyDataV16_0', JSON.stringify({
+        localStorage.setItem('polyDataV16_1', JSON.stringify({
             problems: Host.problems,
             config: Host.config
         }));
@@ -657,20 +657,17 @@ const Three = {
             default: baseGeometry = new THREE.SphereGeometry(r, 16, 16); // Fallback
         }
 
-        if (count === 12) {
-            // Dodecahedron special handling (default mapping)
-            const mats = [];
-            for(let i=0; i<chars.length; i++) mats.push(new THREE.MeshStandardMaterial({ map: Three.createTextTexture(chars[i], count, 0), color: 0xeeeeee }));
-            return new THREE.Mesh(baseGeometry, mats);
-        }
-
-        // Custom UV Mapping Logic for 4, 6, 8, 20
+        // Custom UV Mapping Logic for Polyhedra
         let geometry = baseGeometry.toNonIndexed();
         geometry.computeVertexNormals();
 
         const posAttribute = geometry.attributes.position;
         const normAttribute = geometry.attributes.normal;
         const vertexCount = posAttribute.count;
+        // Vertices per face: all Platonic solids except Dodecahedron are triangles (3 verts).
+        // Box is quads (2 triangles = 6 verts).
+        // Dodecahedron (BufferGeometry) is pentagons tessellated into 3 triangles = 9 verts.
+        // Let's rely on the count to determine split.
         const verticesPerFace = vertexCount / count;
 
         geometry.clearGroups();
@@ -711,6 +708,7 @@ const Three = {
         const materials = [];
         let symmetryOrder = 4;
         if (count === 4 || count === 8 || count === 20) symmetryOrder = 3;
+        else if (count === 12) symmetryOrder = 5;
 
         for (let i = 0; i < count; i++) {
             const rotationIndex = Math.floor(Math.random() * symmetryOrder);
