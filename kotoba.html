@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潜入ワードウルフ</title>
+    <style>
+        :root {
+            --bg: #1e1e2f;
+            --panel: #2a2a40;
+            --text: #f0f0f5;
+            --accent: #ff4757;
+            --btn: #3742fa;
+            --btn-hover: #5352ed;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        #app {
+            width: 100%; max-width: 500px;
+            padding: 20px; box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        h1 { font-size: 28px; margin-bottom: 5px; color: var(--accent); letter-spacing: 2px;}
+        p.desc { font-size: 14px; color: #a4b0be; margin-bottom: 25px; text-align: center; }
+
+        .screen {
+            width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden { display: none !important; }
+
+        /* UIパーツ */
+        .card {
+            background: var(--panel);
+            width: 100%; padding: 20px;
+            border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            box-sizing: border-box; margin-bottom: 20px;
+        }
+
+        label { font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block; color: #ced6e0;}
+        input[type="text"], input[type="number"] {
+            width: 100%; padding: 12px; margin-bottom: 15px;
+            background: #1e1e2f; border: 1px solid #57606f;
+            color: white; border-radius: 8px; font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .player-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; width: 100%; }
+        .player-row input { margin-bottom: 0; flex: 1; }
+        .remove-btn { background: #ff4757; padding: 12px; width: 45px; display: flex; justify-content: center; align-items: center;}
+
+        button {
+            width: 100%; padding: 15px; font-size: 18px; font-weight: bold;
+            background: var(--btn); color: white;
+            border: none; border-radius: 8px; cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: #2ed573; margin-bottom: 15px; }
+        button.danger { background: var(--accent); }
+
+        /* ゲーム中・役割確認画面 */
+        .role-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+        .role-box {
+            border: 2px dashed var(--btn); padding: 30px 20px;
+            border-radius: 12px; text-align: center; margin-bottom: 30px;
+            font-size: 20px; line-height: 1.5; background: rgba(55, 66, 250, 0.1);
+        }
+        .wolf-word { font-size: 32px; font-weight: bold; color: var(--accent); display: block; margin-top: 15px; }
+
+        /* タイマー */
+        .timer-display {
+            font-size: 60px; font-weight: bold; font-family: monospace;
+            color: #f1f2f6; text-align: center; margin: 40px 0;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>潜入ワードウルフ</h1>
+    <p class="desc">指定されたワードを、自然な雑談にねじ込め！</p>
+
+    <div id="screen-setup" class="screen">
+        <div class="card">
+            <label>制限時間 (分)</label>
+            <input type="number" id="time-input" value="10" min="1" max="60">
+            
+            <label style="margin-top: 10px;">プレイヤー名</label>
+            <div id="players-container">
+                </div>
+            <button class="secondary" onclick="addPlayer()">＋ プレイヤー追加</button>
+        </div>
+        <button onclick="startGame()">ゲームスタート</button>
+    </div>
+
+    <div id="screen-pass" class="screen hidden">
+        <div class="card" style="text-align: center; padding: 40px 20px;">
+            <h2 id="pass-name" style="color: #2ed573; font-size: 28px;">〇〇さんの番です</h2>
+            <p>画面を他の人に見られないように<br>受け取ってください。</p>
+        </div>
+        <button onclick="showRole()">役割を確認する</button>
+    </div>
+
+    <div id="screen-role" class="screen hidden">
+        <div class="card">
+            <div class="role-title" id="role-header">あなたの役割</div>
+            <div class="role-box" id="role-content">
+                </div>
+        </div>
+        <button onclick="nextPlayer()">確認しました</button>
+    </div>
+
+    <div id="screen-game" class="screen hidden">
+        <div class="card">
+            <h2 style="text-align: center; margin: 0; color: #a4b0be;">雑談スタート！</h2>
+            <div class="timer-display" id="timer">10:00</div>
+        </div>
+        <button id="btn-result" class="danger hidden" onclick="showResult()">結果を見る</button>
+    </div>
+
+    <div id="screen-result" class="screen hidden">
+        <div class="card" style="text-align: center;">
+            <h2 style="color: #a4b0be; margin-bottom: 5px;">今回のウルフは...</h2>
+            <div id="result-wolf" style="font-size: 40px; font-weight: bold; color: var(--accent); margin-bottom: 20px;">〇〇</div>
+            
+            <h2 style="color: #a4b0be; margin-bottom: 5px;">潜入ワード</h2>
+            <div id="result-word" style="font-size: 32px; font-weight: bold; background: #1e1e2f; padding: 15px; border-radius: 8px;">ワード</div>
+        </div>
+        <button class="secondary" onclick="resetGame(true)">もう一度遊ぶ（同じメンバー）</button>
+        <button style="background: #57606f;" onclick="resetGame(false)">タイトルに戻る</button>
+    </div>
+</div>
+
+<script>
+    // --- 単語リスト (150個) ---
+    const wordList = [
+        "親知らず", "サブスク", "筋肉痛", "初恋", "カプセルホテル", "オリーブオイル", "確定申告", "二度寝", "サバンナ", "風水",
+        "有給", "ペアルック", "都市伝説", "マイナンバー", "二日酔い", "リバウンド", "花言葉", "タピオカ", "反抗期", "初夢",
+        "おみくじ", "エスカルゴ", "ルンバ", "パスポート", "深海魚", "四葉のクローバー", "ドローン", "サウナ", "タイムカプセル", "前世",
+        "ふるさと納税", "プロテイン", "コインランドリー", "寝言", "へそくり", "UFOキャッチャー", "金縛り", "ドライアイ", "人間ドック", "推し活",
+        "ポイ活", "グランピング", "断捨離", "ASMR", "テレパシー", "ジンクス", "流れ星", "お化け屋敷", "VR", "キャッシュレス",
+        "観葉植物", "エコバッグ", "スマートウォッチ", "クラウドファンディング", "オーガニック", "フリーマーケット", "DIY", "ヨガ", "サプリメント", "ルーティン",
+        "マイブーム", "パワースポット", "お取り寄せ", "リモートワーク", "オンライン飲み会", "ソロキャンプ", "ワーケーション", "御朱印", "レジ袋", "タロット",
+        "ミジンコ", "バリバリ", "シルク", "サザエさん", "アキレス腱", "バンジージャンプ", "スカイダイビング", "イルミネーション", "プラネタリウム", "トリックアート",
+        "お見合い", "同窓会", "タイムトラベル", "パラレルワールド", "ブラックホール", "オーロラ", "蜃気楼", "砂漠", "オアシス", "氷河期",
+        "ピラミッド", "ミイラ", "シーラカンス", "ダイオウイカ", "ツチノコ", "ネッシー", "未確認飛行物体", "宇宙人", "人工知能", "AI",
+        "メタバース", "ブロックチェーン", "仮想通貨", "NFT", "SDGs", "サステナブル", "多様性", "コンプライアンス", "インフルエンサー", "YouTuber",
+        "Vtuber", "eスポーツ", "プロゲーマー", "サブアカウント", "バズる", "炎上", "エゴサ", "ファストパス", "プレミアム", "リミテッド",
+        "ビンテージ", "アンティーク", "ハンドメイド", "オーダーメイド", "カスタマイズ", "リノベーション", "リノベ", "シェアハウス", "ルームシェア", "サブレット",
+        "ノマド", "フリーランス", "パラレルキャリア", "副業", "起業", "スタートアップ", "ベンチャー", "ユニコーン", "クラウド", "サーバー",
+        "アルゴリズム", "プログラミング", "コーディング", "デバッグ", "ハッキング", "セキュリティ", "パスワード", "生体認証", "顔認証", "指紋認証"
+    ];
+
+    // --- 状態変数 ---
+    let players = ["Aさん", "Bさん", "Cさん", "Dさん", "Eさん"]; // 初期値（男3女2の5人想定）
+    let timeLimit = 10;
+    let wolfIndex = 0;
+    let targetWord = "";
+    let currentPlayerIndex = 0;
+    let timerInterval = null;
+    let remainingTime = 0;
+
+    // --- DOM要素 ---
+    const screens = {
+        setup: document.getElementById('screen-setup'),
+        pass: document.getElementById('screen-pass'),
+        role: document.getElementById('screen-role'),
+        game: document.getElementById('screen-game'),
+        result: document.getElementById('screen-result')
+    };
+
+    // --- 初期化 ---
+    function renderPlayerInputs() {
+        const container = document.getElementById('players-container');
+        container.innerHTML = '';
+        players.forEach((name, index) => {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            row.innerHTML = `
+                <input type="text" value="${name}" onchange="updatePlayerName(${index}, this.value)" placeholder="プレイヤー名">
+                ${players.length > 3 ? `<button class="remove-btn" onclick="removePlayer(${index})">×</button>` : ''}
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function addPlayer() {
+        players.push(`プレイヤー${players.length + 1}`);
+        renderPlayerInputs();
+    }
+
+    function removePlayer(index) {
+        if (players.length > 3) {
+            players.splice(index, 1);
+            renderPlayerInputs();
+        }
+    }
+
+    function updatePlayerName(index, val) {
+        players[index] = val.trim() || `プレイヤー${index + 1}`;
+    }
+
+    function showScreen(screenName) {
+        Object.values(screens).forEach(s => s.classList.add('hidden'));
+        screens[screenName].classList.remove('hidden');
+    }
+
+    // --- ゲーム進行 ---
+    function startGame() {
+        timeLimit = parseInt(document.getElementById('time-input').value) || 10;
+        
+        // ウルフとワードを決定
+        wolfIndex = Math.floor(Math.random() * players.length);
+        targetWord = wordList[Math.floor(Math.random() * wordList.length)];
+        
+        currentPlayerIndex = 0;
+        startPassScreen();
+    }
+
+    function startPassScreen() {
+        document.getElementById('pass-name').innerText = `${players[currentPlayerIndex]} さん の番です`;
+        showScreen('pass');
+    }
+
+    function showRole() {
+        const roleContent = document.getElementById('role-content');
+        if (currentPlayerIndex === wolfIndex) {
+            roleContent.innerHTML = `あなたは <span style="color:var(--accent); font-weight:bold;">ウルフ</span> です。<br>以下の単語を雑談に入れ込んでください。<span class="wolf-word">${targetWord}</span>`;
+        } else {
+            roleContent.innerHTML = `あなたは <span style="color:#2ed573; font-weight:bold;">市民</span> です。<br><br>不自然な単語をねじ込んできた<br>ウルフを当ててください。`;
+        }
+        showScreen('role');
+    }
+
+    function nextPlayer() {
+        currentPlayerIndex++;
+        if (currentPlayerIndex < players.length) {
+            startPassScreen();
+        } else {
+            startTimer();
+        }
+    }
+
+    // --- タイマー処理 ---
+    function startTimer() {
+        showScreen('game');
+        remainingTime = timeLimit * 60;
+        document.getElementById('btn-result').classList.add('hidden');
+        updateTimerDisplay();
+
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            remainingTime--;
+            updateTimerDisplay();
+            if (remainingTime <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('timer').innerText = "TIME UP!";
+                document.getElementById('btn-result').classList.remove('hidden');
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        if (remainingTime < 0) return;
+        const m = String(Math.floor(remainingTime / 60)).padStart(2, '0');
+        const s = String(remainingTime % 60).padStart(2, '0');
+        document.getElementById('timer').innerText = `${m}:${s}`;
+    }
+
+    // --- 結果画面 ---
+    function showResult() {
+        document.getElementById('result-wolf').innerText = players[wolfIndex];
+        document.getElementById('result-word').innerText = targetWord;
+        showScreen('result');
+    }
+
+    function resetGame(keepPlayers) {
+        if (!keepPlayers) {
+            players = ["Aさん", "Bさん", "Cさん", "Dさん", "Eさん"];
+        }
+        renderPlayerInputs();
+        showScreen('setup');
+    }
+
+    // 初期起動
+    renderPlayerInputs();
+</script>
+
+</body>
+</html>
+
