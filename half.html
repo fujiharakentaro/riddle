@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>絶妙チキンレース</title>
+    <style>
+        :root {
+            --bg: #1e272e;
+            --panel: #2d3436;
+            --text: #f5f6fa;
+            --accent: #ffdd59;
+            --btn: #0fbcf9;
+            --btn-hover: #4bcffa;
+            --danger: #ff5e57;
+            --success: #0be881;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg); color: var(--text);
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; overflow-x: hidden; user-select: none;
+        }
+
+        #app {
+            width: 100%; max-width: 500px;
+            padding: 20px; box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        h1 { font-size: 26px; margin-bottom: 5px; color: var(--accent); text-align: center; }
+        p.desc { font-size: 13px; color: #d2dae2; margin-bottom: 20px; text-align: center; line-height: 1.5; }
+
+        .screen { width: 100%; display: flex; flex-direction: column; align-items: center; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
+
+        .card {
+            background: var(--panel); width: 100%; padding: 20px;
+            border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            box-sizing: border-box; margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%; padding: 12px; margin-bottom: 10px;
+            background: #1e272e; border: 1px solid #575f67;
+            color: white; border-radius: 8px; font-size: 16px; box-sizing: border-box;
+        }
+
+        .player-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; width: 100%; }
+        .player-row input { margin-bottom: 0; flex: 1; }
+        .remove-btn { background: var(--danger); padding: 12px; width: 45px; border-radius: 8px; display: flex; justify-content: center; font-weight: bold; cursor: pointer;}
+
+        button {
+            width: 100%; padding: 15px; font-size: 18px; font-weight: bold;
+            background: var(--btn); color: #1e272e;
+            border: none; border-radius: 8px; cursor: pointer;
+            transition: 0.2s; margin-bottom: 10px;
+        }
+        button:active { transform: scale(0.96); }
+        button.secondary { background: #808e9b; color: white; }
+        button.success { background: var(--success); color: #1e272e; }
+        
+        /* お題選択ボタン用 */
+        button.outline { background: #1e272e; color: var(--text); border: 2px solid var(--accent); }
+        button.outline:hover { background: rgba(255, 221, 89, 0.1); }
+
+        /* 親選択・チェックボックスリスト */
+        .list-item {
+            display: flex; align-items: center; padding: 15px;
+            background: #1e272e; border-radius: 8px; margin-bottom: 10px;
+            font-size: 18px; cursor: pointer; border: 2px solid transparent;
+        }
+        .list-item.selected { border-color: var(--accent); background: rgba(255, 221, 89, 0.1); }
+        .list-item input { margin-right: 15px; transform: scale(1.5); }
+
+        /* お題表示 */
+        .word-display {
+            font-size: 40px; font-weight: bold; color: var(--accent);
+            text-align: center; margin: 30px 0; padding: 20px;
+            background: #1e272e; border-radius: 12px; letter-spacing: 2px;
+            word-wrap: break-word;
+        }
+
+        /* スコアランキング */
+        .score-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 15px; border-bottom: 1px solid #485460; font-size: 18px;
+        }
+        .score-row:last-child { border-bottom: none; }
+        .score-val { font-weight: bold; color: var(--accent); font-size: 22px; }
+        
+        .result-text { font-size: 16px; text-align: center; margin-bottom: 20px; line-height: 1.6; }
+        .highlight { color: var(--accent); font-weight: bold; font-size: 20px;}
+
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>絶妙チキンレース</h1>
+    <p class="desc">半分の人だけが正解する「絶妙なヒント」を出せ！<br>全員不正解はペナルティ！全員正解は0pt！</p>
+
+    <div id="screen-setup" class="screen">
+        <div class="card">
+            <h3 style="margin-top:0;">プレイヤー設定</h3>
+            <div id="players-container"></div>
+            <button class="secondary" onclick="addPlayer()">＋ プレイヤー追加</button>
+        </div>
+        <button onclick="startGame()">ゲームスタート</button>
+    </div>
+
+    <div id="screen-select-parent" class="screen hidden">
+        <div class="card">
+            <h3 style="margin-top:0; text-align:center;">今回のヒント出し（親）は誰？</h3>
+            <div id="parent-list"></div>
+        </div>
+        <button onclick="showChooseWord()">お題を選ぶ</button>
+        <button class="secondary" onclick="showRankingFromParent()">現在のスコアを見る</button>
+    </div>
+
+    <div id="screen-choose-word" class="screen hidden">
+        <div class="card">
+            <h3 id="choose-parent-name" style="text-align:center; margin-top:0; color:#d2dae2;"></h3>
+            <p style="text-align:center; color:#808e9b; font-size:14px;">ヒントを出しやすいお題を1つ選んでください</p>
+            <div id="word-choices" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                </div>
+        </div>
+    </div>
+
+    <div id="screen-word" class="screen hidden">
+        <div class="card">
+            <h3 id="parent-name-display" style="text-align:center; margin-top:0; color:#d2dae2;"></h3>
+            <div class="word-display" id="target-word"></div>
+            <p style="text-align:center; color:#808e9b; font-size:14px;">このお題のヒントを1つだけ出して、みんなに答えてもらおう！</p>
+        </div>
+        <button class="success" onclick="goToJudge()">正解者を判定する</button>
+    </div>
+
+    <div id="screen-judge" class="screen hidden">
+        <div class="card">
+            <h3 style="margin-top:0; text-align:center;">正解した人を選んでください</h3>
+            <p style="text-align:center; font-size:12px; color:#ffdd59;">※親（ヒントを出した人）以外が表示されています</p>
+            <div id="judge-list"></div>
+        </div>
+        <button onclick="calcScore()">得点計算</button>
+    </div>
+
+    <div id="screen-result" class="screen hidden">
+        <div class="card">
+            <h3 style="margin-top:0; text-align:center;">今回の結果</h3>
+            <div class="result-text" id="round-result-text"></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-top:0; text-align:center;">現在のランキング</h3>
+            <div id="ranking-list"></div>
+        </div>
+        <button onclick="nextTurn()">次のターンへ</button>
+    </div>
+</div>
+
+<script>
+    // --- 難易度調整済みの単語リスト（合計約300個） ---
+
+    // 【80%：ちょうどいい単語（複合語ではないが、特徴があって絞りやすい層）】 約240個
+    const wordMid = [
+        "鏡", "鍵", "鈴", "笛", "盾", "剣", "弓", "斧", "槍", "鎖", "檻", "罠", "網", "糸", "針", 
+        "釘", "鋸", "筆", "墨", "紙", "硯", "扇", "暦", "宝", "冠", "帯", "紐", "樽", "瓶", "鉢", 
+        "皿", "箸", "鍋", "釜", "炭", "薪", "炎", "煙", "灰", "泥", "砂", "崖", "谷", "洞", "沼", 
+        "泉", "滝", "島", "岬", "港", "城", "塔", "橋", "寺", "社", "墓", "祭", "宴", "歌", "舞", 
+        "劇", "絵", "詩", "毒", "謎", "罰", "罪", "癖", "恥", "傷", "噂", "影", "薬", "蜜", "塩", 
+        "酢", "地図", "切符", "手紙", "日記", "写真", "切手", "硬貨", "紙幣", "黒板", "定規", "磁石", "電池", "電球", 
+        "信号", "看板", "鉄棒", "プール", "テント", "火花", "波", "泡", "雫", "霧", "霜", "露", "氷", "熊", 
+        "猿", "狐", "狸", "鹿", "猪", "狼", "虎", "象", "兎", "馬", "牛", "豚", "羊", "鶏", "鳩", 
+        "烏", "鶴", "亀", "蛇", "蛙", "蟹", "蛸", "貝", "鮫", "鯨", "蜂", "蟻", "蚊", "蝶", "蝉", 
+        "桜", "梅", "桃", "菊", "蘭", "竹", "松", "杉", "栗", "柿", "苺", "瓜", "芋", "豆", "ピアノ", 
+        "ギター", "マイク", "マスク", "タオル", "ピアス", "リング", "コート", "ブーツ", "シャツ", "パンツ", "バッグ", "チョコ", "アイス", 
+        "プリン", "カレー", "パスタ", "ピザ", "チーズ", "バター", "ミルク", "パン", "米", "麦",
+        // 以下追加分
+        "鞄", "財布", "靴下", "辞書", "図鑑", "絵本", "名刺", "免許", "印鑑", "通帳", "借金", "貯金", "指輪", "香水", "化粧", 
+        "洗剤", "石鹸", "歯ブラシ", "櫛", "鋏", "包丁", "まな板", "冷蔵庫", "炊飯器", "掃除機", "洗濯機", "扇風機", "暖房", "毛布", 
+        "枕", "布団", "ベッド", "ソファ", "カーテン", "絨毯", "畳", "襖", "障子", "屋根", "煙突", "階段", "廊下", "玄関", 
+        "庭", "池", "井戸", "畑", "森", "林", "草原", "砂漠", "火山", "洞窟", "氷山", "隕石", "化石", "水着", "浮輪", "雪だるま"
+    ];
+
+    // 【20%：熱帯夜クラスの単語（少し抽象的・専門的な単純語）】 約60個
+    const wordHard = [
+        "琥珀", "翡翠", "真珠", "珊瑚", "水晶", "遺跡", "迷宮", "神話", "魔法", "奇跡", "呪い", "祈り", "誓い", 
+        "契り", "暁", "黄昏", "刹那", "永遠", "幻", "オーロラ", "オアシス", "サバンナ", "ジャングル", "クレーター", "マグマ", "マントル", "オーラ", "カルマ", 
+        "トラウマ", "ジレンマ", "カオス", "コスモス", "オーケストラ", "シンフォニー", "メロディ", "ハーモニー", "リズム", "テンポ", "スケール", "パズル", "クイズ", "ミステリー", "ロマンス",
+        // 以下追加分
+        "パラドックス", "ノスタルジー", "エトワール", "アビス", "ユートピア", "ディストピア", "ミラージュ", "レクイエム", "プレリュード", 
+        "オベリスク", "モノリス", "ピラミッド", "スフィンクス", "オカルト", "パラダイム", "イリュージョン", "カタルシス"
+    ];
+
+    let gameWords = []; 
+    let players = []; 
+    let currentParentId = null;
+    let currentWord = "";
+
+    const screens = {
+        setup: document.getElementById('screen-setup'),
+        selectParent: document.getElementById('screen-select-parent'),
+        chooseWord: document.getElementById('screen-choose-word'),
+        word: document.getElementById('screen-word'),
+        judge: document.getElementById('screen-judge'),
+        result: document.getElementById('screen-result')
+    };
+
+    function showScreen(screenName) {
+        Object.values(screens).forEach(s => s.classList.add('hidden'));
+        screens[screenName].classList.remove('hidden');
+    }
+
+    // --- 単語リストの補充とシャッフル ---
+    function replenishWords() {
+        gameWords = [...wordMid, ...wordHard];
+        for (let i = gameWords.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [gameWords[i], gameWords[j]] = [gameWords[j], gameWords[i]];
+        }
+    }
+
+    // --- 設定画面 ---
+    let initialNames = ["Aさん", "Bさん", "Cさん", "Dさん", "Eさん"];
+    
+    function renderSetupPlayers() {
+        const container = document.getElementById('players-container');
+        container.innerHTML = '';
+        initialNames.forEach((name, idx) => {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            row.innerHTML = `
+                <input type="text" value="${name}" onchange="updateName(${idx}, this.value)" placeholder="プレイヤー名">
+                ${initialNames.length > 3 ? `<div class="remove-btn" onclick="removePlayer(${idx})">×</div>` : ''}
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function addPlayer() {
+        initialNames.push(`プレイヤー${initialNames.length + 1}`);
+        renderSetupPlayers();
+    }
+
+    function removePlayer(idx) {
+        if (initialNames.length > 3) {
+            initialNames.splice(idx, 1);
+            renderSetupPlayers();
+        }
+    }
+
+    function updateName(idx, val) {
+        initialNames[idx] = val.trim() || `プレイヤー${idx + 1}`;
+    }
+
+    function startGame() {
+        players = initialNames.map((name, i) => ({ id: i, name: name, score: 0 }));
+        replenishWords();
+        buildParentList();
+        showScreen('selectParent');
+    }
+
+    // --- 親選択画面 ---
+    function buildParentList() {
+        const container = document.getElementById('parent-list');
+        container.innerHTML = '';
+        if (currentParentId === null) currentParentId = players[0].id;
+
+        players.forEach(p => {
+            const label = document.createElement('label');
+            label.className = `list-item ${currentParentId === p.id ? 'selected' : ''}`;
+            label.innerHTML = `
+                <input type="radio" name="parent" value="${p.id}" ${currentParentId === p.id ? 'checked' : ''} onchange="selectParent(${p.id})">
+                ${p.name}
+            `;
+            container.appendChild(label);
+        });
+    }
+
+    function selectParent(id) {
+        currentParentId = id;
+        buildParentList(); 
+    }
+
+    function showRankingFromParent() {
+        buildRanking();
+        document.getElementById('round-result-text').innerHTML = `<p style="color:#808e9b;">ゲーム進行中です</p>`;
+        showScreen('result');
+    }
+
+    // --- お題選択画面 ---
+    function showChooseWord() {
+        const parent = players.find(p => p.id === currentParentId);
+        document.getElementById('choose-parent-name').innerText = `${parent.name} さんのお題選択`;
+
+        // 3つ以上単語が残っていない場合は補充する
+        if (gameWords.length < 3) {
+            replenishWords();
+        }
+
+        // 3つの単語をピックアップ
+        const choices = [gameWords.pop(), gameWords.pop(), gameWords.pop()];
+        const container = document.getElementById('word-choices');
+        container.innerHTML = '';
+
+        choices.forEach(word => {
+            const btn = document.createElement('button');
+            btn.className = 'outline';
+            btn.innerText = word;
+            btn.onclick = () => selectWord(word);
+            container.appendChild(btn);
+        });
+
+        showScreen('chooseWord');
+    }
+
+    // --- お題決定・ヒント出し画面 ---
+    function selectWord(word) {
+        currentWord = word;
+        const parent = players.find(p => p.id === currentParentId);
+        document.getElementById('parent-name-display').innerText = `${parent.name} さんのお題`;
+        document.getElementById('target-word').innerText = currentWord;
+        
+        showScreen('word');
+    }
+
+    // --- 判定画面 ---
+    function goToJudge() {
+        const container = document.getElementById('judge-list');
+        container.innerHTML = '';
+        
+        players.forEach(p => {
+            if (p.id === currentParentId) return; 
+            const label = document.createElement('label');
+            label.className = 'list-item';
+            label.innerHTML = `
+                <input type="checkbox" class="correct-checker" value="${p.id}">
+                ${p.name}
+            `;
+            label.onclick = function(e) {
+                if(e.target.tagName !== 'INPUT') {
+                    const cb = this.querySelector('input');
+                    cb.checked = !cb.checked;
+                }
+                this.classList.toggle('selected', this.querySelector('input').checked);
+            };
+            container.appendChild(label);
+        });
+        showScreen('judge');
+    }
+
+    // --- 得点計算ロジック ---
+    function calcScore() {
+        const checkboxes = document.querySelectorAll('.correct-checker');
+        let correctIds = [];
+        checkboxes.forEach(cb => {
+            if (cb.checked) correctIds.push(parseInt(cb.value));
+        });
+
+        const totalChildren = players.length - 1;
+        const correctCount = correctIds.length;
+        const parent = players.find(p => p.id === currentParentId);
+
+        // --- 子（解答者）の得点 ---
+        correctIds.forEach(id => {
+            let child = players.find(p => p.id === id);
+            if(child) child.score += 1;
+        });
+
+        // --- 親（出題者）の得点計算 ---
+        let parentScoreChange = 0;
+        let resultMsg = "";
+
+        if (correctCount === 0) {
+            // 全員不正解（ペナルティ）
+            parentScoreChange = -1;
+            resultMsg = `全員不正解...<br><span class="highlight" style="color:var(--danger)">失敗！ 親は -1pt</span>`;
+        } else if (correctCount === totalChildren) {
+            // 全員正解（ペナルティなし、得点なしに変更）
+            parentScoreChange = 0;
+            resultMsg = `全員正解...<br><span style="color:#808e9b">簡単すぎた！ 親は 0pt</span>`;
+        } else {
+            // 目標値（半分の人数）
+            let target = totalChildren / 2;
+            let diff = Math.abs(correctCount - target);
+
+            if (diff <= 0.5) {
+                // ぴったり半分
+                parentScoreChange = 2;
+                resultMsg = `正解者 ${correctCount}人 / ${totalChildren}人中<br><span class="highlight" style="color:var(--success)">絶妙！ 親は +2pt !!</span>`;
+            } else if (diff <= 1.5) {
+                // 惜しい（半分から±1人ズレ）
+                parentScoreChange = 1;
+                resultMsg = `正解者 ${correctCount}人 / ${totalChildren}人中<br><span class="highlight">惜しい！ 親は +1pt</span>`;
+            } else {
+                // ズレすぎ（全員正解・不正解ではないが得点なし）
+                parentScoreChange = 0;
+                resultMsg = `正解者 ${correctCount}人 / ${totalChildren}人中<br><span style="color:#808e9b">ズレすぎ！ 親は 0pt</span>`;
+            }
+        }
+
+        parent.score += parentScoreChange;
+
+        // 結果テキスト生成
+        let html = `<p style="font-size:22px; font-weight:bold;">お題：${currentWord}</p>`;
+        html += `<p>${resultMsg}</p>`;
+        html += `<p style="font-size:14px; color:#d2dae2; margin-top:15px;">【正解して +1pt ゲットした人】<br>`;
+        if(correctIds.length > 0) {
+            html += correctIds.map(id => players.find(p => p.id === id).name).join("、");
+        } else {
+            html += "なし";
+        }
+        html += `</p>`;
+
+        document.getElementById('round-result-text').innerHTML = html;
+
+        buildRanking();
+        showScreen('result');
+    }
+
+    function buildRanking() {
+        const container = document.getElementById('ranking-list');
+        container.innerHTML = '';
+        
+        let sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+        
+        sortedPlayers.forEach((p, idx) => {
+            const row = document.createElement('div');
+            row.className = 'score-row';
+            let crown = idx === 0 && p.score > 0 ? "👑 " : "";
+            row.innerHTML = `
+                <span>${crown}${p.name}</span>
+                <span class="score-val">${p.score} <span style="font-size:14px; color:#808e9b;">pt</span></span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function nextTurn() {
+        let currentIdx = players.findIndex(p => p.id === currentParentId);
+        let nextIdx = (currentIdx + 1) % players.length;
+        currentParentId = players[nextIdx].id;
+        
+        buildParentList();
+        showScreen('selectParent');
+    }
+
+    renderSetupPlayers();
+
+</script>
+</body>
+</html>
