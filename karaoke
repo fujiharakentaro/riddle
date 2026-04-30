@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PITCH NOTE Pro</title>
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --primary: #4facfe;
+            --card: #ffffff;
+            --text-main: #333;
+            --text-sub: #999;
+            --pastel-red: #ffb3ba;   /* 最低音 */
+            --pastel-green: #baffc9; /* 最高音 */
+            --key-out: #e0e0e0;      /* 範囲外（グレー） */
+            --key-in: #ffffff;       /* 範囲内（白） */
+            --shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        body { 
+            background: var(--bg); color: var(--text-main); font-family: sans-serif; 
+            margin: 0; display: flex; flex-direction: column; height: 100vh;
+        }
+
+        header { padding: 20px; text-align: center; background: white; border-bottom: 1px solid #eee; }
+        header h1 { margin: 0; font-size: 1.1rem; color: var(--primary); letter-spacing: 2px; }
+
+        .content { flex: 1; overflow-y: auto; padding: 20px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        nav { display: flex; justify-content: space-around; background: white; border-top: 1px solid #eee; padding: 10px 0 30px; }
+        nav button { background: none; border: none; font-size: 0.8rem; color: var(--text-sub); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        nav button.active { color: var(--primary); font-weight: bold; }
+
+        /* リスト */
+        .song-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center; }
+        .song-card h3 { margin: 0; font-size: 0.95rem; }
+        .song-card p { margin: 3px 0 0; font-size: 0.75rem; color: var(--text-sub); }
+
+        /* 設定画面 */
+        .settings-card { background: white; padding: 20px; border-radius: 15px; box-shadow: var(--shadow); margin-bottom: 20px; }
+        .import-btn { width: 100%; padding: 12px; background: #333; color: white; border: none; border-radius: 8px; font-weight: bold; margin-bottom: 20px; cursor: pointer; }
+        label { font-size: 0.75rem; font-weight: bold; color: var(--text-sub); margin-bottom: 10px; display: block; }
+        input { width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; }
+
+        /* モーダル */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: flex-end; z-index: 1000; }
+        .modal-content { background: white; width: 100%; padding: 30px 20px; border-radius: 25px 25px 0 0; box-sizing: border-box; text-align: center; }
+
+        /* ピアノ：新配色 */
+        .piano-wrap { width: 100%; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; }
+        .piano { display: flex; width: fit-content; border: 1px solid #ddd; }
+        .key { width: 20px; height: 90px; flex-shrink: 0; position: relative; border-right: 0.5px solid #ddd; }
+        
+        /* 白鍵・黒鍵の基本色（範囲外はグレー） */
+        .key.white { background: var(--key-out); }
+        .key.black { background: #bbb; height: 55px; width: 14px; margin: 0 -7px; z-index: 2; border: none; }
+        
+        /* 範囲内の色 */
+        .in-range.white { background: var(--key-in) !important; }
+        .in-range.black { background: #555 !important; }
+
+        /* 最低音と最高音（パステル） */
+        .active-low { background: var(--pastel-red) !important; }
+        .active-high { background: var(--pastel-green) !important; }
+
+        .range-info { display: flex; justify-content: space-around; background: #f9f9f9; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 0.85rem; }
+        .controls { display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 10px; }
+        .key-btn { width: 50px; height: 50px; border-radius: 50%; border: 1.5px solid var(--primary); background: white; color: var(--primary); font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <header><h1>PITCH NOTE Pro</h1></header>
+
+    <div class="content">
+        <div id="page-search" class="page active">
+            <input type="text" id="search-bar" placeholder="曲名・歌手名で検索..." oninput="render()">
+            <div id="song-list"></div>
+        </div>
+
+        <div id="page-settings" class="page">
+            <div class="settings-card">
+                <button class="import-btn" onclick="importFromSheets()">スプレッドシートから同期</button>
+                <p style="font-size: 0.7rem; color: #999; margin-top: -10px;">※GASのURLに接続して一括読み込みします</p>
+                <hr style="border: 0.5px solid #eee; margin: 20px 0;">
+                <label>手動で1曲登録</label>
+                <input type="text" id="in-title" placeholder="曲名">
+                <input type="text" id="in-artist" placeholder="アーティスト">
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="in-low" placeholder="最低音(C3)">
+                    <input type="text" id="in-high" placeholder="最高音(G4)">
+                </div>
+                <input type="number" id="in-key" placeholder="マイキー">
+                <button onclick="addSong()" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:5px;">登録</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal" onclick="if(event.target==this)closeModal()">
+        <div class="modal-content">
+            <h2 id="m-title" style="margin:0;"></h2>
+            <p id="m-artist" style="color:var(--text-sub); font-size:0.8rem; margin:5px 0 15px;"></p>
+            
+            <div class="range-info">
+                <div><small>原曲</small><br><b id="m-original-range"></b></div>
+                <div style="color:var(--primary);"><small>現在</small><br><b id="m-current-range"></b></div>
+            </div>
+
+            <div class="piano-wrap">
+                <div class="piano" id="piano"></div>
+            </div>
+
+            <div class="controls">
+                <button class="key-btn" onclick="adjustKey(-1)">−</button>
+                <div><small style="color:var(--text-sub)">Key</small><br><b id="m-key" style="font-size:1.8rem;">0</b></div>
+                <button class="key-btn" onclick="adjustKey(1)">＋</button>
+            </div>
+        </div>
+    </div>
+
+    <nav>
+        <button id="nav-search" class="active" onclick="showPage('search')">🔍<span>検索</span></button>
+        <button id="nav-settings" onclick="showPage('settings')">⚙️<span>設定</span></button>
+    </nav>
+
+    <script>
+        // 【重要】ここにあなたのGASのURLを貼り付けてください
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxTeGnC1JOTE9Cjtj9o29n0d9aX_CsZ48jTkaOqA-H3U2PE_-duiHxWXcxuf-GkR0Pl/exec";
+        
+        let songs = JSON.parse(localStorage.getItem('pro_songs')) || [];
+        let currentIndex = null;
+        const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+        async function importFromSheets() {
+            if(!GAS_URL.includes("https")) return alert("GASのURLを正しく設定してください");
+            try {
+                const res = await fetch(GAS_URL);
+                const data = await res.json();
+                // スプシのデータ形式に変換
+                songs = data.map(d => ({
+                    title: d.title || d[0],
+                    artist: d.artist || d[1],
+                    low: (d.low || d[2]).toUpperCase(),
+                    high: (d.high || d[3]).toUpperCase(),
+                    myKey: parseInt(d.myKey || d[4]) || 0
+                }));
+                save();
+                alert("同期完了しました！");
+                showPage('search');
+            } catch(e) { alert("同期に失敗しました。URLを確認してください。"); }
+        }
+
+        function spnToNum(spn) {
+            const m = spn.match(/^([A-G]#?)(\d)$/);
+            return m ? (parseInt(m[2]) + 1) * 12 + NOTES.indexOf(m[1]) : null;
+        }
+
+        function numToSpn(num) {
+            return NOTES[num % 12] + (Math.floor(num / 12) - 1);
+        }
+
+        function showPage(p) {
+            document.querySelectorAll('.page, nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById('page-'+p).classList.add('active');
+            document.getElementById('nav-'+p).classList.add('active');
+            render();
+        }
+
+        function addSong() {
+            const song = {
+                title: document.getElementById('in-title').value,
+                artist: document.getElementById('in-artist').value,
+                low: document.getElementById('in-low').value.toUpperCase(),
+                high: document.getElementById('in-high').value.toUpperCase(),
+                myKey: parseInt(document.getElementById('in-key').value) || 0
+            };
+            if(!song.title) return;
+            songs.push(song);
+            save();
+            showPage('search');
+        }
+
+        function save() { localStorage.setItem('pro_songs', JSON.stringify(songs)); render(); }
+
+        function render() {
+            const q = document.getElementById('search-bar').value.toLowerCase();
+            const list = document.getElementById('song-list');
+            list.innerHTML = songs.filter(s => s.title.toLowerCase().includes(q)).map((s, i) => `
+                <div class="song-card" onclick="openModal(${songs.indexOf(s)})">
+                    <div><h3>${s.title}</h3><p>${s.artist}</p></div>
+                    <div style="font-weight:bold; color:var(--primary)">${s.myKey > 0 ? '+' : ''}${s.myKey}</div>
+                </div>
+            `).join('');
+        }
+
+        function openModal(i) { currentIndex = i; document.getElementById('modal').style.display = 'flex'; updateModal(); }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+        function adjustKey(v) { songs[currentIndex].myKey += v; save(); updateModal(); }
+
+        function updateModal() {
+            const s = songs[currentIndex];
+            document.getElementById('m-title').innerText = s.title;
+            document.getElementById('m-artist').innerText = s.artist;
+            document.getElementById('m-key').innerText = (s.myKey > 0 ? '+' : '') + s.myKey;
+
+            const lowBase = spnToNum(s.low), highBase = spnToNum(s.high);
+            const lowCur = lowBase + s.myKey, highCur = highBase + s.myKey;
+
+            document.getElementById('m-original-range').innerText = `${s.low}～${s.high}`;
+            document.getElementById('m-current-range').innerText = `${numToSpn(lowCur)}～${numToSpn(highCur)}`;
+
+            const piano = document.getElementById('piano');
+            piano.innerHTML = '';
+            // C2(36) ～ C6(84)
+            for (let i = 36; i <= 84; i++) {
+                const isBlack = [1,3,6,8,10].includes(i % 12);
+                const k = document.createElement('div');
+                k.className = `key ${isBlack ? 'black' : 'white'}`;
+                
+                // 範囲内の判定
+                if (i >= lowCur && i <= highCur) {
+                    k.classList.add('in-range');
+                    if (i === lowCur) k.classList.add('active-low');
+                    else if (i === highCur) k.classList.add('active-high');
+                }
+                piano.appendChild(k);
+            }
+        }
+        render();
+    </script>
+</body>
+</html>
