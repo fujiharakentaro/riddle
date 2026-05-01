@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PITCH NOTE Pro - Sync Edition</title>
+    <title>PITCH NOTE Pro - Sorting Edition</title>
     <style>
         :root {
             --bg: #f8faff;
@@ -11,10 +11,10 @@
             --card: #ffffff;
             --text-main: #2d3436;
             --text-sub: #b2bec3;
-            --pastel-red: #ffc9d0;   /* 最低音 */
-            --pastel-green: #d1f7d1; /* 最高音 */
-            --key-out: #f0f0f0;      /* 範囲外グレー */
-            --key-in: #ffffff;       /* 範囲内ホワイト */
+            --pastel-red: #ffc9d0;
+            --pastel-green: #d1f7d1;
+            --key-out: #f0f0f0;
+            --key-in: #ffffff;
             --shadow: 0 10px 30px rgba(0,0,0,0.03);
         }
 
@@ -28,7 +28,7 @@
 
         .content { flex: 1; overflow-y: auto; padding: 15px; }
         .page { display: none; }
-        .page.active { display: block; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* ボトムナビ */
@@ -36,21 +36,27 @@
         nav button { background: none; border: none; font-size: 0.7rem; color: var(--text-sub); display: flex; flex-direction: column; align-items: center; gap: 5px; }
         nav button.active { color: var(--primary); font-weight: bold; }
 
-        /* 検索バー */
-        .search-container { position: sticky; top: 0; z-index: 10; background: var(--bg); padding-bottom: 10px; }
-        #search-bar { width: 100%; padding: 15px; border: none; border-radius: 15px; box-shadow: var(--shadow); box-sizing: border-box; font-size: 1rem; outline: none; }
+        /* 検索・並び替えエリア */
+        .search-container { position: sticky; top: 0; z-index: 10; background: var(--bg); padding-bottom: 15px; }
+        #search-bar { width: 100%; padding: 15px; border: none; border-radius: 15px; box-shadow: var(--shadow); box-sizing: border-box; font-size: 1rem; outline: none; margin-bottom: 12px; }
+        
+        .sort-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+        .sort-tabs::-webkit-scrollbar { display: none; }
+        .sort-btn { 
+            white-space: nowrap; padding: 8px 16px; border-radius: 20px; border: 1px solid #eee; 
+            background: white; font-size: 0.75rem; color: var(--text-sub); transition: 0.2s; 
+        }
+        .sort-btn.active { background: var(--primary); color: white; border-color: var(--primary); font-weight: bold; }
 
-        /* カード */
-        .song-card { background: white; padding: 18px; border-radius: 20px; margin-bottom: 15px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(0,0,0,0.02); }
-        .song-card h3 { margin: 0; font-size: 1rem; font-weight: 700; }
-        .song-card p { margin: 5px 0 0; font-size: 0.8rem; color: var(--text-sub); }
-        .key-tag { font-weight: 800; color: var(--primary); background: #f0f7ff; padding: 5px 12px; border-radius: 10px; }
+        /* 曲カード */
+        .song-card { background: white; padding: 18px; border-radius: 20px; margin-bottom: 12px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(0,0,0,0.01); }
+        .song-card h3 { margin: 0; font-size: 0.95rem; font-weight: 700; }
+        .song-card p { margin: 4px 0 0; font-size: 0.75rem; color: var(--text-sub); }
+        .key-tag { font-weight: 800; color: var(--primary); background: #f0f7ff; padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; }
 
-        /* モーダル */
+        /* モーダル系・ピアノ・設定画面は前回と同様のスタイルを維持 */
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: flex-end; z-index: 1000; }
         .modal-content { background: white; width: 100%; padding: 30px 20px 50px; border-radius: 30px 30px 0 0; box-sizing: border-box; text-align: center; }
-
-        /* ピアノUI */
         .piano-wrap { width: 100%; overflow-x: auto; padding: 10px 0; margin: 20px 0; -webkit-overflow-scrolling: touch; background: #fff; border-radius: 15px; }
         .piano { display: flex; width: fit-content; padding: 0 10px; }
         .key { width: 22px; height: 100px; flex-shrink: 0; position: relative; border-right: 1px solid #f0f0f0; }
@@ -60,11 +66,8 @@
         .in-range.black { background: #444 !important; }
         .active-low { background: var(--pastel-red) !important; border-bottom: 4px solid #ff8f9e !important; }
         .active-high { background: var(--pastel-green) !important; border-bottom: 4px solid #a8e6a8 !important; }
-
-        /* 設定ページ */
         .settings-card { background: white; padding: 20px; border-radius: 20px; box-shadow: var(--shadow); }
         .sync-btn { width: 100%; padding: 15px; background: #2d3436; color: white; border: none; border-radius: 15px; font-weight: bold; margin-bottom: 20px; }
-        input[type="text"], input[type="number"] { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #eee; border-radius: 10px; box-sizing: border-box; }
         .add-btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 15px; font-weight: bold; }
     </style>
 </head>
@@ -76,6 +79,12 @@
         <div id="page-search" class="page active">
             <div class="search-container">
                 <input type="text" id="search-bar" placeholder="曲名・アーティスト名で検索..." oninput="render()">
+                <div class="sort-tabs">
+                    <button id="sort-default" class="sort-btn active" onclick="setSortMode('default')">追加順</button>
+                    <button id="sort-title" class="sort-btn" onclick="setSortMode('title')">曲名順</button>
+                    <button id="sort-artist" class="sort-btn" onclick="setSortMode('artist')">歌手順</button>
+                    <button id="sort-random" class="sort-btn" onclick="setSortMode('random')">ランダム🎲</button>
+                </div>
             </div>
             <div id="song-list"></div>
         </div>
@@ -83,17 +92,17 @@
         <div id="page-settings" class="page">
             <div class="settings-card">
                 <button class="sync-btn" onclick="manualSync()">今すぐスプシと同期する</button>
-                <p id="sync-status" style="font-size:0.7rem; color:var(--text-sub); text-align:center; margin-top:-10px;">自動同期：有効</p>
-                <hr style="border:0.5px solid #f0f0f0; margin:25px 0;">
-                <label style="font-size:0.7rem; font-weight:bold; color:var(--text-sub);">新規登録</label>
-                <input type="text" id="in-title" placeholder="曲名">
-                <input type="text" id="in-artist" placeholder="アーティスト">
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="in-low" placeholder="最低(C3)" style="width:50%;">
-                    <input type="text" id="in-high" placeholder="最高(G4)" style="width:50%;">
+                <div style="margin-top:20px;">
+                    <label style="font-size:0.7rem; font-weight:bold; color:var(--text-sub);">新規登録</label>
+                    <input type="text" id="in-title" placeholder="曲名" style="width:100%; padding:12px; margin:8px 0; border:1px solid #eee; border-radius:10px; box-sizing:border-box;">
+                    <input type="text" id="in-artist" placeholder="アーティスト" style="width:100%; padding:12px; margin-bottom:10px; border:1px solid #eee; border-radius:10px; box-sizing:border-box;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="in-low" placeholder="最低(C3)" style="width:50%; padding:12px; border:1px solid #eee; border-radius:10px;">
+                        <input type="text" id="in-high" placeholder="最高(G4)" style="width:50%; padding:12px; border:1px solid #eee; border-radius:10px;">
+                    </div>
+                    <input type="number" id="in-key" placeholder="マイキー" style="width:100%; padding:12px; margin:8px 0; border:1px solid #eee; border-radius:10px; box-sizing:border-box;">
+                    <button class="add-btn" onclick="addSong()">スプシに登録</button>
                 </div>
-                <input type="number" id="in-key" placeholder="マイキー">
-                <button class="add-btn" onclick="addSong()">スプシに登録</button>
             </div>
         </div>
     </div>
@@ -101,10 +110,10 @@
     <div id="modal" class="modal" onclick="if(event.target==this)closeModal()">
         <div class="modal-content">
             <h2 id="m-title" style="margin:0;"></h2>
-            <p id="m-artist" style="color:var(--text-sub); font-size:0.8rem; margin:5px 0 20px;"></p>
-            <div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:15px; margin-bottom:20px; font-size:0.8rem;">
+            <p id="m-artist" style="color:var(--text-sub); font-size:0.8rem; margin:5px 0 15px;"></p>
+            <div style="display:flex; justify-content:space-around; background:#f8fafc; padding:12px; border-radius:15px; margin-bottom:15px; font-size:0.8rem;">
                 <div><small>原曲</small><br><b id="m-original-range"></b></div>
-                <div style="color:var(--primary);"><small>設定キー</small><br><b id="m-current-range"></b></div>
+                <div style="color:var(--primary);"><small>適用後</small><br><b id="m-current-range"></b></div>
             </div>
             <div class="piano-wrap"><div class="piano" id="piano"></div></div>
             <div style="display:flex; align-items:center; justify-content:center; gap:40px;">
@@ -122,47 +131,41 @@
 
     <script>
         const GAS_URL = "https://script.google.com/macros/s/AKfycbxTeGnC1JOTE9Cjtj9o29n0d9aX_CsZ48jTkaOqA-H3U2PE_-duiHxWXcxuf-GkR0Pl/exec";
-        let songs = JSON.parse(localStorage.getItem('k_pro_sync_v3')) || [];
+        let songs = JSON.parse(localStorage.getItem('k_pro_sort_v4')) || [];
+        let currentSortMode = 'default'; // 現在の並び替えモード
         let currentIndex = null;
         const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
-        // スプシへデータを送る(POST)
+        // スプシ同期関連
         async function syncToSheets(song, action) {
             if(!GAS_URL.includes("http")) return;
-            try {
-                await fetch(GAS_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({ ...song, action: action })
-                });
-            } catch (e) { console.error("Sync Error", e); }
+            try { await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ ...song, action: action }) }); } catch (e) { console.error(e); }
         }
 
-        // スプシからデータを取る(GET) - アラートなし版
         async function silentSync() {
             if(!GAS_URL.includes("http") || document.hidden) return;
             try {
                 const res = await fetch(GAS_URL);
                 const data = await res.json();
-                songs = data.map(d => ({
-                    title: d.title, artist: d.artist, 
-                    low: d.low.toUpperCase(), high: d.high.toUpperCase(), 
-                    myKey: parseInt(d.myKey) || 0
-                }));
-                localStorage.setItem('k_pro_sync_v3', JSON.stringify(songs));
+                songs = data.map(d => ({ title: d.title, artist: d.artist, low: d.low.toUpperCase(), high: d.high.toUpperCase(), myKey: parseInt(d.myKey) || 0 }));
+                localStorage.setItem('k_pro_sort_v4', JSON.stringify(songs));
                 render();
-                console.log("Auto-synced with Sheets");
-            } catch(e) { console.error("Auto-sync error", e); }
+            } catch(e) { console.error(e); }
         }
 
-        // 手動同期ボタン用
         async function manualSync() {
-            const btn = document.querySelector('.sync-btn');
-            btn.innerText = "同期中...";
             await silentSync();
-            btn.innerText = "今すぐスプシと同期する";
-            alert("同期が完了しました！");
+            alert("同期完了！");
             showPage('search');
+        }
+
+        // 並び替えモードの設定
+        function setSortMode(mode) {
+            currentSortMode = mode;
+            // ボタンの見た目を更新
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('sort-' + mode).classList.add('active');
+            render();
         }
 
         function spnToNum(spn) {
@@ -181,10 +184,24 @@
             render();
         }
 
+        // 描画ロジック：検索フィルタの後に並び替えを適用
         function render() {
             const q = document.getElementById('search-bar').value.toLowerCase();
             const list = document.getElementById('song-list');
-            const filtered = songs.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
+            
+            // 1. まず検索フィルタをかける
+            let filtered = songs.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
+            
+            // 2. 次に並び替えを適用
+            if (currentSortMode === 'title') {
+                filtered.sort((a, b) => a.title.localeCompare(b.title, 'ja'));
+            } else if (currentSortMode === 'artist') {
+                filtered.sort((a, b) => a.artist.localeCompare(b.artist, 'ja'));
+            } else if (currentSortMode === 'random') {
+                // シャッフル（Fisher-Yates風）
+                filtered = filtered.sort(() => Math.random() - 0.5);
+            }
+            
             list.innerHTML = filtered.map((s) => `
                 <div class="song-card" onclick="openModal(${songs.indexOf(s)})">
                     <div><h3>${s.title}</h3><p>${s.artist}</p></div>
@@ -194,17 +211,12 @@
         }
 
         async function addSong() {
-            const song = {
-                title: document.getElementById('in-title').value,
-                artist: document.getElementById('in-artist').value,
-                low: document.getElementById('in-low').value.toUpperCase(),
-                high: document.getElementById('in-high').value.toUpperCase(),
-                myKey: parseInt(document.getElementById('in-key').value) || 0
-            };
+            const song = { title: document.getElementById('in-title').value, artist: document.getElementById('in-artist').value, low: document.getElementById('in-low').value.toUpperCase(), high: document.getElementById('in-high').value.toUpperCase(), myKey: parseInt(document.getElementById('in-key').value) || 0 };
             if(!song.title) return;
             await syncToSheets(song, "add");
             songs.push(song);
-            localStorage.setItem('k_pro_sync_v3', JSON.stringify(songs));
+            localStorage.setItem('k_pro_sort_v4', JSON.stringify(songs));
+            render();
             alert("スプシに登録しました！");
             showPage('search');
         }
@@ -214,7 +226,7 @@
 
         async function adjustKey(v) {
             songs[currentIndex].myKey += v;
-            localStorage.setItem('k_pro_sync_v3', JSON.stringify(songs));
+            localStorage.setItem('k_pro_sort_v4', JSON.stringify(songs));
             updateModal();
             render();
             await syncToSheets(songs[currentIndex], "update");
@@ -225,12 +237,10 @@
             document.getElementById('m-title').innerText = s.title;
             document.getElementById('m-artist').innerText = s.artist;
             document.getElementById('m-key').innerText = (s.myKey > 0 ? '+' : '') + s.myKey;
-
             const lowCur = spnToNum(s.low) + s.myKey;
             const highCur = spnToNum(s.high) + s.myKey;
             document.getElementById('m-original-range').innerText = `${s.low}～${s.high}`;
             document.getElementById('m-current-range').innerText = `${numToSpn(lowCur)}～${numToSpn(highCur)}`;
-
             const piano = document.getElementById('piano');
             piano.innerHTML = '';
             for (let i = 36; i <= 84; i++) {
@@ -250,7 +260,6 @@
             }, 100);
         }
 
-        // 自動同期：30秒ごとに実行
         setInterval(silentSync, 30000);
         silentSync();
         render();
