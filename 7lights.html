@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIGHTS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a14; overflow: hidden; }
+
+    #root {
+      position: fixed; inset: 0; max-width: 430px; margin: 0 auto;
+      font-family: 'Hiragino Kaku Gothic ProN','BIZ UDPGothic','Yu Gothic',sans-serif;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    /* ── SCREENS ── */
+    .screen { position: absolute; inset: 0; opacity: 1; transition: opacity 0.35s; }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── TITLE ── */
+    #title-text {
+      position: absolute; top: 22%; width: 100%;
+      text-align: center; color: #fff;
+      font-size: min(4.5rem, 12vw); font-weight: 900; letter-spacing: 0.12em;
+      white-space: nowrap;
+    }
+    #t-start {
+      position: absolute;
+      top: 62%; left: 50%; transform: translate(-50%,-50%);
+      width: 240px; height: 64px;
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 6px;
+      color: #fff; font-size: 1rem; letter-spacing: 0.35em;
+      cursor: pointer; transition: background .2s; font-family: inherit;
+    }
+    #t-start:hover  { background: rgba(255,255,255,.1); }
+    #t-start:active { transform: translate(-50%,-50%) scale(0.97); }
+
+    /* ── BACK (fixed top-left) ── */
+    #back-btn {
+      position: fixed; top: 0; left: 0;
+      background: transparent; border: none;
+      color: rgba(255,255,255,.45); font-size: .9rem; font-weight: bold;
+      cursor: pointer; padding: 10px; font-family: inherit;
+    }
+    #back-btn:hover { color: #fff; }
+
+    /* ── GAME SCREEN LAYOUT (flex で縦に均等配置) ── */
+    #screen-game {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 52px 0 28px;
+    }
+
+    /* ── LETTER LIGHTS (A–Z, 2×13) ── */
+    #letter-lights {
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .l-row { display: flex; gap: 3px; }
+    .l-light {
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      width: 16px;
+    }
+    .l-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      transition: background .12s, box-shadow .12s;
+    }
+    .l-light span { display: none; }
+    .l-light.on .l-dot {
+      background: #fff;
+      box-shadow: 0 0 6px #fff, 0 0 12px rgba(255,255,255,.5);
+    }
+
+    /* ── LIGHTS ── */
+    #lights {
+      display: flex; gap: 8px;
+    }
+    .light {
+      width: 28px; height: 28px; border-radius: 50%;
+      transition: background .12s, box-shadow .12s;
+    }
+    .light.g     { background: #0c2016; border: 2px solid #1a5530; }
+    .light.g.on  { background: #00ee55; box-shadow: 0 0 12px #00ee55, 0 0 24px #00ee5566; border-color: #00ff66; }
+    .light.r     { background: #200c0c; border: 2px solid #551a1a; }
+    .light.r.on  { background: #ff3333; box-shadow: 0 0 12px #ff3333, 0 0 24px #ff333366; border-color: #ff5555; }
+
+    /* ── SLIDER AREA ── */
+    #slider-area {
+      display: flex; align-items: center; gap: 18px;
+    }
+
+    /* Horizontal sliders */
+    #h-sliders { display: flex; flex-direction: column; gap: 14px; }
+
+    .h-slider {
+      width: 140px; height: 46px;
+      background: #0d0d1c;
+      border: 2px solid rgba(255,255,255,.18);
+      border-radius: 6px; position: relative; cursor: pointer;
+      transition: background .2s, border-color .15s; touch-action: none;
+    }
+    .h-slider:hover { border-color: rgba(255,255,255,.4); }
+    .h-slider.on { background: #1a5a30; }
+    .h-thumb {
+      position: absolute;
+      width: 38px; height: 38px;
+      background: rgba(210,215,235,.88);
+      border-radius: 4px;
+      top: 2px; left: 2px;
+      transition: left .18s ease;
+      pointer-events: none;
+    }
+    .h-slider.on .h-thumb { left: calc(100% - 40px); }
+
+    /* Vertical sliders */
+    #v-sliders { display: flex; flex-direction: row; gap: 22px; }
+
+    .v-slider {
+      width: 46px; height: 160px;
+      background: #0d0d1c;
+      border: 2px solid rgba(255,255,255,.18);
+      border-radius: 6px; position: relative; cursor: pointer;
+      transition: background .2s, border-color .15s; touch-action: none;
+    }
+    .v-slider:hover { border-color: rgba(255,255,255,.4); }
+    .v-slider.on { background: #1a5a30; }
+    .v-thumb {
+      position: absolute;
+      width: 38px; height: 38px;
+      background: rgba(210,215,235,.88);
+      border-radius: 4px;
+      left: 2px;
+      top: calc(100% - 40px); /* OFF=bottom */
+      transition: top .18s ease;
+      pointer-events: none;
+    }
+    .v-slider.on .v-thumb { top: 2px; } /* ON=top */
+
+    /* ── JUDGE BUTTON ── */
+    #judge-btn {
+      width: 200px; height: 58px;
+      background: transparent;
+      border: 2px solid rgba(255,255,255,.45);
+      border-radius: 6px;
+      color: #fff; font-size: 1rem; letter-spacing: 0.25em;
+      cursor: pointer; transition: background .2s; font-family: inherit;
+    }
+    #judge-btn:hover  { background: rgba(255,255,255,.08); }
+    #judge-btn:active { transform: scale(0.97); }
+
+    @keyframes judge-shake {
+      0%,100% { transform: translateX(-50%) translateX(0); }
+      20%      { transform: translateX(-50%) translateX(-8px); }
+      40%      { transform: translateX(-50%) translateX(8px); }
+      60%      { transform: translateX(-50%) translateX(-5px); }
+      80%      { transform: translateX(-50%) translateX(5px); }
+    }
+    #judge-btn.shaking { animation: judge-shake .4s ease; }
+
+    /* ── CLEAR SCREEN ── */
+    /* 7-seg display + "lights." */
+    #clear-display {
+      position: absolute;
+      top: 22%; left: 50%; transform: translate(-50%,-50%);
+      display: flex; align-items: center; gap: 14px;
+    }
+    #clear-suffix {
+      color: #00cc50;
+      font-size: 3.8rem; font-weight: bold; letter-spacing: 0.02em;
+      line-height: 1;
+    }
+    .seg-disp { position: relative; width: 56px; height: 100px; }
+    .seg {
+      position: absolute; border-radius: 3px;
+      transition: background .15s, box-shadow .15s;
+    }
+    /* horizontal */
+    .s-a,.s-g,.s-d { width: 38px; height: 8px; left: 9px; }
+    .s-a { top: 0; }
+    .s-g { top: 46px; }
+    .s-d { top: 92px; }
+    /* vertical */
+    .s-f,.s-b,.s-e,.s-c { width: 8px; height: 38px; }
+    .s-f { left: 0;     top: 6px; }
+    .s-b { right: 0;    top: 6px; }
+    .s-e { left: 0;     top: 54px; }
+    .s-c { right: 0;    top: 54px; }
+    .seg.lit  { background: #00cc50; box-shadow: 0 0 8px #00cc50, 0 0 18px #00cc5055; }
+    .seg.dark { background: #0a2018; }
+
+    #clear-label {
+      position: absolute;
+      top: calc(22% + 80px); width: 100%;
+      text-align: center; color: #fff;
+      font-size: 2rem; font-weight: bold; letter-spacing: 0.12em;
+      opacity: 0; transition: opacity .6s;
+    }
+    #clear-time {
+      position: absolute;
+      bottom: 100px; width: 100%;
+      text-align: center; color: rgba(255,255,255,.55);
+      font-size: 1.4rem; letter-spacing: 0.08em;
+      font-family: 'Courier New', monospace;
+      opacity: 0; transition: opacity .6s;
+    }
+    #clear-back {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: transparent;
+      border: 2px solid rgba(255,255,255,.4);
+      border-radius: 6px;
+      color: rgba(255,255,255,.7); font-size: .9rem; letter-spacing: .2em;
+      cursor: pointer; padding: 10px 28px; font-family: inherit;
+      white-space: nowrap;
+      opacity: 0; transition: opacity .6s;
+    }
+    #clear-back:hover { color: #fff; border-color: rgba(255,255,255,.8); }
+    #clear-title-btn {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: transparent;
+      border: 2px solid rgba(255,255,255,.4);
+      border-radius: 6px;
+      color: rgba(255,255,255,.7); font-size: .9rem; letter-spacing: .2em;
+      cursor: pointer; padding: 10px 28px; font-family: inherit;
+      white-space: nowrap;
+      opacity: 0; transition: opacity .6s;
+    }
+    #clear-title-btn:hover { color: #fff; border-color: rgba(255,255,255,.8); }
+
+    @keyframes light-flash {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.05; }
+    }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <!-- TITLE -->
+  <div id="screen-title" class="screen">
+    <button style="position:fixed;top:0;left:0;background:transparent;border:none;color:rgba(255,255,255,.45);font-size:.9rem;font-weight:bold;cursor:pointer;padding:10px;font-family:inherit;" onclick="location.href='index.html'">← ゲーム選択</button>
+    <div id="title-text">7 lights</div>
+    <button id="t-start">S T A R T</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen hidden">
+    <button id="back-btn" onclick="showScreen('title')">← タイトルに戻る</button>
+
+    <!-- アルファベットライト A–Z (2×13) -->
+    <div id="letter-lights">
+      <div class="l-row">
+        <div class="l-light" id="ll-A"><div class="l-dot"></div><span>A</span></div>
+        <div class="l-light" id="ll-B"><div class="l-dot"></div><span>B</span></div>
+        <div class="l-light" id="ll-C"><div class="l-dot"></div><span>C</span></div>
+        <div class="l-light" id="ll-D"><div class="l-dot"></div><span>D</span></div>
+        <div class="l-light" id="ll-E"><div class="l-dot"></div><span>E</span></div>
+        <div class="l-light" id="ll-F"><div class="l-dot"></div><span>F</span></div>
+        <div class="l-light" id="ll-G"><div class="l-dot"></div><span>G</span></div>
+        <div class="l-light" id="ll-H"><div class="l-dot"></div><span>H</span></div>
+        <div class="l-light" id="ll-I"><div class="l-dot"></div><span>I</span></div>
+        <div class="l-light" id="ll-J"><div class="l-dot"></div><span>J</span></div>
+        <div class="l-light" id="ll-K"><div class="l-dot"></div><span>K</span></div>
+        <div class="l-light" id="ll-L"><div class="l-dot"></div><span>L</span></div>
+        <div class="l-light" id="ll-M"><div class="l-dot"></div><span>M</span></div>
+      </div>
+      <div class="l-row">
+        <div class="l-light" id="ll-N"><div class="l-dot"></div><span>N</span></div>
+        <div class="l-light" id="ll-O"><div class="l-dot"></div><span>O</span></div>
+        <div class="l-light" id="ll-P"><div class="l-dot"></div><span>P</span></div>
+        <div class="l-light" id="ll-Q"><div class="l-dot"></div><span>Q</span></div>
+        <div class="l-light" id="ll-R"><div class="l-dot"></div><span>R</span></div>
+        <div class="l-light" id="ll-S"><div class="l-dot"></div><span>S</span></div>
+        <div class="l-light" id="ll-T"><div class="l-dot"></div><span>T</span></div>
+        <div class="l-light" id="ll-U"><div class="l-dot"></div><span>U</span></div>
+        <div class="l-light" id="ll-V"><div class="l-dot"></div><span>V</span></div>
+        <div class="l-light" id="ll-W"><div class="l-dot"></div><span>W</span></div>
+        <div class="l-light" id="ll-X"><div class="l-dot"></div><span>X</span></div>
+        <div class="l-light" id="ll-Y"><div class="l-dot"></div><span>Y</span></div>
+        <div class="l-light" id="ll-Z"><div class="l-dot"></div><span>Z</span></div>
+      </div>
+    </div>
+
+    <!-- Sliders -->
+    <div id="slider-area">
+      <!-- Left: horizontal (a=top, g=mid, d=btm) -->
+      <div id="h-sliders">
+        <div class="h-slider" data-seg="a"><div class="h-thumb"></div></div>
+        <div class="h-slider" data-seg="g"><div class="h-thumb"></div></div>
+        <div class="h-slider" data-seg="d"><div class="h-thumb"></div></div>
+      </div>
+      <!-- Right: vertical (f=top-left, e=btm-left, b=top-right, c=btm-right) -->
+      <div id="v-sliders">
+        <div class="v-slider" data-seg="f"><div class="v-thumb"></div></div>
+        <div class="v-slider" data-seg="e"><div class="v-thumb"></div></div>
+        <div class="v-slider" data-seg="b"><div class="v-thumb"></div></div>
+        <div class="v-slider" data-seg="c"><div class="v-thumb"></div></div>
+      </div>
+    </div>
+
+    <button id="judge-btn"></button>
+
+    <!-- 9 lights: left 7 green, right 2 red -->
+    <div id="lights">
+      <div class="light g" id="l0"></div>
+      <div class="light g" id="l1"></div>
+      <div class="light g" id="l2"></div>
+      <div class="light g" id="l3"></div>
+      <div class="light g" id="l4"></div>
+      <div class="light g" id="l5"></div>
+      <div class="light g" id="l6"></div>
+      <div class="light r" id="l7"></div>
+      <div class="light r" id="l8"></div>
+    </div>
+  </div>
+
+  <!-- CLEAR -->
+  <div id="screen-clear" class="screen hidden">
+    <!-- 7-seg "7" + "lights." -->
+    <div id="clear-display">
+      <div id="clear-digit">
+        <div class="seg-disp">
+          <div class="seg s-a lit"></div>
+          <div class="seg s-b lit"></div>
+          <div class="seg s-c lit"></div>
+          <div class="seg s-d dark"></div>
+          <div class="seg s-e dark"></div>
+          <div class="seg s-f dark"></div>
+          <div class="seg s-g dark"></div>
+        </div>
+      </div>
+      <div id="clear-suffix">lights.</div>
+    </div>
+    <div id="clear-label">クリア！</div>
+    <div id="clear-time"></div>
+    <button id="clear-title-btn" onclick="resetGame()">← タイトルに戻る</button>
+    <button id="clear-back" onclick="location.href='index.html'">← ゲーム選択</button>
+  </div>
+
+</div>
+<script>
+  // ── Segment state ──
+  const seg = { a:false, b:false, c:false, d:false, e:false, f:false, g:false };
+
+  // ── Letter patterns [a,b,c,d,e,f,g] ──
+  // I は右(b,c)と左(f,e)の両方に反応
+  const LETTER_PATS = {
+    A: [[1,1,1,0,1,1,1]],
+    C: [[1,0,0,1,1,1,0]],
+    E: [[1,0,0,1,1,1,1]],
+    F: [[1,0,0,0,1,1,1]],
+    G: [[1,0,1,1,1,1,1]],  // = 6
+    H: [[0,1,1,0,1,1,1]],
+    I: [[0,1,1,0,0,0,0], [0,0,0,0,1,1,0]],  // 右(=1) と 左
+    L: [[0,0,0,1,1,1,0]],
+    O: [[1,1,1,1,1,1,0]],  // = 0
+    P: [[1,1,0,0,1,1,1]],
+    S: [[1,0,1,1,0,1,1]],  // = 5
+    U: [[0,1,1,1,1,1,0]],
+  };
+
+  function updateLetterLights() {
+    const cur = ['a','b','c','d','e','f','g'].map(k => seg[k] ? 1 : 0);
+    // 全リセット
+    document.querySelectorAll('.l-light').forEach(el => el.classList.remove('on'));
+    // マッチ判定
+    for (const [letter, pats] of Object.entries(LETTER_PATS)) {
+      const hit = pats.some(p => p.every((v, i) => v === cur[i]));
+      if (hit) document.getElementById('ll-' + letter).classList.add('on');
+    }
+  }
+
+  // Patterns [a,b,c,d,e,f,g]
+  const PATTERNS = {
+    0:[1,1,1,1,1,1,0], 1:[0,1,1,0,0,0,0],
+    2:[1,1,0,1,1,0,1], 3:[1,1,1,1,0,0,1],
+    4:[0,1,1,0,0,1,1], 5:[1,0,1,1,0,1,1],
+    6:[1,0,1,1,1,1,1], 7:[1,1,1,0,0,0,0],
+    8:[1,1,1,1,1,1,1], 9:[1,1,1,1,0,1,1],
+  };
+
+  let startTime = null;
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('screen-' + id).classList.remove('hidden');
+  }
+
+  function getDigit() {
+    const cur = ['a','b','c','d','e','f','g'].map(k => seg[k] ? 1 : 0);
+    for (const [n, p] of Object.entries(PATTERNS)) {
+      if (p.every((v,i) => v === cur[i])) return parseInt(n);
+    }
+    return null;
+  }
+
+  function updateLights() {
+    const n = getDigit();
+    const count = n !== null ? n : 0;
+    for (let i = 0; i < 9; i++) {
+      document.getElementById('l' + i).classList.toggle('on', i < count);
+    }
+  }
+
+  function setSeg(key, val) {
+    seg[key] = val;
+    const el = document.querySelector(`[data-seg="${key}"]`);
+    el.classList.toggle('on', val);
+    updateLetterLights(); // アルファベットはリアルタイム更新
+    // 数字ライトは判定ボタン押下時のみ更新
+  }
+
+  // ── Slider interaction ──
+  function setupSlider(el, isVertical) {
+    let startPos = null, moved = false;
+
+    el.addEventListener('pointerdown', e => {
+      startPos = { x: e.clientX, y: e.clientY };
+      moved = false;
+      el.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    el.addEventListener('pointermove', e => {
+      if (!el.hasPointerCapture(e.pointerId) || !startPos) return;
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      if (Math.sqrt(dx*dx + dy*dy) < 8) return;
+      moved = true;
+      const rect = el.getBoundingClientRect();
+      const newOn = isVertical
+        ? (e.clientY - rect.top) < rect.height / 2
+        : (e.clientX - rect.left) > rect.width / 2;
+      if (newOn !== seg[el.dataset.seg]) {
+        setSeg(el.dataset.seg, newOn);
+      }
+    });
+
+    el.addEventListener('pointerup', () => {
+      if (!moved) setSeg(el.dataset.seg, !seg[el.dataset.seg]);
+      startPos = null; moved = false;
+    });
+  }
+
+  document.querySelectorAll('.h-slider').forEach(el => setupSlider(el, false));
+  document.querySelectorAll('.v-slider').forEach(el => setupSlider(el, true));
+
+  // ── Judge ──
+  document.getElementById('judge-btn').addEventListener('click', () => {
+    updateLights(); // 判定ボタンを押した時だけライトを更新
+    if (getDigit() === 7) {
+      const elapsed = Date.now() - startTime;
+      setTimeout(() => {
+        showScreen('clear');
+        setTimeout(() => {
+          document.getElementById('clear-label').style.opacity = '1';
+          document.getElementById('clear-time').textContent = formatTime(elapsed);
+          document.getElementById('clear-time').style.opacity = '1';
+          document.getElementById('clear-title-btn').style.opacity = '1';
+          document.getElementById('clear-back').style.opacity = '1';
+        }, 400);
+      }, 1000);
+    } else {
+      const btn = document.getElementById('judge-btn');
+      btn.classList.add('shaking');
+      btn.addEventListener('animationend', () => btn.classList.remove('shaking'), { once: true });
+    }
+  });
+
+  // ── Timer ──
+  function formatTime(ms) {
+    const m  = Math.floor(ms / 60000);
+    const s  = Math.floor((ms % 60000) / 1000);
+    const cs = Math.floor((ms % 1000) / 10);
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+  }
+
+  // ── Start ──
+  document.getElementById('t-start').addEventListener('click', () => {
+    if (startTime === null) startTime = Date.now();
+    showScreen('game');
+  });
+
+  // ── Reset ──
+  function resetGame() {
+    Object.keys(seg).forEach(k => { seg[k] = false; });
+    document.querySelectorAll('.h-slider,.v-slider').forEach(el => el.classList.remove('on'));
+    updateLights();
+    updateLetterLights();
+    ['clear-label','clear-time','clear-back'].forEach(id => {
+      document.getElementById(id).style.opacity = '0';
+    });
+    startTime = null;
+    showScreen('title');
+  }
+
+  updateLights();
+</script>
+</body>
+</html>
