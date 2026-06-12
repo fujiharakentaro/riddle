@@ -1,168 +1,97 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ArUco Camera (Debug)</title>
-    <style>
-        body { margin: 0; padding: 0; background-color: #222; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
-        h2 { margin: 10px; font-size: 1.2rem; }
-        
-        /* 映像表示エリア */
-        .container { position: relative; width: 100%; max-width: 640px; }
-        /* わかりやすく枠線を赤に */
-        #outputCanvas { width: 100%; height: auto; border: 2px solid red; background: #000; min-height: 200px; }
-        
-        /* 今回は原因切り分けのため、生のカメラ映像も小さく表示します */
-        #inputVideo { width: 100px; height: auto; border: 1px solid blue; display: block; margin-top: 10px; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宇宙謎</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a14; overflow: hidden; }
 
-        #startBtn {
-            padding: 15px 30px; font-size: 18px; background-color: #00d2ff; color: #000;
-            border: none; border-radius: 50px; cursor: pointer; margin-top: 20px; font-weight: bold;
-        }
-        #startBtn:disabled { background-color: #555; color: #888; }
-        
-        #status { margin: 10px; color: yellow; font-size: 0.9rem; text-align: center; }
-        /* エラー詳細表示用 */
-        #debug { color: #ccc; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; width: 90%; word-break: break-all; }
-    </style>
+    #root {
+      position: fixed; inset: 0; max-width: 430px; margin: 0 auto;
+      font-family: 'Hiragino Kaku Gothic ProN','BIZ UDPGothic','Yu Gothic',sans-serif;
+      user-select: none; -webkit-user-select: none; color: #fff;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0;
+    }
+
+    #hub-title {
+      font-size: min(3.6rem, 12vw); font-weight: 900; letter-spacing: 0.18em;
+      color: #fff; margin-bottom: 12px;
+    }
+
+    #hub-sub {
+      font-size: 0.85rem; letter-spacing: 0.25em; color: rgba(255,255,255,.35);
+      margin-bottom: 56px;
+    }
+
+    #cards {
+      display: flex; flex-direction: column; gap: 18px;
+      width: 86%; max-width: 320px;
+    }
+
+    .card {
+      display: block; text-decoration: none;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 10px;
+      padding: 22px 28px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, transform .15s;
+      position: relative;
+    }
+    .card:hover {
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.45);
+      transform: translateY(-2px);
+    }
+    .card:active { transform: translateY(0) scale(0.98); }
+
+    .card-num {
+      font-size: 0.7rem; letter-spacing: 0.3em;
+      color: rgba(255,255,255,.3);
+      margin-bottom: 6px;
+    }
+
+    .card-title {
+      font-size: 1.45rem; font-weight: bold; letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .card-arrow {
+      position: absolute; right: 22px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.1rem; color: rgba(255,255,255,.3);
+      transition: color .2s, right .2s;
+    }
+    .card:hover .card-arrow {
+      right: 16px; color: rgba(255,255,255,.7);
+    }
+  </style>
 </head>
 <body>
+<div id="root">
+  <div id="hub-title">宇宙謎</div>
+  <div id="hub-sub">— PUZZLE COLLECTION —</div>
 
-    <h2>ArUco Debug Mode</h2>
-    <div id="status">準備中...</div>
-    <button id="startBtn" disabled onclick="startCamera()">📷 カメラ起動</button>
-
-    <div class="container">
-        <canvas id="outputCanvas"></canvas>
-    </div>
-
-    <p>↓生のカメラ映像 (青枠)↓</p>
-    <video id="inputVideo" playsinline muted></video>
-
-    <div id="debug">ログ待機中...</div>
-
-    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();"></script>
-
-    <script>
-        let video = document.getElementById('inputVideo');
-        let canvas = document.getElementById('outputCanvas');
-        let ctx = canvas.getContext('2d');
-        let status = document.getElementById('status');
-        let debug = document.getElementById('debug');
-        let startBtn = document.getElementById('startBtn');
-        
-        let stream = null;
-        let cap = null;
-        let src = null;
-        let dictionary = null;
-        let parameter = null;
-        let isStreaming = false;
-
-        function log(msg) {
-            console.log(msg);
-            debug.textContent += msg + "\n";
-        }
-
-        function onOpenCvReady() {
-            status.innerHTML = "準備完了";
-            log("OpenCV.js Loaded.");
-            startBtn.disabled = false;
-        }
-
-        async function startCamera() {
-            startBtn.style.display = 'none';
-            status.innerHTML = "カメラ起動中...";
-            log("カメラ要求開始...");
-
-            try {
-                // 最もシンプルな設定でカメラを要求（背面指定を一旦外す）
-                const constraints = {
-                    video: true, 
-                    audio: false
-                };
-
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                log("ストリーム取得成功");
-                video.srcObject = stream;
-                
-                // 再生開始（Promise対応）
-                await video.play();
-                log(`再生開始: ${video.videoWidth}x${video.videoHeight}`);
-
-                // サイズが0の場合は少し待つ
-                if (video.videoWidth === 0) {
-                    log("映像サイズが0です。待機します...");
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-
-                initOpenCV();
-
-            } catch (err) {
-                status.innerHTML = "エラー発生";
-                log("エラー: " + err.name + " - " + err.message);
-                alert("カメラ起動エラー: " + err.message);
-                startBtn.style.display = 'block';
-            }
-        }
-
-        function initOpenCV() {
-            log(`OpenCV初期化: Videoサイズ ${video.videoWidth}x${video.videoHeight}`);
-            
-            // キャンバスサイズをビデオに合わせる
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            cap = new cv.VideoCapture(video);
-            src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-            dictionary = new cv.aruco_Dictionary(cv.aruco.DICT_4X4_50);
-            parameter = new cv.aruco_DetectorParameters();
-
-            isStreaming = true;
-            status.innerHTML = "認識中...";
-            processVideo();
-        }
-
-        function processVideo() {
-            if (!isStreaming) return;
-
-            try {
-                // ここでエラーが出ることが多いのでtry-catch
-                cap.read(src);
-
-                // もし映像が空ならスキップ
-                if (src.empty()) {
-                    log("Warning: Empty frame");
-                    requestAnimationFrame(processVideo);
-                    return;
-                }
-
-                let corners = new cv.MatVector();
-                let ids = new cv.Mat();
-                let rejected = new cv.MatVector();
-
-                // 検出
-                cv.aruco.detectMarkers(src, dictionary, corners, ids, parameter, rejected);
-
-                if (ids.rows > 0) {
-                    cv.aruco.drawDetectedMarkers(src, corners, ids);
-                    status.innerHTML = `★検知 ID: ${ids.data32S[0]}`;
-                } else {
-                    status.innerHTML = "認識中 (マーカーなし)";
-                }
-
-                cv.imshow('outputCanvas', src);
-
-                corners.delete();
-                ids.delete();
-                rejected.delete();
-
-                requestAnimationFrame(processVideo);
-            } catch (err) {
-                log("処理ループエラー: " + err);
-                isStreaming = false; // 無限ループのエラーを防ぐため停止
-            }
-        }
-    </script>
+  <div id="cards">
+    <a class="card" href="7seg.html">
+      <div class="card-num">No. 01</div>
+      <div class="card-title">7 lights</div>
+      <div class="card-arrow">›</div>
+    </a>
+    <a class="card" href="suji.html">
+      <div class="card-num">No. 02</div>
+      <div class="card-title">Number</div>
+      <div class="card-arrow">›</div>
+    </a>
+    <a class="card" href="3buttons.html">
+      <div class="card-num">No. 03</div>
+      <div class="card-title">3buttons</div>
+      <div class="card-arrow">›</div>
+    </a>
+  </div>
+</div>
 </body>
 </html>
