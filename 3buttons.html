@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3buttons</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; background:#f7f2ea; overflow:hidden; }
+
+    #root {
+      position:fixed; inset:0; max-width:430px; margin:0 auto;
+      font-family:'Hiragino Kaku Gothic ProN','BIZ UDPGothic','Yu Gothic',sans-serif;
+      user-select:none; -webkit-user-select:none;
+    }
+
+    /* ─── Screens ─── */
+    .screen {
+      position:absolute; inset:0;
+      opacity:1; transition:opacity 0.35s;
+    }
+    .screen.hidden { opacity:0; pointer-events:none; }
+
+    /* ─── TITLE ─── */
+    #title-text {
+      position:absolute; top:18%; width:100%;
+      text-align:center; color:#1e1408;
+      font-size:min(6rem, 15vw); font-weight:900; letter-spacing:0.06em;
+    }
+
+    /* start-btn width = left-btn-center to right-btn-center × 2 = 155px × 2 = 310px */
+    #start-btn {
+      position:absolute;
+      top:62%; left:50%; transform:translate(-50%,-50%);
+      width:310px; height:88px;
+      background:#ede6d8;
+      border:2px solid #8b7a68;
+      border-radius:8px;
+      color:#1e1408; font-size:1.3rem; letter-spacing:0.35em;
+      cursor:pointer; transition:background .2s;
+    }
+    #start-btn:hover  { background:#dfd7c8; }
+    #start-btn:active { background:#cfc8b8; transform:translate(-50%,-50%) scale(0.97); }
+
+    /* ─── BACK BUTTON ─── */
+    #back-btn {
+      position:fixed; top:0; left:0;
+      background:transparent; border:none;
+      color:#8b7a68; font-size:1rem; font-weight:bold;
+      cursor:pointer; padding:10px 10px;
+      font-family:inherit;
+    }
+    #back-btn:hover { color:#1e1408; }
+
+    /* ─── HUB BUTTON (ゲーム選択) ─── */
+    .hub-btn {
+      position:fixed; top:0; left:0;
+      background:transparent; border:none;
+      color:#8b7a68; font-size:.9rem; font-weight:bold;
+      cursor:pointer; padding:10px;
+      font-family:inherit;
+    }
+    .hub-btn:hover { color:#1e1408; }
+    .hub-btn-clear {
+      position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+      background:transparent;
+      border:2px solid rgba(139,122,104,.5);
+      border-radius:6px;
+      color:#8b7a68; font-size:.9rem; letter-spacing:.15em;
+      cursor:pointer; padding:10px 24px; white-space:nowrap;
+      font-family:inherit;
+    }
+    .hub-btn-clear:hover { color:#1e1408; border-color:#8b7a68; }
+    #clear-title-btn {
+      position:fixed; bottom:66px; left:50%; transform:translateX(-50%);
+      background:transparent;
+      border:2px solid rgba(139,122,104,.5);
+      border-radius:6px;
+      color:#8b7a68; font-size:.9rem; letter-spacing:.15em;
+      cursor:pointer; padding:10px 24px; white-space:nowrap;
+      font-family:inherit;
+      opacity:0; transition:opacity .55s;
+    }
+    #clear-title-btn:hover { color:#1e1408; border-color:#8b7a68; }
+
+    /* ─── INSTRUCTION ─── */
+    #instruction {
+      position:absolute; top:15%; width:100%;
+      text-align:center; color:#1e1408;
+      font-size:2.8rem; font-weight:bold;
+    }
+    .inst-box {
+      display:inline-block;
+      border:2px solid #8b7a68;
+      border-radius:8px;
+      background:#fdfaf4;
+      padding:3px 10px; margin-right:4px;
+      line-height:1.5;
+    }
+
+    /* ─── JUDGMENT ─── */
+    #judgment {
+      position:absolute;
+      top:calc(42% - 78px); width:100%;
+      text-align:center;
+      color:#cc3333; font-size:1.4rem; font-weight:bold; letter-spacing:0.12em;
+      opacity:0; transition:opacity .2s; pointer-events:none;
+    }
+    #judgment.show { opacity:1; }
+
+    /* ─── INPUT RECTANGLE ─── */
+    #input-display {
+      position:absolute;
+      top:42%; left:50%; transform:translate(-50%,-50%);
+      width:min(340px, 88%); height:86px;
+      border:2px solid #8b7a68;
+      border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      color:#1e1408; font-size:2rem; font-weight:bold;
+      letter-spacing:0.6em;
+      text-indent:0.6em;
+      background:#fdfaf4;
+    }
+
+    @keyframes shake {
+      0%   { transform:translate(-50%,-50%) translateX(0); }
+      12%  { transform:translate(-50%,-50%) translateX(-12px); }
+      28%  { transform:translate(-50%,-50%) translateX(12px); }
+      44%  { transform:translate(-50%,-50%) translateX(-9px); }
+      60%  { transform:translate(-50%,-50%) translateX(9px); }
+      76%  { transform:translate(-50%,-50%) translateX(-4px); }
+      92%  { transform:translate(-50%,-50%) translateX(4px); }
+      100% { transform:translate(-50%,-50%) translateX(0); }
+    }
+    #input-display.shaking {
+      animation:shake .55s ease-in-out;
+      border-color:#cc3333;
+    }
+
+    /* ─── GAME BUTTONS (no text) ─── */
+    .game-btn {
+      position:absolute;
+      top:62%; transform:translateY(-50%);
+      width:110px; height:110px;
+      background:#ede6d8;
+      border:2px solid #8b7a68;
+      border-radius:10px; cursor:pointer;
+      transition:background .15s;
+      touch-action:none;
+    }
+    .game-btn:hover  { background:#dfd7c8; }
+    .game-btn:active { background:#cfc8b8; transform:translateY(-50%) scale(0.95); }
+
+    /* centers at 50% ± 187px  (gap between buttons ≈ 77px) */
+    #btn-ka { left:calc(50% - 242px); }
+    #btn-a  { left:calc(50% -  55px); }
+    #btn-ta { left:calc(50% + 132px); }
+
+    /* ─── CLEAR SCREEN ─── */
+    #clear-rect {
+      position:absolute;
+      top:42%; left:50%; transform:translate(-50%,-50%);
+      width:min(340px, 88%); height:86px;
+      border:2px solid #8b7a68;
+      border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      color:#1e1408; font-size:2rem; font-weight:bold;
+      letter-spacing:0.6em;
+      text-indent:0.6em;
+      background:#fdfaf4;
+    }
+    #clear-pre {
+      position:absolute;
+      top:calc(42% - 100px); width:100%;
+      text-align:center; color:#1e1408;
+      font-size:2rem; font-weight:bold; letter-spacing:0.05em;
+      opacity:0; transition:opacity .55s;
+    }
+    #clear-post {
+      position:absolute;
+      top:calc(42% + 55px); width:100%;
+      text-align:center; color:#1e1408;
+      font-size:2rem; font-weight:bold; letter-spacing:0.05em;
+      opacity:0; transition:opacity .55s;
+    }
+    #clear-time {
+      position:absolute;
+      bottom:130px; width:100%;
+      text-align:center; color:#8b7a68;
+      font-size:1.5rem; font-weight:bold; letter-spacing:0.08em;
+      font-family:'Courier New', monospace;
+      opacity:0; transition:opacity .55s;
+    }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <!-- TITLE -->
+  <div id="screen-title" class="screen">
+    <button class="hub-btn" onclick="location.href='index.html'">← ゲーム選択</button>
+    <div id="title-text">3buttons</div>
+    <button id="start-btn">S T A R T</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen hidden">
+    <button id="back-btn" onclick="showScreen('title')">← タイトルに戻る</button>
+    <div id="instruction"><span class="inst-box">かいけつ</span>せよ</div>
+    <div id="judgment">判定中…</div>
+    <div id="input-display"></div>
+    <button class="game-btn" id="btn-ka" data-row="ka"></button>
+    <button class="game-btn" id="btn-a"  data-row="a"></button>
+    <button class="game-btn" id="btn-ta" data-row="ta"></button>
+  </div>
+
+  <!-- CLEAR -->
+  <div id="screen-clear" class="screen hidden">
+    <div id="clear-pre">あなたは謎を</div>
+    <div id="clear-rect">かいけつ</div>
+    <div id="clear-post">した</div>
+    <div id="clear-time"></div>
+    <button id="clear-title-btn" onclick="startTime=null;showScreen('title')">← タイトルに戻る</button>
+    <button class="hub-btn-clear" onclick="location.href='index.html'">← ゲーム選択</button>
+  </div>
+
+</div>
+
+<script>
+  const KANA = {
+    ka: ['か','き','く','け','こ'],
+    a:  ['あ','い','う','え','お'],
+    ta: ['た','ち','つ','て','と'],
+  };
+  const DIR_IDX = { none:0, left:1, top:2, right:3, bottom:4 };
+
+  let inputChars = [];
+  let entryDir   = { ka:'none', a:'none', ta:'none' };
+  let isJudging  = false;
+  let blockEnter = false;
+  let startTime  = null; // 初回START時刻（タイトルに戻っても保持）
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('screen-' + id).classList.remove('hidden');
+  }
+
+  document.getElementById('start-btn').addEventListener('click', () => {
+    if (startTime === null) startTime = Date.now(); // 初回のみ計測開始
+    showScreen('game');
+    entryDir   = { ka:'none', a:'none', ta:'none' };
+    inputChars = [];
+    render();
+    blockEnter = true;
+    setTimeout(() => { blockEnter = false; }, 160);
+  });
+
+  document.querySelectorAll('.game-btn').forEach(btn => {
+    const row = btn.dataset.row;
+
+    btn.addEventListener('pointerenter', e => {
+      if (blockEnter) return;
+      const r = btn.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      const dL = x, dR = r.width - x, dT = y, dB = r.height - y;
+      const m = Math.min(dL, dR, dT, dB);
+      entryDir[row] = (m === dL) ? 'left'
+                    : (m === dR) ? 'right'
+                    : (m === dT) ? 'top'
+                    :              'bottom';
+    });
+
+    btn.addEventListener('pointerleave', () => {
+      entryDir[row] = 'none';
+    });
+
+    btn.addEventListener('click', () => {
+      if (isJudging || inputChars.length >= 4) return;
+      const char = KANA[row][DIR_IDX[entryDir[row]]];
+      entryDir[row] = 'none'; // 押したらリセット（次押す時は「あ」になる）
+      inputChars.push(char);
+      render();
+      if (inputChars.length === 4) startJudgment();
+    });
+  });
+
+  function render() {
+    document.getElementById('input-display').textContent = inputChars.join('');
+  }
+
+  function startJudgment() {
+    isJudging = true;
+    const j = document.getElementById('judgment');
+    j.classList.add('show');
+    setTimeout(() => {
+      j.classList.remove('show');
+      if (inputChars.join('') === 'かいけつ') {
+        showClear();
+      } else {
+        wrongInput();
+      }
+    }, 1000);
+  }
+
+  function wrongInput() {
+    const d = document.getElementById('input-display');
+    inputChars = [];
+    render();
+    d.classList.add('shaking');
+    d.addEventListener('animationend', () => {
+      d.classList.remove('shaking');
+      isJudging = false;
+    }, { once: true });
+  }
+
+  function formatTime(ms) {
+    const m  = Math.floor(ms / 60000);
+    const s  = Math.floor((ms % 60000) / 1000);
+    const cs = Math.floor((ms % 1000) / 10);
+    return String(m).padStart(2,'0') + ':' +
+           String(s).padStart(2,'0') + '.' +
+           String(cs).padStart(2,'0');
+  }
+
+  function showClear() {
+    const elapsed = Date.now() - startTime;
+    showScreen('clear');
+    setTimeout(() => {
+      document.getElementById('clear-pre').style.opacity  = '1';
+      document.getElementById('clear-post').style.opacity = '1';
+      const t = document.getElementById('clear-time');
+      t.textContent = formatTime(elapsed);
+      t.style.opacity = '1';
+      document.getElementById('clear-title-btn').style.opacity = '1';
+    }, 350);
+  }
+</script>
+</body>
+</html>

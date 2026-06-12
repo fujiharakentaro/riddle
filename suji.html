@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数字をあてよ</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:#0a0a14; overflow:hidden; }
+
+    #root {
+      position:fixed; inset:0; max-width:430px; margin:0 auto;
+      font-family:'Hiragino Kaku Gothic ProN','BIZ UDPGothic','Yu Gothic',sans-serif;
+      user-select:none; -webkit-user-select:none; color:#fff;
+    }
+
+    .screen { position:absolute; inset:0; opacity:1; transition:opacity .35s; }
+    .screen.hidden { opacity:0; pointer-events:none; }
+
+    /* ── TITLE ── */
+    #title-msg {
+      position:absolute; top:30%; width:100%;
+      text-align:center; font-size:1.5rem; font-weight:bold;
+      line-height:2.1; letter-spacing:.06em;
+    }
+    #start-btn {
+      position:absolute; top:64%; left:50%; transform:translate(-50%,-50%);
+      width:220px; height:60px;
+      background:transparent; border:2px solid rgba(255,255,255,.5);
+      border-radius:6px; color:#fff; font-size:1rem; letter-spacing:.35em;
+      cursor:pointer; transition:background .2s; font-family:inherit;
+    }
+    #start-btn:hover  { background:rgba(255,255,255,.1); }
+    #start-btn:active { transform:translate(-50%,-50%) scale(.97); }
+
+    /* ── STARS ── */
+    #stars {
+      position:absolute; top:7%; width:100%;
+      display:flex; justify-content:center; gap:22px;
+    }
+    .star {
+      font-size:3.5rem; color:rgba(255,220,50,.15);
+      transition:color .5s, text-shadow .5s;
+    }
+    .star.on { color:#ffdc32; text-shadow:0 0 14px #ffdc32, 0 0 30px #ffdc3266; }
+
+    /* ── HINT ARROWS ── */
+    #arrows {
+      position:absolute; top:24%; width:100%;
+      display:flex; justify-content:center; gap:50px; /* slotsと同じgap */
+    }
+    .hint-arrow {
+      width:72px; text-align:center; /* seg-wrapと同じ幅で中央揃え */
+      font-size:3rem; font-weight:900; transition:color .15s, text-shadow .15s;
+    }
+    #arrow-up { color:rgba(255,80,80,.18); }
+    #arrow-up.on { color:#ff4444; text-shadow:0 0 14px #ff4444; }
+    #arrow-dn { color:rgba(80,140,255,.18); }
+    #arrow-dn.on { color:#4488ff; text-shadow:0 0 14px #4488ff; }
+
+    /* ── INPUT ROW ── */
+    #input-row {
+      position:absolute; top:52%; left:50%; transform:translate(-50%,-50%);
+      display:flex; align-items:center; gap:56px;
+    }
+    #slots { display:flex; gap:50px; }
+
+    .slot-group { display:flex; flex-direction:column; align-items:center; gap:10px; }
+
+    .tri {
+      width:52px; height:38px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.6rem; cursor:pointer; color:#fff;
+      transition:color .15s; touch-action:manipulation;
+    }
+    .tri.disabled { color:rgba(255,255,255,.18); cursor:default; pointer-events:none; }
+    .tri:not(.disabled):active { color:rgba(255,255,255,.55); }
+
+    /* 7-segment: 72×128px、OFF=透明、縦棒は中央横セグ領域を貫通 */
+    .seg-wrap {
+      position:relative; width:72px; height:128px;
+      background:#050510;
+      border-radius:5px; overflow:hidden;
+    }
+    .seg { position:absolute; background:transparent; transition:background .1s; }
+    .seg.on { background:#fff; }
+    /* 横：z-index高め、OFF=transparent */
+    .seg-a { z-index:2; width:72px; height:10px; left:0; top:0; }
+    .seg-g { z-index:2; width:72px; height:10px; left:0; top:59px; }
+    .seg-d { z-index:2; width:72px; height:10px; left:0; top:118px; }
+    /* 縦上：g領域まで伸ばす（f/bがONなら「1」で隙間なし）*/
+    .seg-f { z-index:1; width:10px; height:59px; left:0;   top:9px;  }
+    .seg-b { z-index:1; width:10px; height:59px; right:0;  top:9px;  }
+    /* 縦下：gの直後から始める */
+    .seg-e { z-index:1; width:10px; height:51px; left:0;   top:68px; }
+    .seg-c { z-index:1; width:10px; height:51px; right:0;  top:68px; }
+
+    /* ○× 左右配置、数字に合わせた大きさ */
+    .ind {
+      font-size:5.5rem; line-height:1;
+      color:rgba(255,255,255,.15);
+      transition:color .2s, text-shadow .2s;
+      display:flex; align-items:center; justify-content:center;
+      width:72px; /* 左右対称にしてslotsを中央に固定 */
+    }
+    .ind.on { color:#fff; text-shadow:0 0 18px #fff; }
+
+    /* ── DECIDE BUTTON ── */
+    #decide-btn {
+      position:absolute; bottom:10%; left:50%; transform:translateX(-50%);
+      width:270px; height:62px;
+      background:transparent; border:2px solid rgba(255,255,255,.45);
+      border-radius:6px; color:#fff; font-size:1.1rem; letter-spacing:.3em;
+      cursor:pointer; transition:background .2s; font-family:inherit;
+    }
+    #decide-btn:hover:not(:disabled) { background:rgba(255,255,255,.08); }
+    #decide-btn:active:not(:disabled) { transform:translateX(-50%) scale(.97); }
+    #decide-btn:disabled { opacity:.3; cursor:default; }
+
+    /* ── CLEAR ── */
+    #clear-stars {
+      position:absolute; top:22%; width:100%;
+      display:flex; justify-content:center; gap:24px;
+    }
+    .clear-star {
+      font-size:3rem; color:#ffdc32;
+      text-shadow:0 0 16px #ffdc32, 0 0 34px #ffdc3266;
+    }
+    #clear-label {
+      position:absolute; top:calc(22% + 76px); width:100%;
+      text-align:center; font-size:2.2rem; font-weight:bold;
+      opacity:0; transition:opacity .6s;
+    }
+    #clear-time {
+      position:absolute; bottom:110px; width:100%;
+      text-align:center; color:rgba(255,255,255,.5);
+      font-size:1.3rem; font-family:'Courier New',monospace;
+      opacity:0; transition:opacity .6s;
+    }
+    #clear-back {
+      position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+      background:transparent; border:2px solid rgba(255,255,255,.4);
+      border-radius:6px; color:rgba(255,255,255,.7); font-size:.9rem;
+      letter-spacing:.2em; cursor:pointer; padding:10px 28px;
+      white-space:nowrap; font-family:inherit;
+      opacity:0; transition:opacity .6s;
+    }
+    #clear-back:hover { color:#fff; }
+    #clear-title-btn {
+      position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+      background:transparent; border:2px solid rgba(255,255,255,.4);
+      border-radius:6px; color:rgba(255,255,255,.7); font-size:.9rem;
+      letter-spacing:.2em; cursor:pointer; padding:10px 28px;
+      white-space:nowrap; font-family:inherit;
+      opacity:0; transition:opacity .6s;
+    }
+    #clear-title-btn:hover { color:#fff; }
+    #game-back-btn {
+      position:fixed; top:0; left:0;
+      background:transparent; border:none;
+      color:rgba(255,255,255,.45); font-size:.9rem; font-weight:bold;
+      cursor:pointer; padding:10px; font-family:inherit;
+    }
+    #game-back-btn:hover { color:#fff; }
+  </style>
+</head>
+<body>
+<div id="root">
+
+  <!-- TITLE -->
+  <div id="screen-title" class="screen">
+    <button style="position:fixed;top:0;left:0;background:transparent;border:none;color:rgba(255,255,255,.45);font-size:.9rem;font-weight:bold;cursor:pointer;padding:10px;font-family:inherit;" onclick="location.href='index.html'">← ゲーム選択</button>
+    <div id="title-msg">数字をあてよ。<br>３回当てたらクリア</div>
+    <button id="start-btn">S T A R T</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen hidden">
+    <button id="game-back-btn" onclick="showScreen('title')">← タイトルに戻る</button>
+
+    <div id="stars">
+      <span class="star" id="star0">★</span>
+      <span class="star" id="star1">★</span>
+      <span class="star" id="star2">★</span>
+    </div>
+
+    <div id="arrows">
+      <div class="hint-arrow" id="arrow-up">▲</div>
+      <div class="hint-arrow" id="arrow-dn">▼</div>
+    </div>
+
+    <div id="input-row">
+      <div class="ind" id="ind-o">○</div>
+
+      <div id="slots">
+        <div class="slot-group">
+          <div class="tri" id="tri-up-0">▲</div>
+          <div class="seg-wrap" id="slot0">
+            <div class="seg seg-a"></div><div class="seg seg-b"></div>
+            <div class="seg seg-c"></div><div class="seg seg-d"></div>
+            <div class="seg seg-e"></div><div class="seg seg-f"></div>
+            <div class="seg seg-g"></div>
+          </div>
+          <div class="tri" id="tri-dn-0">▼</div>
+        </div>
+        <div class="slot-group">
+          <div class="tri" id="tri-up-1">▲</div>
+          <div class="seg-wrap" id="slot1">
+            <div class="seg seg-a"></div><div class="seg seg-b"></div>
+            <div class="seg seg-c"></div><div class="seg seg-d"></div>
+            <div class="seg seg-e"></div><div class="seg seg-f"></div>
+            <div class="seg seg-g"></div>
+          </div>
+          <div class="tri" id="tri-dn-1">▼</div>
+        </div>
+      </div>
+
+      <div class="ind" id="ind-x">×</div>
+    </div>
+
+    <button id="decide-btn"></button>
+  </div>
+
+  <!-- CLEAR -->
+  <div id="screen-clear" class="screen hidden">
+    <div id="clear-stars">
+      <span class="clear-star">★</span>
+      <span class="clear-star">★</span>
+      <span class="clear-star">★</span>
+    </div>
+    <div id="clear-label">クリア！</div>
+    <div id="clear-time"></div>
+    <button id="clear-title-btn" onclick="resetToTitle()">← タイトルに戻る</button>
+    <button id="clear-back" onclick="location.href='index.html'">← ゲーム選択</button>
+  </div>
+
+</div>
+<script>
+  // ── State ──
+  let gameNum   = 1;
+  let answer    = 0;
+  let vals      = [1, 1];
+  let starCount = 0;
+  let phase     = 'input';
+  let xLit      = false;
+  let startTime = null;
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // 7-segment patterns [a,b,c,d,e,f,g]
+  const SEG = {
+    1:[0,1,1,0,0,0,0], 2:[1,1,0,1,1,0,1],
+    3:[1,1,1,1,0,0,1], 4:[0,1,1,0,0,1,1],
+    5:[1,0,1,1,0,1,1], 6:[1,0,1,1,1,1,1],
+    7:[1,1,1,0,0,0,0], 8:[1,1,1,1,1,1,1],
+    9:[1,1,1,1,0,1,1],
+  };
+  const SNAMES = ['a','b','c','d','e','f','g'];
+
+  function renderSlot(i) {
+    const wrap = document.getElementById('slot' + i);
+    SNAMES.forEach((s, j) =>
+      wrap.querySelector('.seg-' + s).classList.toggle('on', SEG[vals[i]][j] === 1));
+    document.getElementById('tri-up-' + i).classList.toggle('disabled', vals[i] >= 9);
+    document.getElementById('tri-dn-' + i).classList.toggle('disabled', vals[i] <= 1);
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('screen-' + id).classList.remove('hidden');
+  }
+
+  function setAnswer() {
+    if      (gameNum === 1) answer = 21 + ~~(Math.random() * 9); // 21-29
+    else if (gameNum === 2) answer = 71 + ~~(Math.random() * 9); // 71-79
+    else                    answer = 6;  // ゲーム3（概念上）
+  }
+
+  function lightStar(idx) {
+    document.getElementById('star' + idx).classList.add('on');
+    starCount = idx + 1;
+  }
+
+  function indOn(type) {
+    document.getElementById('ind-o').classList.toggle('on', type === 'o');
+    document.getElementById('ind-x').classList.toggle('on', type === 'x');
+  }
+
+  function arrowOn(dir) {
+    document.getElementById('arrow-up').classList.toggle('on', dir === 'up');
+    document.getElementById('arrow-dn').classList.toggle('on', dir === 'dn');
+  }
+
+  // ── 効果音 ──
+  function playPinpon() {
+    try {
+      const ac = new AudioContext();
+      [880, 1320].forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.connect(g); g.connect(ac.destination);
+        o.frequency.value = f;
+        const t = ac.currentTime + i * 0.2;
+        g.gain.setValueAtTime(0.28, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        o.start(t); o.stop(t + 0.4);
+      });
+    } catch(e) {}
+  }
+
+  function playBuboo() {
+    try {
+      const ac = new AudioContext();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = 'square'; o.frequency.value = 180;
+      const t = ac.currentTime;
+      // バースト1：立ち上がり→フェードアウト
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.22, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      // バースト2：立ち上がり→フェードアウト（クリックなし）
+      g.gain.setValueAtTime(0.001, t + 0.32);
+      g.gain.linearRampToValueAtTime(0.22, t + 0.34);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.62);
+      o.start(t); o.stop(t + 0.65);
+    } catch(e) {}
+  }
+
+  // ── Timer ──
+  function fmtTime(ms) {
+    const m = ~~(ms/60000), s = ~~((ms%60000)/1000), cs = ~~((ms%1000)/10);
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+  }
+
+  // ── ゲーム開始 ──
+  function startGame() {
+    gameNum = 1; starCount = 0; vals = [1,1]; xLit = false; phase = 'input';
+    document.querySelectorAll('.star').forEach(s => s.classList.remove('on'));
+    indOn(null); arrowOn(null);
+    setAnswer();
+    renderSlot(0); renderSlot(1);
+    document.getElementById('decide-btn').disabled = false;
+    startTime = Date.now();
+    showScreen('game');
+  }
+
+  // ── 三角ボタン ──
+  function adjSlot(i, d) {
+    if (phase !== 'input') return;
+    const nv = vals[i] + d;
+    if (nv < 1 || nv > 9) return;
+    vals[i] = nv;
+    renderSlot(i);
+  }
+  document.getElementById('tri-up-0').addEventListener('click', () => adjSlot(0, +1));
+  document.getElementById('tri-dn-0').addEventListener('click', () => adjSlot(0, -1));
+  document.getElementById('tri-up-1').addEventListener('click', () => adjSlot(1, +1));
+  document.getElementById('tri-dn-1').addEventListener('click', () => adjSlot(1, -1));
+
+  // ── 決定ボタン（epoch で非同期競合を制御）──
+  let epoch = 0;
+
+  document.getElementById('decide-btn').addEventListener('click', async () => {
+    // ゲーム3はボタンを常時押せる状態にする（phaseチェックはゲーム1・2のみ）
+    if (gameNum !== 3 && phase !== 'input') return;
+
+    const myEpoch = ++epoch;
+    const btn = document.getElementById('decide-btn');
+    const input = vals[0] * 10 + vals[1];
+
+    // ゲーム3特殊クリア：×が視覚表示中かつ51を入力
+    // 5=S, 1=I, ×=x → SIx → six → 6
+    if (gameNum === 3 && xLit && input === 51) {
+      // ゲーム3はボタン無効化しない。×は判定中も表示したまま
+      await sleep(1000); if (myEpoch !== epoch) return;
+      xLit = false;
+      playPinpon(); indOn('o');
+      await sleep(900); if (myEpoch !== epoch) return;
+      lightStar(2);
+      await sleep(1000); if (myEpoch !== epoch) return;
+      showClearScreen();
+      return;
+    }
+
+    // 通常判定（ゲーム1・2はボタン無効化、ゲーム3は常時有効）
+    if (gameNum !== 3) { phase = 'judging'; btn.disabled = true; }
+    await sleep(1000); if (myEpoch !== epoch) return;
+
+    // 正解（ゲーム1・2のみ）
+    if (gameNum !== 3 && input === answer) {
+      playPinpon(); indOn('o');
+      await sleep(1000); if (myEpoch !== epoch) return;
+      indOn(null); lightStar(starCount);
+      await sleep(600); if (myEpoch !== epoch) return;
+      gameNum++; setAnswer();
+      vals = [1, 1]; xLit = false;
+      renderSlot(0); renderSlot(1);
+      phase = 'input'; btn.disabled = false;
+      return;
+    }
+
+    // 不正解
+    playBuboo(); indOn('x');
+
+    if (gameNum === 3) {
+      // ゲーム3：ボタンは常時有効のまま。×を1秒表示して消す
+      xLit = true;
+      await sleep(1000); if (myEpoch !== epoch) return;
+      xLit = false; indOn(null);
+    } else {
+      await sleep(1000); if (myEpoch !== epoch) return;
+      indOn(null);
+    }
+
+    await sleep(150); if (myEpoch !== epoch) return;
+    arrowOn(input > answer ? 'dn' : 'up');
+    await sleep(1000); if (myEpoch !== epoch) return;
+    arrowOn(null);
+    if (gameNum !== 3) { phase = 'input'; btn.disabled = false; }
+  });
+
+  // ── クリア画面 ──
+  async function showClearScreen() {
+    const elapsed = Date.now() - startTime;
+    showScreen('clear');
+    await sleep(400);
+    document.getElementById('clear-label').style.opacity = '1';
+    await sleep(300);
+    document.getElementById('clear-time').textContent = fmtTime(elapsed);
+    document.getElementById('clear-time').style.opacity = '1';
+    await sleep(300);
+    document.getElementById('clear-title-btn').style.opacity = '1';
+    document.getElementById('clear-back').style.opacity = '1';
+  }
+
+  function resetToTitle() {
+    ['clear-label','clear-time','clear-back'].forEach(id =>
+      document.getElementById(id).style.opacity = '0');
+    startTime = null;
+    showScreen('title');
+  }
+
+  document.getElementById('start-btn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
