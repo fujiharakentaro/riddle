@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>問題文分割クイズ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3efe8;--card:#fff;--line:#e2dcd1;--line2:#d6cfc3;--text:#2a2a2a;--sub:#6e6a63;--mute:#a19c93;
+  --main:#36766a;--main-d:#2b5f55;--main-tint:#dcebe7;--main-dis:#b4cbc6;
+  --par:#9a4e1f;--par-tint:#fbeee2;--par-line:#cf8a5c;
+  --note-bg:#fdf1e4;--note-line:#d58a4a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;font-weight:500}
+button{font:inherit;font-weight:700;cursor:pointer;border:1.5px solid var(--line2);background:#fff;color:var(--text);border-radius:10px;padding:.6em 1.1em}
+button:hover{filter:brightness(.97)}
+button:disabled{cursor:default;filter:none}
+a{color:var(--main-d)}
+.btn-main{display:block;width:100%;background:var(--main);border-color:var(--main);color:#fff;font-size:17px;padding:.85em}
+.btn-main:disabled{background:var(--main-dis);border-color:var(--main-dis)}
+.btn-sub{display:block;width:100%;font-size:16px;padding:.8em}
+input,textarea{font:inherit;background:#fff;color:var(--text);border:1.5px solid var(--line2);border-radius:10px;padding:.65em .8em}
+input:focus{outline:2px solid var(--main-tint);border-color:var(--main)}
+.hidden{display:none!important}
+.sub{color:var(--sub)}
+
+/* グループ色（1〜5） */
+.g0{--g:#d9775a;--gt:#f8e0d6;--gx:#c4502b}
+.g1{--g:#6fae9f;--gt:#d9ece8;--gx:#2f7f6d}
+.g2{--g:#e0b13d;--gt:#fbefc8;--gx:#a77c08}
+.g3{--g:#8a87d0;--gt:#e5e4f7;--gx:#5551ad}
+.g4{--g:#c779aa;--gt:#f4dfed;--gx:#a3467f}
+.gchip{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--gt);color:#3a3a3a;font-size:13px;font-weight:700;white-space:nowrap}
+.glabel{color:var(--gx);font-weight:700;font-size:13px;white-space:nowrap}
+
+/* ===================== PC（主催者）画面 ===================== */
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 40px}
+.top{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.top h1{margin:0;font-size:22px;font-weight:900}
+.top .sp{flex:1}
+.net{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:#eee;color:#888}
+.net.ok{background:var(--main-tint);color:var(--main-d)}
+.net.ng{background:#fbe1dc;color:#b6452a}
+.ttabs{display:flex;gap:6px}
+.ttabs button{padding:.4em 1em;font-size:14px}
+.ttabs button.on{background:var(--main);border-color:var(--main);color:#fff}
+.meta{font-size:14px;color:var(--sub);margin-bottom:14px}
+.meta b{color:var(--text)}
+.cols{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+.cols.single{grid-template-columns:1fr}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:20px 22px;box-shadow:0 1px 3px #0000000a}
+.card h2{margin:0 0 6px;font-size:20px;font-weight:900}
+.card .desc{margin:0 0 16px;font-size:14px;color:var(--sub);line-height:1.7}
+.card .desc b{color:var(--text)}
+.rows{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.row{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line2);border-radius:10px;padding:12px 16px;background:#fff;font-size:16px}
+.row .no{font-size:13px;color:var(--sub);width:46px}
+.row .nm{font-weight:900;font-size:17px}
+.row .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.row.par{background:var(--par-tint);border-color:var(--par-line)}
+.badge-par{background:var(--par);color:#fff;font-size:12px;font-weight:900;border-radius:6px;padding:1px 7px}
+.badge-ch{background:#ecebe6;color:var(--sub);font-size:12px;font-weight:900;border-radius:6px;padding:1px 7px}
+.row .x{border:none;background:none;color:var(--mute);padding:0 4px;font-size:14px}
+.qrow{cursor:pointer;text-align:left;width:100%}
+.qrow .qn{font-weight:900}
+.genre{display:inline-block;background:var(--main-tint);color:var(--main-d);font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px}
+.used{background:#ecebe6;color:var(--sub);font-size:12px;font-weight:900;border-radius:6px;padding:1px 7px}
+.qrow.on{border-color:var(--main);box-shadow:0 0 0 1px var(--main) inset}
+.lbl{font-size:14px;font-weight:900;margin:4px 0 8px}
+.nsel{display:flex;gap:8px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.nsel button{width:52px;height:52px;font-size:20px;font-weight:900;padding:0}
+.nsel button.on{background:var(--main);border-color:var(--main);color:#fff}
+.nsel button:disabled{color:#cfcac0;border-color:#e6e1d8}
+.nsel .hint{font-size:13px;color:var(--sub)}
+.stack{display:flex;flex-direction:column;gap:10px}
+.banner{background:var(--main-tint);border-radius:10px;padding:12px;text-align:center;font-weight:900;margin-bottom:12px}
+.st-ok{background:var(--main);color:#fff;font-size:12px;font-weight:900;border-radius:6px;padding:2px 8px}
+.st-no{background:#ecebe6;color:var(--sub);font-size:12px;font-weight:900;border-radius:6px;padding:2px 8px}
+.ansrow .who{font-weight:900;width:120px}
+.ansrow .glabel{width:72px}
+.ansrow .a{font-weight:900;font-size:18px;word-break:break-all}
+.ansrow .a.empty{color:var(--mute);font-weight:500;font-size:15px}
+.reveal{background:var(--main-tint);border:2px solid var(--main);border-radius:14px;padding:22px;text-align:center;margin-bottom:16px}
+.reveal .full{font-size:30px;font-weight:900;line-height:1.6;word-break:break-all;background:#fff;border-radius:10px;padding:10px 16px}
+.reveal .full.masked-view{background:var(--gt);box-shadow:0 0 0 2px var(--g) inset}
+.reveal .full .h{color:#bdb7ab;font-weight:500}
+.vtabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+.vtabs button{padding:.45em 1em;font-size:14px;line-height:1.3;display:flex;flex-direction:column;align-items:center}
+.vtabs button small{font-size:11px;font-weight:700;color:var(--sub);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vtabs button.on{background:var(--main);border-color:var(--main);color:#fff}
+.vtabs button.on small{color:#fff}
+.vtabs button[class*="g"].on{background:var(--gt);border-color:var(--g);color:#2a2a2a;box-shadow:0 0 0 1px var(--g) inset}
+.vtabs button[class*="g"].on small{color:var(--sub)}
+.reveal .lab{font-size:13px;color:var(--sub);margin-top:12px}
+.reveal .ans{font-size:44px;font-weight:900;line-height:1.25}
+.legend{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.center{text-align:center;padding:20px 0;color:var(--sub)}
+.lobbyqr{display:flex;gap:24px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.qrnote{max-width:320px;font-size:13px;line-height:1.7;color:#a55a1c;background:var(--note-bg);border:1.5px dashed var(--note-line);border-radius:12px;padding:12px 14px}
+.qrbox{background:#fff;padding:10px;border:1.5px solid var(--line);border-radius:12px;display:inline-block}
+.side h3{margin:0 0 10px;font-size:15px;font-weight:900}
+.side .rows{gap:6px}
+.side .row{padding:8px 10px;font-size:14px}
+.side .row .nm{font-size:15px}
+.side .row .no{width:auto}
+.dot{width:8px;height:8px;border-radius:50%;background:#cfcac0;flex:none}
+.dot.on{background:var(--main)}
+.side .tools{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.side .tools button{font-size:13px;padding:.5em}
+.dbg{border-color:var(--note-line)!important;color:#a55a1c!important;background:var(--note-bg)!important}
+.foot{text-align:center;font-size:13px;color:var(--sub);margin-top:22px}
+
+/* 親決めルーレット */
+.roul{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:18px 0 22px}
+.rchip{min-width:110px;text-align:center;padding:16px 22px;border-radius:14px;border:2px solid var(--line2);background:#fff;font-size:22px;font-weight:900;transition:transform .08s,background .08s}
+.rchip.out{opacity:.3}
+.rchip.hi{background:var(--par-tint);border-color:var(--par);transform:scale(1.08)}
+.rchip.win{background:var(--par);border-color:var(--par);color:#fff;transform:scale(1.16);box-shadow:0 6px 18px #9a4e1f55;animation:winpop .5s}
+@keyframes winpop{0%{transform:scale(1.5)}100%{transform:scale(1.16)}}
+.rresult{text-align:center;font-size:26px;font-weight:900;min-height:40px}
+.rresult b{color:var(--par)}
+
+/* 問題管理 */
+.fg{display:grid;grid-template-columns:180px 1fr 200px;gap:10px}
+.fg label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--sub);font-weight:700}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.acts button{padding:.5em 1em;font-size:14px}
+.acts .pri{background:var(--main);border-color:var(--main);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:9px 6px;text-align:left;vertical-align:top}
+th{color:var(--sub);font-weight:700;font-size:12px}
+.mini{padding:.25em .7em!important;font-size:12px!important}
+.trybox{display:flex;align-items:center;gap:16px;background:var(--note-bg);border:2px dashed var(--note-line);border-radius:12px;padding:14px 18px;margin-bottom:22px}
+.trybox .t{flex:1;font-size:14px;line-height:1.7}
+.trybox .t b{font-size:16px}
+.trybox a{white-space:nowrap;text-decoration:none;background:var(--main);color:#fff;font-weight:700;border-radius:10px;padding:.7em 1.2em}
+
+/* ===================== 試作品モード ===================== */
+.note{display:flex;gap:12px;align-items:flex-start;background:var(--note-bg);border:2px dashed var(--note-line);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.7}
+.note .tag{flex:none;background:var(--par);color:#fff;font-weight:900;font-size:13px;border-radius:8px;padding:2px 10px;margin-top:2px}
+.note b{font-weight:900}
+.dtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dtabs button{border-radius:14px 14px 0 0;border-bottom:none;padding:.8em;font-size:16px;font-weight:900;color:var(--sub);background:#f8f6f1}
+.dtabs button.on{background:#fff;color:var(--text);border-top:3px solid var(--main)}
+.dbody{background:#fff;border:1.5px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:20px 22px;min-height:200px}
+.dbody .card{border:none;box-shadow:none;padding:0}
+#demoStage{max-width:1180px;margin:-40px auto 0;padding:0 20px 40px}
+#demoStage .inner{background:#fff;border:1.5px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:16px 22px 22px}
+#demoStage .dstage{height:700px;display:flex;justify-content:center}
+#demoStage .dextra{max-width:360px;margin:12px auto 0;display:flex;flex-direction:column;gap:8px}
+#demoStage .dextra button{font-size:14px}
+
+/* ===================== スマホ画面 ===================== */
+.phone{max-width:480px;margin:0 auto;padding:16px 16px 30px;background:#fdfbf6;min-height:100vh}
+.pframe .phone{min-height:0}
+.phead{text-align:center;margin-bottom:12px;position:relative}
+.phead .who{font-size:12px;color:var(--sub)}
+.phead .role{font-size:19px;font-weight:900;margin-top:2px}
+.phead .qinfo{font-size:13px;color:var(--sub);margin-top:8px}
+.ps{position:absolute;right:0;top:0;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px}
+.ps.ok{background:var(--main-tint);color:var(--main-d)}.ps.ng{background:#fbe1dc;color:#b6452a}
+.pnote{font-size:13.5px;color:#4a4740;line-height:1.75;margin:0 0 12px}
+.gbtns{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;margin-bottom:12px}
+.gbtns button{padding:.5em .2em;font-size:14px;font-weight:900;background:#e6e2da;border:2px solid #d3cdc2;color:#9a958c;line-height:1.35;display:flex;flex-direction:column;align-items:center;gap:2px}
+.gbtns button small{font-size:11px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbtns button.on{background:var(--gt);border-color:var(--g);color:#2a2a2a}
+.plabel{font-size:12px;font-weight:900;color:var(--sub);margin:2px 0 6px}
+.kids{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.kid{border:1.5px dashed var(--line2);background:#fff;border-radius:99px;padding:5px 12px;font-size:14px;font-weight:900;cursor:pointer;user-select:none;-webkit-user-select:none}
+.kid.as{border-style:solid;background:var(--gt);border-color:var(--g)}
+.tiles{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.tile{width:30px;height:34px;border:1.5px solid var(--line2);border-radius:6px;background:#fff;display:grid;place-items:center;font-size:18px;font-weight:900;cursor:pointer;user-select:none;-webkit-user-select:none}
+.tile.as{background:var(--gt);border-color:var(--g)}
+.tile.pu{border:none;background:none;width:16px;cursor:default;color:#555}
+.left{font-size:13px;color:#4a4740;margin-bottom:12px;line-height:1.6}
+.left b{color:#c4502b}
+.pbtn3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.pbtn3 button{padding:.7em .2em;font-size:13px;line-height:1.35}
+.bigq{font-size:21px;font-weight:700;line-height:1.75;margin-bottom:12px;word-break:break-all}
+.gbanner{background:var(--gt);border-radius:10px;padding:10px;text-align:center;font-weight:900;margin-bottom:14px}
+.masked{font-size:24px;font-weight:900;line-height:1.75;word-break:break-all;margin-bottom:12px;letter-spacing:.02em}
+.masked .v{color:var(--gx)}
+.masked .h{color:#c4beb3;font-weight:500}
+.masked .p{color:#3a3a3a}
+.ansbox input{width:100%;font-size:18px;margin-bottom:10px}
+.donebox{background:var(--main-tint);border-radius:10px;padding:12px;text-align:center;font-size:14px;line-height:1.6;color:#2a2a2a}
+.relink{display:block;margin:10px auto 0;border:none;background:none;color:var(--main-d);font-size:13px;text-decoration:underline;padding:4px}
+.waitbox{text-align:center;padding:30px 6px;font-size:14.5px;line-height:1.8;color:#4a4740}
+.waitbox .ic{font-size:30px;margin-bottom:6px}
+.pfull{font-size:19px;font-weight:900;line-height:1.7;word-break:break-all;background:var(--main-tint);border-radius:10px;padding:12px;margin-bottom:10px}
+.pcorrect{text-align:center;font-size:13px;color:var(--sub)}
+.pcorrect b{display:block;font-size:30px;color:var(--text)}
+.join .t{font-size:22px;font-weight:900;text-align:center;margin:20px 0 6px}
+.join input{width:100%;font-size:19px;margin:14px 0 10px}
+
+/* ===================== 確認ダイアログ ===================== */
+.dlg{position:fixed;inset:0;z-index:100;background:#2a2a2a59;display:grid;place-items:center;padding:16px;animation:dlgfade .15s}
+.dlgbox{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:24px 22px 18px;width:100%;max-width:420px;box-shadow:0 12px 40px #0000002e;animation:dlgpop .18s}
+.dlgmsg{font-size:16px;font-weight:700;line-height:1.75;text-align:center;margin-bottom:20px;word-break:break-all}
+.dlgmsg small{display:block;font-size:13px;font-weight:500;color:var(--sub);margin-top:6px}
+.dlgbtns{display:flex;gap:8px}
+.dlgbtns button{flex:1;padding:.8em .5em;font-size:15px}
+.dlgbtns .go{background:var(--main);border-color:var(--main);color:#fff}
+.dlgbtns .danger{background:#c4502b;border-color:#c4502b;color:#fff}
+@keyframes dlgfade{from{opacity:0}}
+@keyframes dlgpop{from{transform:scale(.94);opacity:0}}
+
+/* ===================== デバッグ欄 ===================== */
+#dock{position:fixed;left:0;right:0;bottom:0;height:56vh;background:#ebe6dd;border-top:2px dashed var(--note-line);z-index:50;display:flex;flex-direction:column}
+#dock .dhead{display:flex;gap:6px;align-items:center;padding:8px 12px;flex-wrap:wrap;font-size:13px}
+#dock .dhead b{color:#a55a1c}
+#dock .dhead button{padding:.3em .8em;font-size:12px}
+#dock .sp{flex:1}
+.dpills{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 12px 10px}
+.dpills button{border-radius:99px;padding:.35em 1em;font-size:13px}
+.dpills button.on{background:#2b3035;border-color:#2b3035;color:#fff}
+.dstage{flex:1;min-height:0;display:flex;justify-content:center;padding:0 12px 12px}
+.pframe{width:360px;max-width:100%;height:100%;border:3px solid #2b3035;border-radius:30px;background:#fdfbf6;overflow:hidden;display:flex;flex-direction:column}
+.pframe .notch{flex:none;width:70px;height:5px;border-radius:99px;background:#9c9890;margin:10px auto 0}
+.pscreen{flex:1;min-height:0;overflow:auto}
+.pscreen .phone{padding:10px 16px 20px}
+body.dbg .wrap{padding-bottom:58vh}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+'use strict';
+/* ==================================================================
+   共通
+   ================================================================== */
+const MAX_GROUPS=5;
+const GNAME=g=>'グループ'+(g+1);
+// 割り振りの対象外にする記号（全グループ共通で表示）
+const PUNCT=/[\s、。，．,.!?！？「」『』（）()【】［］\[\]・：:；;…〜~"'“”‘’]/;
+
+const $=s=>document.querySelector(s);
+const app=document.getElementById('app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=(n=10)=>Array.from(crypto.getRandomValues(new Uint8Array(n)),b=>'abcdefghijkmnpqrstuvwxyz23456789'[b%32]).join('');
+function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}}
+function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+const chars=t=>Array.from(String(t||''));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+// 記号以外の文字を、全グループに均等（差は最大1文字）にランダムで割り振る
+function autoAssign(text,n){
+  const a=chars(text).map(c=>PUNCT.test(c)?-1:null);
+  shuffle(a.map((v,k)=>v===-1?-1:k).filter(k=>k>=0)).forEach((k,j)=>{a[k]=j%n});
+  return a;
+}
+// 子を全グループに均等（差は最大1人）にランダムで割り振る
+function autoPeople(ids,n){const o={};shuffle(ids.slice()).forEach((id,k)=>{o[id]=k%n});return o}
+
+/* ブラウザ標準のポップアップ（confirm／alert）の代わりに使う、システム内の確認ダイアログ
+   戻り値：1＝OK　0＝キャンセル　2＝もう一つの選択肢（alt） */
+function ask(msg,{ok='OK',cancel='キャンセル',alt=null,danger=false}={}){
+  return new Promise(res=>{
+    const el=document.createElement('div');el.className='dlg';
+    el.innerHTML=`<div class="dlgbox"><div class="dlgmsg">${msg}</div><div class="dlgbtns">
+      ${cancel?`<button data-v="0">${cancel}</button>`:''}${alt?`<button data-v="2">${alt}</button>`:''}
+      <button class="${danger?'danger':'go'}" data-v="1">${ok}</button></div></div>`;
+    const done=v=>{document.removeEventListener('keydown',key,true);el.remove();res(v)};
+    const key=e=>{if(e.key==='Escape'&&cancel){e.preventDefault();e.stopPropagation();done(0)}else if(e.key==='Enter'&&!e.isComposing){e.preventDefault();e.stopPropagation();done(1)}};
+    el.querySelectorAll('button').forEach(b=>b.onclick=()=>done(Number(b.dataset.v)));
+    el.onclick=e=>{if(e.target===el&&cancel)done(0)};
+    document.addEventListener('keydown',key,true);
+    document.body.appendChild(el);el.querySelector('[data-v="1"]').focus();
+  });
+}
+const tell=msg=>ask(msg,{cancel:null});
+
+const URLP=new URLSearchParams(location.search);
+const HOST_ID=URLP.get('host');
+if(HOST_ID)Client();else Host(URLP.has('demo'));
+
+/* ==================================================================
+   PC（主催者）
+   DEMO=true のときは「試作品モード」：1台で主催者・親・子を全部体験する
+   ================================================================== */
+function Host(DEMO){
+  const P=DEMO?'bunkatsu_demo_':'bunkatsu_';
+  const LQ=P+'questions',LS=P+'state',LP='bunkatsu_peer';
+  // 試作品モードは、本番の問題リストをそのまま使う（「済」の印だけ試作品モード専用に持つ）
+  const demoQuestions=()=>{const used=load(P+'used',[]);return (load('bunkatsu_questions',null)||sampleQuestions()).map(q=>({...q,used:used.includes(q.id)}))};
+  let Q=DEMO?demoQuestions():(load(LQ,null)||sampleQuestions());
+  let S=load(LS,null)||(DEMO?demoFresh():fresh());
+  if(S.rolling){S.rolling=false;store(LS,S)}
+  let peer=null,conns={},NET='接続準備中',NETOK=false,joinURL='';
+  let TAB='game',SELQ=null,SELN=2,EDIT=null;
+  let VIRT={},DSEL=null,DEBUG=false;   // 仮プレイヤー（デバッグ・試作品モード用）
+  let DTAB='pc';   // 試作品モードのタブ
+
+  function fresh(){return {phase:'lobby',players:[],parentIdx:0,parentsDone:[],qid:null,n:2,assign:null,pg:{},groupOf:{},answers:{},round:0}}
+  function demoFresh(){
+    const s=fresh();
+    s.players=['あなた','たろう','はなこ','じろう','さくら'].map((nm,i)=>({id:'demo-'+i,name:nm,debug:true,you:i===0}));
+    return s;
+  }
+  function sampleQuestions(){
+    return [
+      ['科学','水を電気分解すると、水素と何が発生しますか','酸素'],
+      ['地理','日本でいちばん面積が大きい都道府県はどこですか','北海道'],
+      ['宇宙','太陽系でいちばん大きい惑星は何ですか','木星'],
+      ['動物','パンダが主に食べている植物は何ですか','竹（笹）'],
+    ].map((r,i)=>({id:'q'+String(i+1).padStart(3,'0'),genre:r[0],text:r[1],answer:r[2],used:false}));
+  }
+  const saveQ=()=>DEMO?store(P+'used',Q.filter(q=>q.used).map(q=>q.id)):store(LQ,Q),saveS=()=>store(LS,S);
+  const getQ=id=>Q.find(q=>q.id===id);
+  const qLabel=q=>q?`問題${Q.indexOf(q)+1}（${q.genre||'—'}）`:'';
+  const parent=()=>S.players[S.parentIdx]||null;
+  // まだ親をやっていない人の中からランダムに親を決める（全員やったら一巡して、また全員が候補に戻る）
+  function pickParent(){
+    if(!S.players.length){S.parentIdx=0;return}
+    S.parentsDone=(S.parentsDone||[]).filter(id=>S.players.some(x=>x.id===id));
+    let cand=S.players.filter(x=>!S.parentsDone.includes(x.id));
+    if(!cand.length){S.parentsDone=[];cand=S.players.slice()}
+    const cur=parent();if(cand.length>1&&cur)cand=cand.filter(x=>x.id!==cur.id);   // 一巡直後に同じ人が続かないように
+    const pick=cand[Math.floor(Math.random()*cand.length)];
+    S.parentIdx=S.players.indexOf(pick);
+    return cand.map(x=>x.id);
+  }
+  let REVG=null;   // 正解発表で表示中のグループ（null＝全文）
+  let ROUL=null;   // {cands, target, hi, done}：親決めルーレットの表示状態（このPCだけ）
+  function spinParent(){
+    const cands=pickParent()||[],p=parent();
+    if(!p){commit();return}
+    S.rolling=true;commit();   // 止まるまでは、スマホにも親を伏せる
+    const order=cands.length?cands:[p.id],steps=order.length*4+order.indexOf(p.id);
+    ROUL={cands:order,target:p.id,hi:order[0],done:false};
+    let k=0;
+    const step=()=>{
+      if(!ROUL)return;
+      ROUL.hi=order[k%order.length];render();
+      if(k>=steps){ROUL.done=true;S.rolling=false;commit();setTimeout(()=>{ROUL=null;render()},1600);return}
+      k++;setTimeout(step,60+520*Math.pow(k/steps,2.4));
+    };
+    step();
+  }
+  function markParentDone(){const p=parent();if(p){S.parentsDone=S.parentsDone||[];if(!S.parentsDone.includes(p.id))S.parentsDone.push(p.id)}}
+  const childIds=()=>{const p=parent();return S.players.filter(x=>!p||x.id!==p.id).map(x=>x.id)};
+  const pname=id=>(S.players.find(x=>x.id===id)||{}).name||'(退出)';
+  const online=pid=>!!VIRT[pid]||Object.values(conns).some(c=>c.pid===pid&&c.conn.open);
+  const maxN=()=>Math.min(MAX_GROUPS,childIds().length);
+  const allAnswered=()=>{const ids=Object.keys(S.groupOf);return ids.length>0&&ids.every(id=>(S.answers[id]||'').trim())};
+
+  function commit(){saveS();broadcast();render()}
+
+  /* ---------- 通信（PeerJS） ---------- */
+  function startPeer(){
+    let id=load(LP,null);if(!id){id='bunkatsu-'+uid();store(LP,id)}
+    peer=new Peer(id);
+    peer.on('open',pid=>{joinURL=location.href.split(/[?#]/)[0]+'?host='+pid;NET='接続OK';NETOK=true;render()});
+    peer.on('error',e=>{
+      NETOK=false;
+      if(e.type==='unavailable-id'){NET='再接続中…';render();setTimeout(()=>{try{peer.destroy()}catch(_){}startPeer()},3000)}
+      else if(e.type!=='peer-unavailable'){NET='通信エラー（'+e.type+'）';render()}
+    });
+    peer.on('disconnected',()=>{NETOK=false;NET='再接続中…';render();setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000)});
+    peer.on('connection',c=>{
+      conns[c.connectionId]={conn:c,pid:null};
+      c.on('data',d=>onData(c,d));
+      c.on('close',()=>{delete conns[c.connectionId];render()});
+      c.on('error',()=>{delete conns[c.connectionId];render()});
+    });
+  }
+  function sendView(rec){if(rec.pid&&rec.conn.open){try{rec.conn.send({t:'view',v:playerView(rec.pid)})}catch(e){}}}
+  function broadcast(){Object.values(conns).forEach(sendView);Object.values(VIRT).forEach(x=>x.ui.view(playerView(x.pid)));renderDockPills()}
+  function onData(c,d){
+    const rec=conns[c.connectionId]||(conns[c.connectionId]={conn:c,pid:null});
+    if(!d||typeof d!=='object')return;
+    if(d.t==='join'){
+      let p=S.players.find(x=>x.id===d.pid);
+      if(!p){
+        if(d.rejoinOnly){rec.pid=null;try{c.send({t:'view',v:{known:false}})}catch(e){}return}
+        p={id:String(d.pid||uid()),name:String(d.name||'').trim().slice(0,20)||'名無し'};
+        S.players.push(p);
+      }
+      rec.pid=p.id;try{c.send({t:'joined',pid:p.id})}catch(e){}
+      commit();return;
+    }
+    handle(rec.pid,d);
+  }
+  // スマホからの操作（実機・仮プレイヤー共通）
+  function handle(pid,d){
+    if(!pid||!d)return;
+    if(d.t==='draft'||d.t==='send'){
+      const p=parent(),q=getQ(S.qid);
+      if(!p||p.id!==pid||S.phase!=='split'||!q)return;
+      if(Array.isArray(d.assign)&&d.assign.length===chars(q.text).length)S.assign=d.assign.map(v=>v===null||v===-1?v:Number(v));
+      if(d.people&&typeof d.people==='object'){
+        const kids=new Set(childIds());S.pg={};
+        for(const [id,g] of Object.entries(d.people)){const n=Number(g);if(kids.has(id)&&n>=0&&n<S.n)S.pg[id]=n}
+      }
+      if(d.t==='send'&&validSplit())distribute();
+      commit();return;
+    }
+    if(d.t==='answer'){
+      if(S.phase!=='answer'||S.groupOf[pid]==null)return;
+      S.answers[pid]=String(d.text||'').slice(0,100);
+      commit();
+    }
+  }
+
+  /* ---------- スマホに送る画面情報 ---------- */
+  function playerView(pid){
+    const me=S.players.find(x=>x.id===pid);
+    if(!me)return {known:false};
+    const p=parent(),isParent=!!p&&p.id===pid,q=getQ(S.qid);
+    if(S.rolling)return {known:true,me:{id:pid,name:me.name},phase:'rolling',round:S.round};
+    const v={known:true,me:{id:pid,name:me.name},phase:S.phase,round:S.round,isParent,parentName:p?p.name:'',n:S.n,qlabel:qLabel(q)};
+    if(isParent&&S.phase==='split'&&q){
+      v.text=chars(q.text);v.full=q.text;v.assign=S.assign;v.people=S.pg||{};
+      v.children=childIds().map(id=>({id,name:pname(id)}));
+    }
+    if(!isParent&&['answer','closed','reveal'].includes(S.phase)&&q){
+      const g=S.groupOf[pid];
+      if(g==null)v.late=true;
+      else{v.group=g;v.masked=chars(q.text).map((c,k)=>S.assign[k]===-1?{c,p:1}:S.assign[k]===g?{c}:null);v.answer=S.answers[pid]||''}
+    }
+    if(S.phase==='reveal'&&q){v.full=q.text;v.correct=q.answer}
+    return v;
+  }
+
+  /* ---------- 進行 ---------- */
+  // 文字：全部割り振り済み＆各グループ1文字以上／人：子全員が割り振り済み＆各グループ1人以上
+  function validSplit(){
+    const a=S.assign;if(!a)return false;
+    const cnt=Array(S.n).fill(0),pc=Array(S.n).fill(0);
+    for(const v of a){if(v===-1)continue;if(v===null||v<0||v>=S.n)return false;cnt[v]++}
+    for(const id of childIds()){const g=(S.pg||{})[id];if(g==null)return false;pc[g]++}
+    return cnt.every(x=>x>0)&&pc.every(x=>x>0);
+  }
+  function distribute(){
+    S.groupOf={};childIds().forEach(id=>{S.groupOf[id]=S.pg[id]});
+    S.answers={};S.phase='answer';
+    if(DEMO)demoAutoAnswer();
+  }
+  function resetQuestion(){Object.assign(S,{qid:null,assign:null,pg:{},groupOf:{},answers:{}})}
+  window.H={
+    start(){if(S.players.length<3)return;S.phase='select';S.parentsDone=[];S.parentIdx=-1;S.round=1;resetQuestion();SELQ=null;spinParent()},
+    pickQ(id){SELQ=id;render()},
+    pickN(n){SELN=n;render()},
+    choose(){
+      const q=getQ(SELQ);if(!q||SELN<2||SELN>maxN())return;
+      resetQuestion();S.qid=q.id;S.n=SELN;S.assign=chars(q.text).map(c=>PUNCT.test(c)?-1:null);
+      q.used=true;saveQ();S.phase='split';SELQ=null;
+      if(DEMO)DTAB='parent';
+      commit();
+    },
+    async cancelQ(){if(!await ask('この問題を中止して、問題選択に戻りますか？',{ok:'中止する',danger:true}))return;const q=getQ(S.qid);if(q){q.used=false;saveQ()}resetQuestion();S.phase='select';commit()},
+    skipParent(){if(!S.players.length||ROUL)return;spinParent()},
+    youParent(){const i=S.players.findIndex(x=>x.you);if(i>=0){S.parentIdx=i;commit()}},
+    close(){if(S.phase==='answer'){S.phase='closed';commit()}},
+    reveal(){if(S.phase==='closed'){S.phase='reveal';REVG=null;commit()}},
+    view(g){REVG=g;render()},
+    next(){
+      if(!S.players.length)return;
+      markParentDone();S.round++;resetQuestion();S.phase='select';SELQ=null;spinParent();
+    },
+    async remove(id,silent){
+      if(!silent&&!await ask(`「${esc(pname(id))}」を参加者から外しますか？`,{ok:'外す',danger:true}))return;
+      const i=S.players.findIndex(x=>x.id===id);if(i<0)return;
+      const wasParent=i===S.parentIdx;
+      S.players.splice(i,1);dropVirt(id);
+      if(i<S.parentIdx)S.parentIdx--;
+      S.parentIdx=S.players.length?S.parentIdx%S.players.length:0;
+      delete S.groupOf[id];delete S.answers[id];if(S.pg)delete S.pg[id];
+      if(wasParent&&S.phase!=='lobby'){if(['split','answer','closed'].includes(S.phase)){const q=getQ(S.qid);if(q&&S.phase==='split'){q.used=false;saveQ()}resetQuestion();S.phase='select'}S.parentIdx=-1;pickParent()}
+      if(S.phase==='answer'&&!Object.keys(S.groupOf).length){resetQuestion();S.phase='select'}
+      commit();
+    },
+    async resetGame(){
+      if(!await ask('ゲームを最初（参加者登録）に戻しますか？<small>参加者はそのまま残ります</small>',{ok:'最初に戻す',danger:true}))return;
+      const ps=S.players;S=fresh();S.players=ps;commit();
+    },
+    async resetAll(){
+      if(!await ask('参加者も含めて、すべてリセットしますか？<small>参加者はQRから参加し直しになります</small>',{ok:'リセットする',danger:true}))return;
+      Object.keys(VIRT).forEach(dropVirt);S=fresh();commit();
+    },
+    async resetDemo(){
+      if(!await ask('試作品モードを最初からやり直しますか？',{ok:'やり直す'}))return;
+      Object.keys(VIRT).forEach(dropVirt);S=demoFresh();Q.forEach(q=>q.used=false);saveQ();
+      S.players.forEach(addVirtUI);DTAB='pc';commit();
+    },
+    async newPeer(){
+      if(!await ask('接続用のIDを作り直しますか？<small>QRコードが変わるので、全員が読み取り直しになります</small>',{ok:'作り直す',danger:true}))return;
+      localStorage.removeItem(LP);try{peer.destroy()}catch(_){}conns={};startPeer();
+    },
+    tab(t){TAB=t;render()},
+    dtab(t){DTAB=t;if(t==='child'){const p=parent();if(!DSEL||!VIRT[DSEL]||(p&&DSEL===p.id))DSEL=childIds()[0]||null}render();renderDockPills()},
+  };
+
+  /* ---------- 問題管理 ---------- */
+  window.QM={
+    edit(id){EDIT=id;render();scrollTo(0,0)},
+    clear(){EDIT=null;render()},
+    save(){
+      const g=$('#f_g').value.trim(),t=$('#f_t').value.trim(),a=$('#f_a').value.trim();
+      if(!t||!a){tell('問題文と答えを入力してください');return}
+      if(EDIT){Object.assign(getQ(EDIT),{genre:g,text:t,answer:a})}
+      else{let n=Q.length+1,id;do{id='q'+String(n++).padStart(3,'0')}while(getQ(id));Q.push({id,genre:g,text:t,answer:a,used:false})}
+      EDIT=null;saveQ();render();
+    },
+    async del(id){const q=getQ(id);if(!await ask(`「${esc(q.text)}」を削除しますか？`,{ok:'削除する',danger:true}))return;Q=Q.filter(x=>x.id!==id);if(EDIT===id)EDIT=null;saveQ();render()},
+    toggleUsed(id){const q=getQ(id);q.used=!q.used;saveQ();render()},
+    async resetUsed(){if(!await ask('すべての問題の「済」を解除しますか？',{ok:'解除する'}))return;Q.forEach(q=>q.used=false);saveQ();render()},
+    exportJSON(){
+      const blob=new Blob([JSON.stringify({questions:Q.map(({id,genre,text,answer})=>({id,genre,text,answer}))},null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='questions.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    },
+    importJSON(inp){
+      const f=inp.files[0];if(!f)return;
+      const r=new FileReader();
+      r.onload=async()=>{
+        let d;try{d=JSON.parse(r.result)}catch(e){tell('JSONを読み込めませんでした');return}
+        const qs=Array.isArray(d)?d:d.questions;
+        if(!Array.isArray(qs)){tell('問題データが見つかりませんでした');return}
+        const how=await ask(`${qs.length}問を読み込みます。<small>今ある問題と置き換えるか、後ろに追加するかを選んでください</small>`,{ok:'置き換える',alt:'追加する',cancel:'やめる'});
+        if(!how)return;const replace=how===1;
+        const norm=qs.filter(q=>q&&q.text).map(q=>({id:String(q.id||''),genre:String(q.genre||''),text:String(q.text),answer:String(q.answer||''),used:false}));
+        if(replace)Q=[];
+        norm.forEach(q=>{if(!q.id||getQ(q.id))q.id='q'+uid(5);Q.push(q)});
+        saveQ();render();
+      };
+      r.readAsText(f);inp.value='';
+    },
+  };
+
+  /* ---------- 描画 ---------- */
+  function render(){
+    if(DEMO)return renderDemo();
+    const p=parent(),lobby=S.phase==='lobby';
+    app.innerHTML=`<div class="wrap">
+      <div class="top"><h1>問題文分割クイズ</h1><span class="net ${NETOK?'ok':'ng'}">${esc(NET)}</span><span class="sp"></span>
+        <span class="ttabs"><button class="${TAB==='game'?'on':''}" onclick="H.tab('game')">進行</button><button class="${TAB==='qm'?'on':''}" onclick="H.tab('qm')">問題管理</button></span></div>
+      ${TAB==='game'?`
+      <div class="meta">${lobby?'参加受付中':`第${S.round}問${S.rolling?'':` ｜ 親は <b>${esc(p?p.name:'')}</b>`}`}</div>
+      <div class="cols ${lobby?'single':''}"><div class="card">${gameHTML()}</div>${lobby?'':sideHTML()}</div>`:`<div class="card">${qmHTML()}</div>`}
+    </div>`;
+    drawQR();
+  }
+  function renderDemo(){
+    const p=parent(),lobby=S.phase==='lobby';
+    app.innerHTML=`<div class="wrap">
+      <div class="note"><span class="tag">試作品</span><div>1台で親・子・主催者すべての役を試せるモードです。ダミーの子は自動で解答します（「あなた」の画面では自分で解答できます）。<a href="${location.href.split(/[?#]/)[0]}">本番の画面に戻る</a></div></div>
+      <div class="meta">${lobby?'参加者登録（ダミーメンバー）':`第${S.round}問${S.rolling?'':` ｜ 親は <b>${esc(p?p.name:'')}</b>`}`}</div>
+      <div class="dtabs"><button class="${DTAB==='pc'?'on':''}" onclick="H.dtab('pc')">PC管理画面</button><button class="${DTAB==='parent'?'on':''}" onclick="H.dtab('parent')">親のスマホ</button><button class="${DTAB==='child'?'on':''}" onclick="H.dtab('child')">子のスマホ</button></div>
+      ${DTAB==='pc'?`<div class="dbody"><div class="card">${gameHTML()}</div>
+        <div class="acts" style="justify-content:center;margin-top:20px"><button onclick="H.resetDemo()">試作品を最初からやり直す</button></div></div>`:''}
+    </div>`;
+    const st=document.getElementById('demoStage');if(st)st.classList.toggle('hidden',DTAB==='pc');
+  }
+  // スマホから開けるのは、GitHubなどインターネット上に置いたURLで開いたときだけ
+  const WEB=/^https?:$/.test(location.protocol);
+  function qrSlot(id){
+    if(!WEB)return '<div class="qrnote">このファイルをPCで直接開いているため、スマホからは参加できません。<br>GitHubに置いたURLで開くと、ここにQRコードが出ます。</div>';
+    if(!joinURL)return `<div class="qrnote">${NETOK?'':'接続を準備しています…'}${NET.startsWith('通信エラー')?`<br>${esc(NET)}<br><button class="mini" onclick="H.newPeer()">接続し直す</button>`:''}</div>`;
+    return `<div class="qrbox" id="${id}"></div>`;
+  }
+  function drawQR(){
+    if(!WEB||!joinURL||typeof QRCode==='undefined')return;
+    [['#qrBig',220],['#qrSmall',120]].forEach(([sel,w])=>{
+      const el=$(sel);if(!el)return;
+      try{new QRCode(el,{text:joinURL,width:w,height:w,correctLevel:QRCode.CorrectLevel.L})}
+      catch(e){el.outerHTML=`<div class="qrnote">QRコードを作れませんでした。<br>${esc(joinURL)}</div>`}
+    });
+  }
+  function playerRows(compact){
+    return S.players.map((x,i)=>{const isP=S.phase!=='lobby'&&i===S.parentIdx;
+      return `<div class="row ${isP?'par':''}">${compact?`<span class="dot ${online(x.id)?'on':''}"></span>`:''}<span class="no">${i+1}番目</span><span class="nm">${esc(x.name)}</span>
+        <span class="r">${!compact&&!DEMO?`<span class="dot ${online(x.id)?'on':''}"></span>`:''}${S.phase==='lobby'?'':isP?'<span class="badge-par">親</span>':'<span class="badge-ch">子</span>'}${DEMO?'':`<button class="x" title="参加者から外す" onclick="H.remove('${x.id}')">✕</button>`}</span></div>`}).join('');
+  }
+  function sideHTML(){
+    return `<div class="card side">
+      <h3>途中参加はこちら</h3>${qrSlot('qrSmall')}
+      <h3 style="margin-top:16px">参加者（${S.players.length}人）</h3><div class="rows">${playerRows(true)}</div>
+      <div class="tools">
+        ${S.phase==='select'?`<button onclick="H.skipParent()">親を選び直す</button>`:''}
+        <button onclick="H.resetGame()">ゲームを最初に戻す</button>
+        <button onclick="H.resetAll()">参加者も含めて全リセット</button>
+        <button onclick="H.newPeer()">接続IDを作り直す</button>
+      </div></div>`;
+  }
+  function gameHTML(){
+    const p=parent(),q=getQ(S.qid);
+    switch(S.phase){
+    case 'lobby':
+      if(DEMO)return `<h2>参加者登録（完了）</h2>
+        <p class="desc">ダミーのメンバーが参加済みです。「ゲーム開始」を押して始めてください。</p>
+        <div class="rows">${playerRows(false)}</div><button class="btn-main" onclick="H.start()">ゲーム開始</button>`;
+      return `<h2>参加者登録</h2>
+        <p class="desc">スマホでQRコードを読み取って、名前を入れて参加してください。</p>
+        <div class="lobbyqr">${qrSlot('qrBig')}
+          <div style="font-size:15px;line-height:1.8">参加者 <b style="font-size:28px">${S.players.length}</b> 人</div></div>
+        <div class="rows">${playerRows(false)||'<div class="center">まだ誰も参加していません</div>'}</div>
+        <button class="btn-main" onclick="H.start()" ${S.players.length<3?'disabled':''}>ゲーム開始</button>
+        <div class="acts" style="justify-content:center"><button onclick="H.resetAll()">参加者を全員消す</button><button onclick="H.newPeer()">接続IDを作り直す</button></div>`;
+    case 'select':{
+      if(ROUL)return `<h2>今回の親は…</h2>
+        <div class="roul">${S.players.map(x=>{const c=ROUL.cands.includes(x.id);
+          return `<span class="rchip ${!c?'out':''} ${ROUL.hi===x.id?(ROUL.done?'win':'hi'):''}">${esc(x.name)}</span>`}).join('')}</div>
+        ${ROUL.done?`<div class="rresult"><b>${esc(pname(ROUL.target))}</b> さんに決定！</div>`:'<div class="rresult sub">　</div>'}`;
+      const mx=maxN(),nc=childIds().length;if(SELN>mx)SELN=Math.max(2,mx);
+      const you=DEMO&&S.players.find(x=>x.you);
+      return `<h2>問題と分割数を選ぶ</h2>
+        <p class="desc">今回の親は <b>${esc(p?p.name:'')}</b> さんです。問題と分割数を選んでください。</p>
+        <div class="rows">${Q.map((x,i)=>`<button class="row qrow ${SELQ===x.id?'on':''}" onclick="H.pickQ('${x.id}')"><span class="qn">問題${i+1}</span><span class="genre">${esc(x.genre||'—')}</span>${x.used?'<span class="r"><span class="used">済</span></span>':''}</button>`).join('')||'<div class="center">問題がありません。「問題管理」から登録してください。</div>'}</div>
+        <div class="lbl">分割数（2〜5／子の人数 ${nc} 人まで）</div>
+        <div class="nsel">${[2,3,4,5].map(n=>`<button class="${SELN===n?'on':''}" onclick="H.pickN(${n})" ${n>mx?'disabled':''}>${n}</button>`).join('')}</div>
+        <div class="stack"><button class="btn-main" onclick="H.choose()" ${!SELQ||mx<2?'disabled':''}>この問題にする（親のスマホへ送る）</button>
+        ${you&&p&&p.id!==you.id?`<button class="btn-sub" onclick="H.youParent()">次の親をあなたにする</button>`:''}</div>`;}
+    case 'split':
+      return `<h2>親が分割中です</h2>
+        <p class="desc">${esc(qLabel(q))}・分割数 ${S.n} を、親の <b>${esc(p?p.name:'')}</b> さんのスマホに送りました。</p>
+        <div class="center">親のスマホで分割が終わるまで、少しお待ちください。</div>
+        ${DEMO?`<button class="btn-sub" onclick="H.dtab('parent')">親のスマホを開く</button>`
+          :''}
+        <button class="btn-sub" style="margin-top:10px" onclick="H.cancelQ()">この問題を中止する</button>`;
+    case 'answer':{
+      const ids=Object.keys(S.groupOf);
+      return `<h2>解答受付中</h2>
+        <p class="desc">子のみなさんは、スマホで答えを送ってください。</p>
+        ${allAnswered()?'<div class="banner">全員解答済みです</div>':''}
+        <div class="rows">${ids.map(id=>{const d=(S.answers[id]||'').trim(),g=S.groupOf[id];
+          return `<div class="row"><span class="nm">${esc(pname(id))}</span><span class="r" style="margin-left:auto;gap:40px"><span class="gchip g${g}">${GNAME(g)}</span>${d?'<span class="st-ok">解答済み</span>':'<span class="st-no">未解答</span>'}</span></div>`}).join('')}</div>
+        <div class="stack"><button class="btn-main" onclick="H.close()">解答を締め切る</button><button class="btn-sub" onclick="H.cancelQ()">この問題を中止する</button></div>`;}
+    case 'closed':
+      return `<h2>全員の解答</h2>
+        <p class="desc">「正解発表」を押すと、問題文の全文と正解が出ます。</p>
+        ${answersHTML()}<button class="btn-main" onclick="H.reveal()">正解発表</button>`;
+    case 'reveal':{
+      // 全文、またはボタンで選んだグループの人が見ていた問題文（伏せ字つき）
+      const vg=REVG!=null&&REVG<S.n?REVG:null;
+      const full=q?chars(q.text).map((c,k)=>{const g=S.assign[k];return vg==null||g===-1||g===vg?esc(c):'<span class="h">○</span>'}).join(''):'';
+      const mem=g=>Object.keys(S.groupOf).filter(id=>S.groupOf[id]===g).map(pname);
+      return `<div class="reveal"><div class="vtabs"><button class="${vg==null?'on':''}" onclick="H.view(null)">全文</button>
+            ${Array.from({length:S.n},(_,g)=>`<button class="g${g} ${vg===g?'on':''}" onclick="H.view(${g})">${GNAME(g)}<small>${esc(mem(g).join('・'))}</small></button>`).join('')}</div>
+          <div class="full ${vg!=null?'g'+vg+' masked-view':''}">${full}</div>
+          <div class="lab">正解</div><div class="ans">${esc(q?q.answer:'')}</div></div>
+        ${answersHTML()}<button class="btn-main" onclick="H.next()">次の問題へ</button>`;}
+    }
+    return '';
+  }
+  function answersHTML(){
+    const ids=Object.keys(S.groupOf);
+    return `<div class="rows">${ids.map(id=>{const t=(S.answers[id]||'').trim(),g=S.groupOf[id];
+      return `<div class="row ansrow"><span class="who">${esc(pname(id))}</span><span class="glabel g${g}">${GNAME(g)}</span><span class="a ${t?'':'empty'}">${t?esc(t):'（未解答）'}</span></div>`}).join('')}</div>`;
+  }
+  function qmHTML(){
+    const e=EDIT?getQ(EDIT):null;
+    return `<div class="trybox"><div class="t"><b>操作感を確認する（試作品モード）</b><br>1台のPCで、主催者・親・子のすべての画面を切り替えながら試せます。</div>
+        <a href="${location.href.split(/[?#]/)[0]}?demo" target="_blank" rel="noopener">試作品モードを開く ↗</a></div>
+      <h2>${e?'問題を編集':'問題を追加'}</h2>
+        <p class="desc">当日その場での追加・修正もできます。</p>
+      <div class="fg"><label>ジャンル<input id="f_g" value="${esc(e?e.genre:'')}" placeholder="地理"></label>
+        <label>問題文<input id="f_t" value="${esc(e?e.text:'')}" placeholder="日本の首都はどこですか"></label>
+        <label>答え<input id="f_a" value="${esc(e?e.answer:'')}" placeholder="東京"></label></div>
+      <div class="acts"><button class="pri" onclick="QM.save()">${e?'更新する':'追加する'}</button>${e?'<button onclick="QM.clear()">編集をやめる</button>':''}</div>
+      <h2 style="margin-top:28px">問題一覧（${Q.length}問）</h2>
+      <div class="acts" style="margin-bottom:12px"><button onclick="QM.exportJSON()">JSONに書き出す</button>
+        <button onclick="$('#imp').click()">JSONを読み込む</button><input id="imp" type="file" accept=".json,application/json" class="hidden" onchange="QM.importJSON(this)">
+        <button onclick="QM.resetUsed()">「済」をすべて解除</button></div>
+      <table><thead><tr><th>番号</th><th>ジャンル</th><th>問題文</th><th>答え</th><th>状態</th><th></th></tr></thead><tbody>
+      ${Q.map((x,i)=>`<tr><td>問題${i+1}</td><td><span class="genre">${esc(x.genre||'—')}</span></td><td>${esc(x.text)}</td><td>${esc(x.answer)}</td>
+        <td><button class="mini" onclick="QM.toggleUsed('${x.id}')">${x.used?'済':'未'}</button></td>
+        <td style="white-space:nowrap"><button class="mini" onclick="QM.edit('${x.id}')">編集</button> <button class="mini" onclick="QM.del('${x.id}')">削除</button></td></tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  /* ---------- 仮プレイヤーのスマホ画面（デバッグ欄／試作品モード） ---------- */
+  let dock=null;
+  function ensureDock(){
+    if(dock)return dock;
+    dock=document.createElement('div');
+    if(DEMO){
+      dock.id='demoStage';
+      dock.innerHTML=`<div class="inner"><div class="dpills" id="dpills"></div><div class="dstage" id="dstage"></div><div class="dextra" id="dextra"></div></div>`;
+    }else{
+      dock.id='dock';
+      dock.innerHTML=`<div class="dhead"><b>🛠 デバッグ</b><span class="sub">仮プレイヤーのスマホ画面です。ここで直接操作できます。</span><span class="sp"></span>
+        <button onclick="DBG.add(1)">＋仮プレイヤー</button><button onclick="DBG.add(4)">＋4人</button>
+        <button onclick="DBG.autoSplit()">親が自動で分割して配る</button><button onclick="DBG.autoAnswer()">仮の子が自動で解答</button>
+        <button onclick="DBG.removeAll()">仮プレイヤーを全員外す</button><button onclick="DBG.toggle()">閉じる</button></div>
+        <div class="dpills" id="dpills"></div><div class="dstage" id="dstage"></div>`;
+    }
+    document.body.appendChild(dock);return dock;
+  }
+  function addVirtUI(p){
+    if(VIRT[p.id])return;
+    ensureDock();
+    const fr=document.createElement('div');fr.className='pframe hidden';
+    fr.innerHTML=`<div class="notch"></div><div class="pscreen"></div>`;
+    $('#dstage').appendChild(fr);
+    VIRT[p.id]={pid:p.id,frame:fr,ui:ClientUI(fr.querySelector('.pscreen'),{send:m=>handle(p.id,m)})};
+    VIRT[p.id].ui.status(true);
+    if(!DSEL)DSEL=p.id;
+  }
+  function dropVirt(id){const v=VIRT[id];if(!v)return;v.frame.remove();delete VIRT[id];if(DSEL===id)DSEL=Object.keys(VIRT)[0]||null}
+  function renderDockPills(){
+    const el=document.getElementById('dpills');if(!el)return;
+    const p=parent();
+    if(DEMO){
+      let show=null;const ex=$('#dextra');
+      if(DTAB==='parent'){
+        show=p?p.id:null;
+        el.innerHTML=S.phase==='lobby'?'<span class="sub">ゲームを開始すると、親のスマホ画面がここに出ます。</span>':`<button class="on">${esc(p?p.name:'')}のスマホ（親）</button>`;
+        if(ex)ex.innerHTML=S.phase==='split'&&p&&!p.you?`<button onclick="DBG.autoSplit()">（ダミー親の代わりに）自動で分割して配る</button>`:'';
+      }else if(DTAB==='child'){
+        const kids=childIds();if(!DSEL||!kids.includes(DSEL))DSEL=kids[0]||null;show=DSEL;
+        el.innerHTML=kids.map(id=>`<button class="${DSEL===id?'on':''}" onclick="DBG.show('${id}')">${esc(pname(id))}のスマホ</button>`).join('');
+        if(ex)ex.innerHTML='';
+      }
+      Object.values(VIRT).forEach(v=>v.frame.classList.toggle('hidden',v.pid!==show));
+      return;
+    }
+    const ids=S.players.filter(x=>VIRT[x.id]).map(x=>x.id);
+    if(DSEL&&!VIRT[DSEL])DSEL=ids[0]||null;
+    el.innerHTML=ids.length?ids.map(id=>`<button class="${DSEL===id?'on':''}" onclick="DBG.show('${id}')">${esc(pname(id))}のスマホ${S.phase!=='lobby'&&p&&p.id===id?'（親）':''}</button>`).join('')
+      :'<span class="sub">「＋4人」で仮プレイヤーを追加すると、ここでスマホ画面を切り替えて確認できます。</span>';
+    Object.values(VIRT).forEach(v=>v.frame.classList.toggle('hidden',v.pid!==DSEL));
+  }
+  // 試作品モード：ダミーの子（あなた以外）が少し待ってから自動で解答する
+  function demoAutoAnswer(){
+    const q=getQ(S.qid),round=S.round;if(!q)return;
+    Object.keys(S.groupOf).forEach(id=>{
+      const pl=S.players.find(x=>x.id===id);if(!pl||pl.you)return;
+      setTimeout(()=>{
+        if(S.phase!=='answer'||S.round!==round||(S.answers[id]||'').trim())return;
+        handle(id,{t:'answer',text:Math.random()<.5?q.answer:['わからない','東京','水素'][Math.floor(Math.random()*3)]});
+      },1500+Math.random()*3500);
+    });
+  }
+  window.DBG={
+    toggle(){
+      DEBUG=!DEBUG;store('bunkatsu_debug',DEBUG);document.body.classList.toggle('dbg',DEBUG);
+      if(DEBUG){ensureDock().classList.remove('hidden');S.players.filter(p=>p.debug).forEach(addVirtUI);broadcast()}
+      else if(dock)dock.classList.add('hidden');
+      render();
+    },
+    show(id){DSEL=id;renderDockPills()},
+    add(n){
+      const names=['たろう','はなこ','じろう','さくら','けんた','ゆい','そうた','みお'];
+      for(let k=0;k<n;k++){
+        let nm=names.find(x=>!S.players.some(p=>p.name===x));
+        if(!nm){let no=1;while(S.players.some(p=>p.name==='テスト'+no))no++;nm='テスト'+no}
+        const p={id:'dbg-'+uid(6),name:nm,debug:true};S.players.push(p);addVirtUI(p);
+      }
+      commit();
+    },
+    async removeAll(){
+      const ids=S.players.filter(p=>p.debug).map(p=>p.id);
+      if(!ids.length||!await ask(`仮プレイヤー${ids.length}人を全員外しますか？`,{ok:'外す',danger:true}))return;
+      ids.forEach(id=>H.remove(id,true));
+    },
+    autoSplit(){
+      const p=parent(),q=getQ(S.qid);
+      if(S.phase!=='split'||!p||!q){tell('「親が分割中」のときに使えます');return}
+      handle(p.id,{t:'send',assign:autoAssign(q.text,S.n),people:autoPeople(childIds(),S.n)});
+    },
+    autoAnswer(){
+      const q=getQ(S.qid);
+      if(S.phase!=='answer'||!q){tell('「解答受付中」のときに使えます');return}
+      Object.keys(S.groupOf).filter(id=>VIRT[id]&&!(S.answers[id]||'').trim())
+        .forEach(id=>handle(id,{t:'answer',text:Math.random()<.5?q.answer:'わからない'}));
+    },
+  };
+
+  if(DEMO){
+    // 本番の画面（別タブ）で問題を差し替えたら、すぐ反映する
+    addEventListener('storage',e=>{if(e.key==='bunkatsu_questions'){Q=demoQuestions();if(SELQ&&!getQ(SELQ))SELQ=null;render();broadcast()}});
+    ensureDock();S.players.forEach(addVirtUI);
+    render();broadcast();
+    return;
+  }
+  if(DEBUG){document.body.classList.add('dbg');ensureDock();S.players.filter(p=>p.debug).forEach(addVirtUI)}
+  // 参加者のオンライン表示をときどき更新（入力欄のない進行タブのみ）
+  setInterval(()=>{if(TAB==='game')render()},5000);
+  startPeer();render();broadcast();
+}
+
+/* ==================================================================
+   スマホ画面の中身（実機・デバッグ欄・試作品モードで同じものを使う）
+   ================================================================== */
+function ClientUI(root,api){
+  const q=s=>root.querySelector(s);
+  let V=null,OK=false,local={key:'',asg:null,ppl:{},sel:0},draftT=null,lastKey='',lastKids='',editing=false;
+  const send=m=>api.send(m);
+
+  function status(ok){OK=ok;const el=q('.ps');if(el){el.className='ps '+(OK?'ok':'ng');el.textContent=OK?'接続中':'再接続中…'}}
+  function head(role,info){
+    return `<div class="phead"><span class="ps ${OK?'ok':'ng'}">${OK?'接続中':'再接続中…'}</span>
+      <div class="who">${esc(V?V.me.name:'')} のスマホ</div>${role?`<div class="role">${role}</div>`:''}${info?`<div class="qinfo">${info}</div>`:''}</div>`;
+  }
+  const shell=inner=>`<div class="phone">${inner}</div>`;
+  function screenKey(){
+    if(!V)return 'none';
+    if(V.isParent&&V.phase==='split')return 'split'+V.round;
+    if(!V.isParent&&V.phase==='answer'&&!V.late)return 'answer'+V.round;
+    return 'other'+V.phase+V.round+(V.isParent?'p':'c')+(V.late?'l':'')+V.parentName+(V.answer||'');
+  }
+  function render(){
+    const key=screenKey();
+    // 入力中・割り振り中の画面は作り直さず、必要な部分だけ更新する
+    if(key===lastKey&&key.startsWith('answer')){if(!editing)paintAnswer();status(OK);return}
+    if(key===lastKey&&key.startsWith('split')){
+      const kids=(V.children||[]).map(k=>k.id).join(',');
+      if(kids!==lastKids){lastKids=kids;const ok=new Set(kids.split(','));for(const id in local.ppl)if(!ok.has(id))delete local.ppl[id];renderSplit(false)}
+      return;
+    }
+    if(!key.startsWith('answer'))editing=false;
+    lastKey=key;
+    if(key.startsWith('split'))return renderSplit(true);
+    if(key.startsWith('answer'))return renderAnswer();
+    root.innerHTML=shell(otherHTML());
+  }
+  const roleOf=v=>v.phase==='lobby'?'':v.isParent?'あなたは「親」です':'あなたは「子」です';
+  function wait(ic,msg){return `<div class="waitbox"><div class="ic">${ic}</div>${msg}</div>`}
+  function otherHTML(){
+    const v=V;
+    if(v.phase==='lobby')return head('参加しました',' ')+wait('🙌','ゲームが始まるまでお待ちください。');
+    if(v.phase==='rolling')return head('')+wait('🎲','親を決めています…<br>PC画面を見てください。');
+    if(v.phase==='reveal'){
+      return head(roleOf(v),esc(v.qlabel))+`<div class="pfull">${esc(v.full)}</div><div class="pcorrect">正解<b>${esc(v.correct)}</b></div>
+        ${!v.isParent&&!v.late&&v.group!=null?`<p class="pnote" style="text-align:center;margin-top:12px">あなたの解答：<b>${esc(v.answer||'（未解答）')}</b></p>`:''}`;
+    }
+    if(v.isParent){
+      if(v.phase==='select')return head(roleOf(v))+wait('⏳','主催者が問題を選んでいます。<br>選ばれると、ここに問題文の全文が表示されます。');
+      return head(roleOf(v),esc(v.qlabel))+wait('📨','子に配りました。<br>この問題では、あなたは解答しません。<br>PC画面を見てお待ちください。');
+    }
+    if(v.late)return head(roleOf(v))+wait('🕒','この問題の配布後に参加したため、<br>次の問題から参加になります。');
+    if(v.phase==='select')return head(roleOf(v))+wait('⏳',`今回の親は <b>${esc(v.parentName)}</b> さんです。<br>問題が選ばれるまでお待ちください。`);
+    if(v.phase==='split')return head(roleOf(v))+wait('⏳','親が問題文を分割しています。<br>配られると、ここに自分の文字だけが見える<br>問題文が表示されます。');
+    if(v.phase==='closed')return head(roleOf(v),esc(v.qlabel))+wait('📺',`解答を締め切りました。PC画面を見てください。<br><br>あなたの解答：<b>${esc(v.answer||'（未解答）')}</b>`);
+    return head(roleOf(v))+wait('⏳','お待ちください。');
+  }
+
+  /* --- 親：文字と人の割り振り（どちらから先にやってもよい） --- */
+  function renderSplit(fromServer){
+    const v=V,n=v.n,kids=v.children||[];
+    if(fromServer&&(local.key!==lastKey||!local.asg)){
+      local={key:lastKey,asg:(v.assign||v.text.map(()=>null)).slice(),ppl:{...(v.people||{})},sel:0};
+      lastKids=kids.map(k=>k.id).join(',');
+    }
+    const a=local.asg,cnt=Array(n).fill(0),pc=Array(n).fill(0),mem=Array.from({length:n},()=>[]);let left=0;
+    a.forEach(g=>{if(g===null)left++;else if(g>=0)cnt[g]++});
+    kids.forEach(k=>{const g=local.ppl[k.id];if(g!=null&&g<n){pc[g]++;mem[g].push(k.name)}});
+    const kLeft=kids.filter(k=>local.ppl[k.id]==null).length;
+    const ok=left===0&&kLeft===0&&cnt.every(c=>c>0)&&pc.every(c=>c>0);
+    const msg=[];
+    if(left)msg.push(`文字 <b>${left}</b>`);if(kLeft)msg.push(`子 <b>${kLeft}</b>人`);
+    const empt=[];cnt.forEach((c,g)=>{if(!c)empt.push(GNAME(g)+'に文字')});pc.forEach((c,g)=>{if(!c)empt.push(GNAME(g)+'に人')});
+    root.innerHTML=shell(head('あなたは「親」です',`${esc(v.qlabel)} ／ 分割数 ${n}`)+`
+      <div class="bigq">${esc(v.full||v.text.join(''))}</div>
+      <p class="pnote">グループを選んでから、<b>文字</b>や<b>子の名前</b>をタップすると、そのグループに入ります。どちらから先でもOKです。選んでいるグループのボタンだけ色が付きます。もう一度タップすると外れます。句読点などの記号は全員に見えるので、割り振らなくて大丈夫です。</p>
+      <div class="gbtns" style="--n:${n}">${Array.from({length:n},(_,g)=>`<button class="g${g} ${local.sel===g?'on':''}" data-g="${g}">${GNAME(g)}<small>${mem[g].length?esc(mem[g].join('・')):'（人なし）'}</small><small>${cnt[g]}文字</small></button>`).join('')}</div>
+      <div class="plabel">子</div>
+      <div class="kids">${kids.map(k=>{const g=local.ppl[k.id];return `<span class="kid ${g!=null&&g<n?'as g'+g:''}" data-p="${esc(k.id)}">${esc(k.name)}</span>`}).join('')||'<span class="sub" style="font-size:13px">子がいません</span>'}</div>
+      <div class="plabel">問題文</div>
+      <div class="tiles">${v.text.map((c,k)=>{const g=a[k];
+        if(g===-1)return `<span class="tile pu">${esc(c)}</span>`;
+        return `<span class="tile ${g!==null?'as g'+g:''}" data-k="${k}">${esc(c)}</span>`}).join('')}</div>
+      <div class="left">${ok?'<b style="color:var(--main)">準備OK</b> ／ 全ての文字と子が割り振られ、全グループに1文字・1人以上入っています'
+        :`${msg.length?'未割り当て：'+msg.join('、'):''}${msg.length&&empt.length?' ／ ':''}${empt.length?'空き：'+empt.join('、'):''}`}</div>
+      <div class="pbtn3"><button data-act="autoC">文字を<br>おまかせ</button><button data-act="autoP">子を<br>おまかせ</button><button data-act="clr">リセット</button></div>
+      <button class="btn-main" data-act="dist" ${ok?'':'disabled'}>子に配る</button>`);
+    const draft=()=>{clearTimeout(draftT);draftT=setTimeout(()=>send({t:'draft',assign:local.asg,people:local.ppl}),300)};
+    root.querySelectorAll('.gbtns button').forEach(b=>b.onclick=()=>{local.sel=Number(b.dataset.g);renderSplit(false)});
+    root.querySelectorAll('.tile[data-k]').forEach(t=>t.onclick=()=>{
+      const k=Number(t.dataset.k);local.asg[k]=local.asg[k]===local.sel?null:local.sel;renderSplit(false);draft();
+    });
+    root.querySelectorAll('.kid[data-p]').forEach(t=>t.onclick=()=>{
+      const id=t.dataset.p;if(local.ppl[id]===local.sel)delete local.ppl[id];else local.ppl[id]=local.sel;renderSplit(false);draft();
+    });
+    q('[data-act=autoC]').onclick=()=>{local.asg=autoAssign(v.text.join(''),n);renderSplit(false);draft()};
+    q('[data-act=autoP]').onclick=()=>{local.ppl=autoPeople(kids.map(k=>k.id),n);renderSplit(false);draft()};
+    q('[data-act=clr]').onclick=async()=>{if(!await ask('文字と子の割り振りを、すべてやり直しますか？',{ok:'やり直す',danger:true}))return;local.asg=local.asg.map(g=>g===-1?-1:null);local.ppl={};renderSplit(false);draft()};
+    q('[data-act=dist]').onclick=async()=>{if(!ok)return;if(!await ask('この割り振りで子に配りますか？',{ok:'子に配る'}))return;clearTimeout(draftT);send({t:'send',assign:local.asg,people:local.ppl})};
+  }
+
+  /* --- 子：解答 --- */
+  function renderAnswer(){
+    const v=V,g=v.group;
+    root.innerHTML=shell(head('あなたは「子」です')+`
+      <div class="gbanner g${g}">あなたは ${GNAME(g)}</div>
+      <div class="masked g${g}">${v.masked.map(m=>m===null?'<span class="h">○</span>':m.p?`<span class="p">${esc(m.c)}</span>`:`<span class="v">${esc(m.c)}</span>`).join('')}</div>
+      <p class="pnote">色のついた文字があなたの担当です。○は他の人が見ている文字です。見えている文字から問題文を推理して、答えを送ってください。</p>
+      <div class="ansbox"></div>`);
+    editing=!v.answer;
+    paintAnswer();
+  }
+  function paintAnswer(){
+    const box=q('.ansbox');if(!box)return;
+    if(V.answer&&!editing){
+      box.innerHTML=`<div class="donebox">解答を送りました<br><span class="sub" style="font-size:12px">送った解答：${esc(V.answer)}（締め切りまで書き直せます）</span></div><button class="relink">書き直す</button>`;
+      box.querySelector('.relink').onclick=()=>{editing=true;paintAnswer()};
+      return;
+    }
+    box.innerHTML=`<input class="ansIn" maxlength="100" placeholder="答えを入力" value="${esc(V.answer||'')}"><button class="btn-main ansGo">解答を送る</button>`;
+    const inp=box.querySelector('.ansIn'),go=box.querySelector('.ansGo');
+    go.onclick=()=>{const t=inp.value.trim();if(!t){inp.focus();return}editing=false;go.disabled=true;go.textContent='送信中…';send({t:'answer',text:t})};
+    inp.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)go.click()};
+  }
+
+  return {view(v){V=v;render()},status};
+}
+
+/* ==================================================================
+   スマホ（参加者）：接続と参加登録
+   ================================================================== */
+function Client(){
+  const KP='bunkatsu_pid_'+HOST_ID,KN='bunkatsu_name';
+  let pid=load(KP,null),name=load(KN,''),peer=null,conn=null,OK=false,retryT=null,ui=null;
+  let rejoinOnly=!!(pid&&name);   // 保存済みのIDで戻ってきた人（主催者側にいなければ参加し直し）
+
+  if(pid&&name)connect();else joinForm();
+
+  function joinForm(msg){
+    ui=null;
+    app.innerHTML=`<div class="phone join"><div class="t">問題文分割クイズ</div>
+      ${msg?`<p class="pnote" style="color:#b6452a;text-align:center">${esc(msg)}</p>`:''}
+      <p class="pnote" style="text-align:center">名前を入力して参加してください</p>
+      <input id="nm" maxlength="20" value="${esc(name)}" placeholder="名前"><button class="btn-main" id="go">参加する</button></div>`;
+    $('#go').onclick=()=>{
+      const v=$('#nm').value.trim();if(!v){$('#nm').focus();return}
+      name=v;store(KN,name);if(!pid){pid='p'+uid();store(KP,pid)}
+      app.innerHTML=`<div class="phone"><div class="waitbox"><div class="ic">📶</div>接続しています…</div></div>`;
+      if(conn&&conn.open)conn.send({t:'join',pid,name});else connect();
+    };
+  }
+
+  function connect(){
+    clearTimeout(retryT);
+    if(!peer||peer.destroyed){
+      peer=new Peer();
+      peer.on('open',()=>openConn());
+      peer.on('error',()=>{setOK(false);retry()});
+      peer.on('disconnected',()=>{setOK(false);try{peer.reconnect()}catch(_){}});
+    }else if(peer.open)openConn();
+    else retry();
+  }
+  function retry(){clearTimeout(retryT);retryT=setTimeout(connect,2500)}
+  function setOK(v){OK=v;if(ui)ui.status(OK)}
+  function openConn(){
+    try{if(conn)conn.close()}catch(_){}
+    conn=peer.connect(HOST_ID,{reliable:true});
+    conn.on('open',()=>{setOK(true);if(pid&&name){conn.send({t:'join',pid,name,rejoinOnly});rejoinOnly=false}});
+    conn.on('data',d=>{
+      if(d.t==='joined'){pid=d.pid;store(KP,pid)}
+      if(d.t==='view'){
+        if(!d.v.known){localStorage.removeItem(KP);pid=null;joinForm('参加者リストにいないため、もう一度参加してください');return}
+        if(!ui){ui=ClientUI(app,{send:m=>{if(conn&&conn.open)try{conn.send(m)}catch(e){}}});ui.status(OK)}
+        ui.view(d.v);
+      }
+    });
+    conn.on('close',()=>{setOK(false);retry()});
+    conn.on('error',()=>{setOK(false);retry()});
+  }
+}
+</script>
+</body>
+</html>
