@@ -320,7 +320,7 @@ function Host(DEMO){
   }
   const saveQ=()=>DEMO?store(P+'used',Q.filter(q=>q.used).map(q=>q.id)):store(LQ,Q),saveS=()=>store(LS,S);
   const getQ=id=>Q.find(q=>q.id===id);
-  const qLabel=q=>q?`問題${Q.indexOf(q)+1}（${q.genre||'—'}）`:'';
+  const qLabel=q=>q?(q.genre||'—'):'';
   const parent=()=>S.players[S.parentIdx]||null;
   // まだ親をやっていない人の中からランダムに親を決める（全員やったら一巡して、また全員が候補に戻る）
   function pickParent(){
@@ -625,7 +625,7 @@ function Host(DEMO){
         ${you&&p&&p.id!==you.id?`<button class="btn-sub" onclick="H.youParent()">次の親をあなたにする</button>`:''}</div>`;}
     case 'split':
       return `<h2>親が分割中です</h2>
-        <p class="desc">${esc(qLabel(q))}・分割数 ${S.n} を、親の <b>${esc(p?p.name:'')}</b> さんのスマホに送りました。</p>
+        <p class="desc">${esc(qLabel(q))}の問題・分割数 ${S.n} を、親の <b>${esc(p?p.name:'')}</b> さんのスマホに送りました。</p>
         <div class="center">親のスマホで分割が終わるまで、少しお待ちください。</div>
         ${DEMO?`<button class="btn-sub" onclick="H.dtab('parent')">親のスマホを開く</button>`
           :''}
@@ -674,8 +674,8 @@ function Host(DEMO){
       <div class="acts" style="margin-bottom:12px"><button onclick="QM.exportJSON()">JSONに書き出す</button>
         <button onclick="$('#imp').click()">JSONを読み込む</button><input id="imp" type="file" accept=".json,application/json" class="hidden" onchange="QM.importJSON(this)">
         <button onclick="QM.resetUsed()">「済」をすべて解除</button></div>
-      <table><thead><tr><th>番号</th><th>ジャンル</th><th>問題文</th><th>答え</th><th>状態</th><th></th></tr></thead><tbody>
-      ${Q.map((x,i)=>`<tr><td>問題${i+1}</td><td><span class="genre">${esc(x.genre||'—')}</span></td><td>${esc(x.text)}</td><td>${esc(x.answer)}</td>
+      <table><thead><tr><th>ジャンル</th><th>問題文</th><th>答え</th><th>状態</th><th></th></tr></thead><tbody>
+      ${Q.map((x,i)=>`<tr><td><span class="genre">${esc(x.genre||'—')}</span></td><td>${esc(x.text)}</td><td>${esc(x.answer)}</td>
         <td><button class="mini" onclick="QM.toggleUsed('${x.id}')">${x.used?'済':'未'}</button></td>
         <td style="white-space:nowrap"><button class="mini" onclick="QM.edit('${x.id}')">編集</button> <button class="mini" onclick="QM.del('${x.id}')">削除</button></td></tr>`).join('')}
       </tbody></table>`;
