@@ -69,7 +69,13 @@ input:focus{outline:2px solid var(--main-tint);border-color:var(--main)}
 .row .x{border:none;background:none;color:var(--mute);padding:0 4px;font-size:14px}
 .qrow{cursor:pointer;text-align:left;width:100%}
 .qrow .qn{font-weight:900}
-.qrow .qlen{font-size:13px;font-weight:700;color:var(--sub)}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.qgrid .center{grid-column:1/-1}
+.qcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 10px 14px;border:1.5px solid var(--line2);border-radius:12px;background:#fff}
+.qcard .qn{font-size:17px;font-weight:900}
+.qcard .qlen{font-size:13px;font-weight:700;color:var(--sub)}
+.qcard .used{position:absolute;top:7px;right:7px}
+.qcard.on{border-color:var(--main);box-shadow:0 0 0 1px var(--main) inset;background:#f3f9f7}
 .genre{display:inline-block;background:var(--main-tint);color:var(--main-d);font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px}
 .used{background:#ecebe6;color:var(--sub);font-size:12px;font-weight:900;border-radius:6px;padding:1px 7px}
 .qrow.on{border-color:var(--main);box-shadow:0 0 0 1px var(--main) inset}
@@ -612,7 +618,7 @@ function Host(DEMO){
       const you=DEMO&&S.players.find(x=>x.you);
       return `<h2>問題と分割数を選ぶ</h2>
         <p class="desc">今回の親は <b>${esc(p?p.name:'')}</b> さんです。問題と分割数を選んでください。</p>
-        <div class="rows">${Q.map((x,i)=>`<button class="row qrow ${SELQ===x.id?'on':''}" onclick="H.pickQ('${x.id}')"><span class="qn">問題${i+1}</span><span class="genre">${esc(x.genre||'—')}</span><span class="qlen">${chars(x.text).filter(c=>!PUNCT.test(c)).length}文字</span>${x.used?'<span class="r"><span class="used">済</span></span>':''}</button>`).join('')||'<div class="center">問題がありません。「問題管理」から登録してください。</div>'}</div>
+        <div class="qgrid">${Q.map((x,i)=>`<button class="qcard ${SELQ===x.id?'on':''}" onclick="H.pickQ('${x.id}')"><span class="qn">問題${i+1}</span><span class="genre">${esc(x.genre||'—')}</span><span class="qlen">${chars(x.text).filter(c=>!PUNCT.test(c)).length}文字</span>${x.used?'<span class="used">済</span>':''}</button>`).join('')||'<div class="center">問題がありません。「問題管理」から登録してください。</div>'}</div>
         <div class="lbl">分割数（2〜5／子の人数 ${nc} 人まで）</div>
         <div class="nsel">${[2,3,4,5].map(n=>`<button class="${SELN===n?'on':''}" onclick="H.pickN(${n})" ${n>mx?'disabled':''}>${n}</button>`).join('')}</div>
         <div class="stack"><button class="btn-main" onclick="H.choose()" ${!SELQ||mx<2?'disabled':''}>この問題にする（親のスマホへ送る）</button>
